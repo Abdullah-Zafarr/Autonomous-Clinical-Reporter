@@ -12,16 +12,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     return NextResponse.json(
-      { error: "Missing OPENAI_API_KEY. Please add it to your .env file." },
+      { error: "Missing GROQ_API_KEY or OPENAI_API_KEY. Please add it to your .env file." },
       { status: 500 }
     );
   }
 
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+  const isGroq = Boolean(process.env.GROQ_API_KEY);
+  const aiClient = new OpenAI({
+    apiKey,
+    baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
   });
+  const aiModel = isGroq
+    ? (process.env.GROQ_MODEL || "llama-3.3-70b-versatile")
+    : (process.env.OPENAI_MODEL || "gpt-4o-mini");
 
   try {
     const body = await req.json();
@@ -76,8 +82,8 @@ ${JSON.stringify(currentState)}
 "${text}"
 `;
 
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    const response = await aiClient.chat.completions.create({
+      model: aiModel,
       messages: [
         { role: "system", content: systemPrompt },
       ],

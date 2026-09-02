@@ -20,7 +20,9 @@ export async function GET() {
       dicomwebConfigured: Boolean(process.env.NEXT_PUBLIC_DICOMWEB_API_URL),
       hl7ExportConfigured: Boolean(process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL),
       reportApiConfigured: Boolean(process.env.NEXT_PUBLIC_REPORT_API_URL),
-      gladiaApiConfigured: Boolean(process.env.GLADIA_API_KEY),
+      gladiaApiConfigured: Boolean(process.env.DEEPGRAM_API_KEY || process.env.GLADIA_API_KEY),
+      deepgramConfigured: Boolean(process.env.DEEPGRAM_API_KEY),
+      groqConfigured: Boolean(process.env.GROQ_API_KEY),
     };
 
     return NextResponse.json(payload);

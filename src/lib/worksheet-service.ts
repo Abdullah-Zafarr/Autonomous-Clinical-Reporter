@@ -82,6 +82,17 @@ const normalizeWorksheetRecord = (record: any): WorksheetRecord | null => {
   } as WorksheetRecord;
 };
 
+const isMissingTableError = (error: any) => {
+  if (!error) return false;
+  const message = `${error?.message ?? ""} ${error?.details ?? ""}`.toLowerCase();
+  return (
+    error?.code === "PGRST205" ||
+    error?.code === "42P01" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist")
+  );
+};
+
 const isMissingColumnError = (error: any, column: string) => {
   const message = `${error?.message ?? ""} ${error?.details ?? ""} ${error?.hint ?? ""}`.toLowerCase();
   return (
@@ -90,6 +101,7 @@ const isMissingColumnError = (error: any, column: string) => {
     message.includes("column")
   );
 };
+
 
 const OPTIONAL_WORKSHEET_COLUMNS = new Set([
   "created_by",
@@ -179,6 +191,10 @@ export async function loadWorksheet(
   }
 
   const { data, error } = await query.maybeSingle();
+
+  if (isMissingTableError(error)) {
+    return null;
+  }
 
   if (error) throw error;
   return normalizeWorksheetRecord(data);
@@ -342,6 +358,10 @@ export async function getReportHistory(patientId: string) {
     .eq("patient_id", patientId)
     .in("status", ["signed", "transmitted", "failed"])
     .order("signed_at", { ascending: false, nullsFirst: false });
+
+  if (isMissingTableError(error)) {
+    return [];
+  }
 
   if (isMissingColumnError(error, "patient_id")) {
     const { data: studies, error: studiesError } = await db

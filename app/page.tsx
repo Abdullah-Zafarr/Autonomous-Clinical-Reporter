@@ -318,8 +318,8 @@ export default function SonolynxApp() {
 
         setLastSaved(existing.updated_at ? new Date(existing.updated_at) : new Date());
       } catch (error) {
-        console.error("[worksheet-load] Critical failure:", error);
-        toast.error("Worksheet load failed", {
+        console.warn("[worksheet-load] Notice:", (error as any)?.message || error);
+        toast.error("Worksheet load notice", {
           description: error instanceof Error ? error.message : "Unable to load worksheet",
         });
       }
@@ -338,7 +338,7 @@ export default function SonolynxApp() {
         const history = await getReportHistory(patient.id);
         if (active) setReportHistory(history);
       } catch (error) {
-        console.error("[report-history] Failed to load:", error);
+        console.warn("[report-history] Failed to load:", (error as any)?.message || error);
         if (active) setReportHistory([]);
       } finally {
         if (active) setLoadingHistory(false);
