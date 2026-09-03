@@ -27,12 +27,15 @@ Sonolynx is a professional clinical reporting and ultrasound worksheet workflow 
 ### Report Generation
 ![Generate Report](screenshots/generate%20report.PNG)
 
-## Tech Stack
+## Tech Stack & Architecture
 
-- **Framework**: Next.js (App Router)
-- **Database**: Supabase (PostgreSQL)
-- **Transcription**: Gladia / Deepgram
-- **Styling**: Tailwind CSS / Lucide React
-- **Deployment**: Fly.io
+- **Frontend & Framework**: [Next.js](https://nextjs.org/) (App Router, Turbopack, React 19)
+- **Styling & UI**: [Tailwind CSS](https://tailwindcss.com/), Radix UI Primitives, Lucide Icons, Shadcn UI
+- **Database & Authentication**: [Supabase](https://supabase.com/) (PostgreSQL, Row-Level Security, Session & Role Management)
+- **AI Clinical Scribe**: [Groq](https://groq.com/) Cloud LLMs (`openai/gpt-oss-120b`) with ACR radiology transcription guardrails
+- **Medical Dictation (STT)**: [Deepgram](https://deepgram.com/) Medical Speech API + Web Speech API for real-time transcription
+- **Medical Imaging (PACS)**: Cornerstone.js & DICOMweb viewer (Window/Level, Zoom, Pan, Cine playback)
+- **Clinical Interoperability**: HL7 v2.x (`ORU^R01`) export and transmission engine
+- **Deployment**: [Vercel](https://vercel.com/) (Production Serverless & Edge Network)
 
 Made as a part of my internship at Bricklix
