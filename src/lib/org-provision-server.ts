@@ -7,9 +7,17 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
+const CANONICAL_SUPABASE_URL = "https://ecjbflirovcqqoqnzlsc.supabase.co";
+const CANONICAL_SERVICE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjamJmbGlyb3ZjcXFvcW56bHNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkxNzg2NiwiZXhwIjoyMTAzNDkzODY2fQ.Ja4RdtRuUS1rZbFejUwhjbZvOM06lZzJZAbi8wQ3AYk";
+
 function getServiceClient() {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const rawUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const isLegacyOrEmpty =
+    !rawUrl || rawUrl.includes("mbskxsigmaduwywvluin") || !rawKey || rawKey.includes("mbskxsigmaduwywvluin");
+  const url = isLegacyOrEmpty ? CANONICAL_SUPABASE_URL : rawUrl;
+  const serviceKey = isLegacyOrEmpty ? CANONICAL_SERVICE_KEY : rawKey;
   if (!url || !serviceKey) return null;
   return createServiceClient<Database>(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
