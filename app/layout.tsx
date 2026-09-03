@@ -3,6 +3,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://sonolynx.app"),
   title: "Sonolynx Radiology",
   description: "Sonolynx Radiology is a HIPAA-compliant platform for sonographers to document ultrasound findings and generate standardized reports.",
   authors: [{ name: "Sonolynx Radiology" }],

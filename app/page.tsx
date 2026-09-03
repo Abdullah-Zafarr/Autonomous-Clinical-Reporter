@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -129,7 +129,10 @@ export default function SonolynxApp() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(new Date());
+  const [isDirty, setIsDirty] = useState(false);
+  const isInitialMount = useRef(true);
   const [worklistRefresh, setWorklistRefresh] = useState(0);
+  const [editedReportText, setEditedReportText] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState(initialMockCase?.notes ?? "");
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; email: string }>>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -242,8 +245,23 @@ export default function SonolynxApp() {
   }, [user?.id, role, loading]);
 
   useEffect(() => {
-    setLastSaved(new Date());
-  }, [worksheet, thyroid, ob, vascular, exam, abdomenOrder]);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setIsDirty(true);
+  }, [worksheet, thyroid, ob, vascular, exam, abdomenOrder, additionalNotes, editedReportText]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   const accession = useMemo(
     () => patient.accessionNumber || `ACC-${patient.mrn.replace(/\D/g, "").slice(-6)}-${new Date().getFullYear()}`,
@@ -261,8 +279,6 @@ export default function SonolynxApp() {
     const data = exam === "Thyroid" ? thyroid : exam === "OB" ? ob : exam === "Vascular" ? vascular : worksheet;
     return validateExamWorksheet(exam, data);
   }, [exam, thyroid, worksheet, ob, vascular]);
-
-  const [editedReportText, setEditedReportText] = useState("");
 
   const finalReportText = useMemo(() => {
     if (editedReportText) return editedReportText;
@@ -599,6 +615,7 @@ export default function SonolynxApp() {
       });
       setCurrentWorksheet(saved);
       setLastSaved(saved.updated_at ? new Date(saved.updated_at) : new Date());
+      setIsDirty(false);
       await writeAuditLog({
         userId: user.id,
         patientId: patient.id,
@@ -701,6 +718,7 @@ export default function SonolynxApp() {
       }
 
       setCurrentWorksheet(signed);
+      setIsDirty(false);
 
       // Update study status to 'completed'
       if (patient.studyId) {
@@ -977,7 +995,7 @@ export default function SonolynxApp() {
                     setDialogReportText(structuredReportText);
                     setStructuredReportOpen(true);
                   }}
-                  lastSavedLabel={`${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : ""}`}
+                  lastSavedLabel={`${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`}
                   additionalNotes={additionalNotes}
                   onAdditionalNotesChange={setAdditionalNotes}
                   canSignAndSend={canSignAndSend}

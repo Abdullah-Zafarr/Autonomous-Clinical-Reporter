@@ -2,11 +2,24 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   const supabase = await createServerClient();
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const { data: bearerUser } = await supabase.auth.getUser(token);
+      if (bearerUser?.user) {
+        user = bearerUser.user;
+      }
+    }
+  }
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,7 +28,7 @@ export async function POST(req: Request) {
   const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Missing GROQ_API_KEY or OPENAI_API_KEY. Please add it to your .env file." },
+      { error: "Missing GROQ_API_KEY or OPENAI_API_KEY. Please configure your API key." },
       { status: 500 }
     );
   }
@@ -25,9 +38,15 @@ export async function POST(req: Request) {
     apiKey,
     baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
   });
-  const aiModel = isGroq
-    ? (process.env.GROQ_MODEL || "llama-3.3-70b-versatile")
-    : (process.env.OPENAI_MODEL || "gpt-4o-mini");
+
+  const candidateModels = isGroq
+    ? [
+        process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "groq/compound-mini",
+      ]
+    : [process.env.OPENAI_MODEL || "gpt-4o-mini", "gpt-4o"];
 
   try {
     const body = await req.json();
@@ -56,7 +75,7 @@ The worksheet structure (WorksheetData) is as follows:
 3. **NO ASSUMPTIONS**: NEVER return data for an organ or field as "Normal", "Clear", or "None" unless the user explicitly stated it was normal.
 4. If the user only provides general notes, your response should ONLY contain the "additionalNotes" field and NO abdomen/thyroid/ob/vascular keys.
 5. Normalize measurements (e.g., "14 centimeters" -> "14", "3 millimeters" -> "3").
-5. Map descriptive findings to the nearest valid enum value if applicable:
+6. Map descriptive findings to the nearest valid enum value if applicable:
    - Liver Echotexture: "Homogeneous", "Diffusely echogenic (fatty infiltration)", "Coarse"
    - Gallbladder Content: "Clear", "Sludge", "Gallstones"
    - Duct State: "Normal", "Dilated"
@@ -70,7 +89,6 @@ The worksheet structure (WorksheetData) is as follows:
 Return a JSON object containing the updated fields. 
 The object should have the same structure as the worksheet sections (e.g., { abdomen: { ... }, thyroid: { ... } }).
 Crucially, if there is any text in the dictation that does NOT logically map to a specific box in the schema above (e.g. general observations, clinical context, or findings for organs not listed), you MUST include that text in a top-level "additionalNotes" string field in your response.
-Example: { "abdomen": { "liver": { "size": "14" } }, "additionalNotes": "Patient was cooperative but had significant bowel gas." }
 
 ### ACTIVE EXAM TYPE:
 ${currentExam}
@@ -82,20 +100,33 @@ ${JSON.stringify(currentState)}
 "${text}"
 `;
 
-    const response = await aiClient.chat.completions.create({
-      model: aiModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0,
-      max_tokens: 800,
-    });
+    let lastError: any = null;
+    for (const model of candidateModels) {
+      try {
+        const response = await aiClient.chat.completions.create({
+          model,
+          messages: [{ role: "system", content: systemPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0,
+          max_tokens: 800,
+        });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    return NextResponse.json(result);
+        const rawContent = response.choices[0]?.message?.content || "{}";
+        const result = JSON.parse(rawContent);
+        return NextResponse.json(result);
+      } catch (err) {
+        lastError = err;
+        console.warn(`[extract] Model ${model} failed, trying next candidate:`, err);
+      }
+    }
+
+    console.error("[extract] All AI models failed, using fallback:", lastError);
+    return NextResponse.json({
+      additionalNotes: text,
+      warning: "AI structured extraction failed, recorded in additional notes.",
+    });
   } catch (error) {
-    console.error("Extraction error:", error);
+    console.error("Extraction request error:", error);
     return NextResponse.json({ error: "Failed to extract findings" }, { status: 500 });
   }
 }

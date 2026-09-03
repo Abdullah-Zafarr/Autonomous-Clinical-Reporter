@@ -2,22 +2,50 @@ import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { ensureUserOrganization } from "@/lib/org-provision-server";
 import type { ReportBrandingSettings } from "@/lib/report-template-types";
+import { isSuperAdminEmail } from "@/lib/super-admin";
 
-async function ensureAdmin() {
+export const dynamic = "force-dynamic";
+
+async function ensureAdmin(req?: Request) {
   const supabase = await createServerClient();
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user && req) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const { data: bearerUser } = await supabase.auth.getUser(token);
+      if (bearerUser?.user) user = bearerUser.user;
+    }
+  }
+
   if (!user) return { ok: false as const, status: 401, error: "Unauthorized" };
 
-  const { data: roles } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "admin");
+  let isAdmin = isSuperAdminEmail(user.email);
+  if (!isAdmin) {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin");
 
-  if (!roles || roles.length === 0) {
+    if (roles && roles.length > 0) {
+      isAdmin = true;
+    } else {
+      const { data: profileRow } = await (supabase as any)
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profileRow?.role === "admin") {
+        isAdmin = true;
+      }
+    }
+  }
+
+  if (!isAdmin) {
     return { ok: false as const, status: 403, error: "Forbidden: admin role required" };
   }
 
@@ -57,8 +85,8 @@ function sanitizeInput(input: ReportBrandingSettings): ReportBrandingSettings {
   };
 }
 
-export async function GET() {
-  const auth = await ensureAdmin();
+export async function GET(request: Request) {
+  const auth = await ensureAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
@@ -80,7 +108,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await ensureAdmin();
+  const auth = await ensureAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {

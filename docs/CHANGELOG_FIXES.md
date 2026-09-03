@@ -138,18 +138,63 @@ This document provides a comprehensive log of all bugs, glitches, and reliabilit
 
 ---
 
-## 6. Verification & Build Matrix
+---
+
+## 7. Super Admin & Multi-Tenancy Stabilization
+
+### The Problem
+* **User Symptom**: Admin user logged in on dashboard but was denied Super Admin access, couldn't access Platform Control or change plan tiers, and experienced intermittent 403 Forbidden errors when modifying roles or deleting users.
+* **Root Causes**:
+  1. `SUPER_ADMIN_EMAIL` was hardcoded to a single string (`dev@sonolynx.com`) which didn't match the active admin user (`abdullahzafar.codes@gmail.com`).
+  2. Endpoints only checked `request.headers.get("authorization")` and failed when browsers communicated with standard HTTP cookies.
+  3. Role mutations only touched `profiles` without syncing `user_roles`.
+  4. Core administrative tabs ("System Configuration" and "HL7 Operations") were unnecessarily hidden behind Super Admin flags.
+
+### How It Was Fixed
+1. Built a centralized verification engine in `src/lib/super-admin.ts` supporting comma-separated `SUPER_ADMIN_EMAIL` lists, lowercase normalization, whitespace trimming, and database owner checks.
+2. Updated all admin API routes (`check-super-admin`, `create-user`, `delete-user`, `set-org-tier`, `set-user-role`, `system-health`, `branding`) to authenticate seamlessly via both cookies (`createServerClient`) and Bearer tokens.
+3. Synchronized role changes across both `profiles.role` and `user_roles.role`.
+4. Opened System Configuration and HL7 Operations to all clinical administrators while keeping Platform Control restricted to Super Admins.
+
+---
+
+## 8. Production Deployment & Reliability Hardening
+
+### Changes Implemented
+1. **Clinical Data Loss Prevention (`beforeunload` & `isDirty`)**:
+   - Added live modification tracking (`isDirty`) across all worksheet fields, clinical notes, and report text in `app/page.tsx`.
+   - Wired a window `beforeunload` protection handler that warns clinicians before accidental tab closure or browser back navigation.
+   - Enhanced `lastSavedLabel` to display live `• Unsaved` indicators.
+2. **Global React Error Boundary (`app/error.tsx`)**:
+   - Implemented an interactive error boundary with recovery actions ("Try Again" and "Return Home") to prevent total app crashes.
+3. **HTTP Security Headers (`next.config.js`)**:
+   - Injected production security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`.
+   - Disabled `poweredByHeader` to prevent fingerprinting.
+4. **Metadata & OpenGraph Resolution (`app/layout.tsx`)**:
+   - Added `metadataBase: new URL(...)` to eliminate Turbopack deployment warnings and guarantee correct asset URLs on Vercel.
+5. **Structured AI Extraction Fallback (`app/api/extract/route.ts`)**:
+   - Upgraded extraction endpoint with multi-model fallback (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `groq/compound-mini`) and safe fallback to `additionalNotes` to ensure dictation is never lost on network or rate-limit issues.
+6. **Clean Root Directory**:
+   - Relocated `fly.toml` to `deploy/fly.toml`.
+   - Consolidated Prettier config directly into `package.json`.
+   - Removed legacy `.eslintrc.json`, `proxy.ts`, and temporary scratch directories.
+7. **Authentication UX (`app/login/page.tsx`)**:
+   - Added auto-redirect from `/login` to `/` for already authenticated users.
+
+---
+
+## 9. Verification & Build Matrix
 
 | Test Suite / Verification Item | Result | Notes |
 | :--- | :--- | :--- |
-| **TypeScript Compilation (`tsc --noEmit`)** | **PASSED (0 errors)** | Full strict type checking across all components & routes. |
-| **ESLint Audit (`next lint` / `eslint .`)** | **PASSED (0 warnings)** | Clean code standards; React Compiler manual memoization satisfied. |
-| **Deepgram Medical STT WebSocket** | **PASSED** | Live binary PCM streaming verified with `nova-2-medical`. |
-| **Web Speech API Fallback** | **PASSED** | Instant fallback activated if network or keys unavailable. |
-| **Supabase Worklist & Studies Sync** | **PASSED** | Studies transition from `review_pending` to `completed`. |
-| **Production Build (`next build`)** | **PASSED** | Optimized Turbopack standalone production bundle. |
+| **TypeScript Compilation (`tsc --noEmit`)** | **PASSED (0 errors)** | Strict type checking passed across entire app. |
+| **ESLint Audit (`eslint .`)** | **PASSED (0 warnings)** | Clean code standards; React 19 rules satisfied. |
+| **Production Build (`next build`)** | **PASSED (0 errors, 0 warnings)** | Full Turbopack standalone production compilation. |
+| **Deepgram Medical STT WebSocket** | **PASSED** | Live binary PCM streaming with `nova-2-medical`. |
+| **Web Speech API Fallback** | **PASSED** | Zero-config fallback on unsupported clients. |
+| **Supabase Cloud DB Persistence** | **PASSED** | Localhost & Vercel connect to shared cloud database. |
 
 ---
 
 ## Conclusion
-The SonoFlow / SonoLynx application is now robust, resilient against external network interruptions, secure with proper Supabase authentication and RLS, and production-ready for daily clinical and sonographic operations.
+The application has undergone a comprehensive end-to-end production audit and hardening. All UI glitches, authentication edge cases, speech-to-text streams, report generation workflows, and database roles are fully verified and ready for production deployment on Vercel.
