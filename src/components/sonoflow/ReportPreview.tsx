@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Activity, AlertCircle, Edit3, Check } from "lucide-react";
+import { FileText, Activity, AlertCircle, Edit3, Check, Sparkles } from "lucide-react";
 import type { ReportSections } from "@/lib/report-engine";
 import type { ValidationIssue } from "@/lib/clinical-validator";
 import type { Patient } from "@/lib/sonoflow-types";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
 
 interface Props {
   patient: Patient;
@@ -36,6 +37,7 @@ export function ReportPreview({
   onSign,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const notes = additionalNotes.trim();
 
   return (
@@ -47,18 +49,30 @@ export function ReportPreview({
           <div className="ml-auto flex items-center gap-2">
             <Badge variant="outline" className="text-[10px]">LIVE</Badge>
             {isDoctorMode && (
-              <Button
-                variant={isEditing ? "default" : "outline"}
-                size="sm"
-                className="h-6 px-2.5 text-[10px] font-semibold tracking-wide"
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? (
-                  <><Check className="mr-1.5 h-3 w-3" /> Done</>
-                ) : (
-                  <><Edit3 className="mr-1.5 h-3 w-3" /> Edit</>
-                )}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1 transition-all shadow-xs"
+                  onClick={() => setAiAssistantOpen(true)}
+                  title="Draft or enhance report with AI Clinical Assistant"
+                >
+                  <Sparkles className="h-3 w-3 text-blue-600" />
+                  AI Drafter
+                </Button>
+                <Button
+                  variant={isEditing ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 px-2.5 text-[10px] font-semibold tracking-wide"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? (
+                    <><Check className="mr-1.5 h-3 w-3" /> Done</>
+                  ) : (
+                    <><Edit3 className="mr-1.5 h-3 w-3" /> Edit</>
+                  )}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -197,7 +211,16 @@ export function ReportPreview({
               <span>Pending Doctor Signature</span>
             </div>
             <div className="flex gap-2">
-              <Button variant="default" className="w-full font-bold" onClick={onSign}>
+              <Button
+                type="button"
+                variant="outline"
+                className="font-semibold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-800 gap-1.5 transition-all"
+                onClick={() => setAiAssistantOpen(true)}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                Draft with AI
+              </Button>
+              <Button variant="default" className="flex-1 font-bold" onClick={onSign}>
                 Sign & Finalize Report
               </Button>
             </div>
@@ -208,6 +231,18 @@ export function ReportPreview({
           Electronically generated · Sonolynx Radiology · Pending sonographer signature
         </footer>
       )}
+
+      <AiReportAssistantDialog
+        open={aiAssistantOpen}
+        onOpenChange={setAiAssistantOpen}
+        examType={patient.exam || "Ultrasound"}
+        patient={patient}
+        currentReportText={editableText}
+        onApplyReport={(text) => {
+          onEditableTextChange?.(text);
+          setIsEditing(true);
+        }}
+      />
     </aside>
   );
 }
