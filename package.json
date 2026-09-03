@@ -10,7 +10,13 @@
     "typecheck": "tsc --noEmit",
     "validate:rules": "tsx scripts/random-findings-validation.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write --ignore-path .gitignore ."
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": false,
+    "trailingComma": "all"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
