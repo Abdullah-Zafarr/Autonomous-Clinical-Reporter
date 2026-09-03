@@ -672,8 +672,8 @@ export default function AdminDashboard() {
           <TabsList className="h-auto w-full flex-wrap justify-start">
             <TabsTrigger value="staff">Staff Management</TabsTrigger>
             <TabsTrigger value="reports">Signed Reports</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="system">System Configuration</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="hl7">HL7 Operations</TabsTrigger>}
+            <TabsTrigger value="system">System Configuration</TabsTrigger>
+            <TabsTrigger value="hl7">HL7 Operations</TabsTrigger>
             <TabsTrigger value="templates">Report Templates</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
             <TabsTrigger value="overview">Workflow Overview</TabsTrigger>

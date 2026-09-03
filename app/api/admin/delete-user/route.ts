@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { ensureUserOrganization } from "@/lib/org-provision-server";
+import { isUserSuperAdmin } from "@/lib/super-admin";
 import type { Database } from "@/integrations/supabase/types";
 
 type DeletePayload = {
@@ -29,16 +30,19 @@ export async function POST(request: Request) {
 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: adminRoleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin");
-    if (!adminRoleRows || adminRoleRows.length === 0) {
-      return NextResponse.json({ error: "Forbidden: admin role required" }, { status: 403 });
-    }
+    const service = getServiceClient();
+    const isSuperAdmin = await isUserSuperAdmin(user, service);
 
-    const isSuperAdmin = user.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
+    if (!isSuperAdmin) {
+      const { data: adminRoleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin");
+      if (!adminRoleRows || adminRoleRows.length === 0) {
+        return NextResponse.json({ error: "Forbidden: admin role required" }, { status: 403 });
+      }
+    }
 
     const { data: adminProfile } = await (supabase as any)
       .from("profiles")
@@ -76,8 +80,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const service = getServiceClient();
-    
     if (!service) {
       return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500 });
     }

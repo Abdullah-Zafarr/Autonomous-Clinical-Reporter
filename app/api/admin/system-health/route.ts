@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase-server";
+import { isUserSuperAdmin } from "@/lib/super-admin";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -10,11 +13,32 @@ export async function GET() {
 
     const localDevBypass =
       process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
-    const isSuperAdmin =
-      localDevBypass || user?.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
 
-    if (!localDevBypass && (!user || !isSuperAdmin)) {
-      return NextResponse.json({ error: "Forbidden: super admin role required" }, { status: 403 });
+    if (!localDevBypass) {
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const isSuperAdmin = await isUserSuperAdmin(user);
+      if (!isSuperAdmin) {
+        const { data: adminRoleRows } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin");
+
+        if (!adminRoleRows || adminRoleRows.length === 0) {
+          const { data: profile } = await (supabase as any)
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile?.role !== "admin") {
+            return NextResponse.json({ error: "Forbidden: admin access required" }, { status: 403 });
+          }
+        }
+      }
     }
 
     const payload = {

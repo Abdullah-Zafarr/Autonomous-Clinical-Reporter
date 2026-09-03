@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { ensureUserOrganization } from "@/lib/org-provision-server";
+import { isUserSuperAdmin } from "@/lib/super-admin";
 import type { Database } from "@/integrations/supabase/types";
 
 type CreateUserPayload = {
@@ -28,13 +29,17 @@ function getServiceClient() {
 export async function POST(request: Request) {
   try {
     const supabase = await createServerClient();
-    const localDevBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!localDevBypass) {
+    const localDevBypass =
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+
+    const service = getServiceClient();
+    const isSuperAdmin = localDevBypass || (await isUserSuperAdmin(user, service));
+
+    if (!localDevBypass && !isSuperAdmin) {
       if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
@@ -49,9 +54,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Forbidden: admin role required" }, { status: 403 });
       }
     }
-
-    const isSuperAdmin =
-      localDevBypass || user?.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
+    
     let adminOrganizationId: string | null = null;
 
     if (!localDevBypass && user) {
@@ -87,8 +90,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
-    const service = getServiceClient();
 
     if (!service) {
       return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500 });
