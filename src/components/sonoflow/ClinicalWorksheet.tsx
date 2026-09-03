@@ -366,6 +366,11 @@ export function ClinicalWorksheet({
   const prevOrderRef = useRef<string[]>(abdomenOrder);
 
   useEffect(() => {
+    if (abdomenOrder.length === 0) {
+      setExpandedItems([]);
+      prevOrderRef.current = [];
+      return;
+    }
     const newlyAdded = abdomenOrder.filter(id => !prevOrderRef.current.includes(id));
     if (newlyAdded.length > 0) {
       setExpandedItems(prev => [...prev, ...newlyAdded]);

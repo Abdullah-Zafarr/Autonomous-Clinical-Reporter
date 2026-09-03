@@ -109,11 +109,11 @@ export default function SonolynxApp() {
 
   const initialMockCase = mockPatientCases[0];
   const [patient, setPatient] = useState<Patient>(initialMockCase?.patient ?? mockPatients[0]);
-  const [worksheet, setWorksheet] = useState<WorksheetData>(initialMockCase?.worksheet ?? defaultWorksheet);
-  const [thyroid, setThyroid] = useState<ThyroidData>(initialMockCase?.thyroid ?? defaultThyroid);
-  const [ob, setOb] = useState<ObData>(initialMockCase?.ob ?? defaultOb);
-  const [vascular, setVascular] = useState<VascularData>(initialMockCase?.vascular ?? defaultVascular);
-  const [exam, setExam] = useState<ExamType>(initialMockCase?.examType ?? "Abdomen");
+  const [worksheet, setWorksheet] = useState<WorksheetData>(defaultWorksheet);
+  const [thyroid, setThyroid] = useState<ThyroidData>(defaultThyroid);
+  const [ob, setOb] = useState<ObData>(defaultOb);
+  const [vascular, setVascular] = useState<VascularData>(defaultVascular);
+  const [exam, setExam] = useState<ExamType>("Abdomen");
   const [showDicom, setShowDicom] = useState(false);
   const [showWorklist, setShowWorklist] = useState(false);
   const [hl7Open, setHl7Open] = useState(false);
@@ -133,7 +133,7 @@ export default function SonolynxApp() {
   const isInitialMount = useRef(true);
   const [worklistRefresh, setWorklistRefresh] = useState(0);
   const [editedReportText, setEditedReportText] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState(initialMockCase?.notes ?? "");
+  const [additionalNotes, setAdditionalNotes] = useState("");
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; email: string }>>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [abdomenOrder, setAbdomenOrder] = useState<string[]>([]);
@@ -376,7 +376,15 @@ export default function SonolynxApp() {
         const existing = await loadWorksheet(patient.studyId, undefined, activeWorksheetId);
         if (!active) return;
         if (!existing) {
+          setCurrentWorksheet(null);
+          setWorksheet(defaultWorksheet);
+          setThyroid(defaultThyroid);
+          setOb(defaultOb);
+          setVascular(defaultVascular);
+          setAbdomenOrder([]);
+          setAdditionalNotes("");
           setEditedReportText("");
+          setIsDirty(false);
           return;
         }
         setCurrentWorksheet(existing);
