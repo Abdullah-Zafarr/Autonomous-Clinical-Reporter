@@ -319,6 +319,8 @@ function buildMockPatientCases(): MockPatientCase[] {
       lastName,
       dob: makeDob(rng),
       exam: examType === "Thyroid" ? "Thyroid US" : "Complete Abdomen US",
+      studyId: `00000000-0000-0000-0001-${String(idx + 1).padStart(12, '0')}`,
+      accessionNumber: `ACC-MOCK-${String(1000 + idx)}`,
     };
     return {
       patient,

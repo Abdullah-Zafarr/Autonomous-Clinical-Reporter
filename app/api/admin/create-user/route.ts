@@ -28,37 +28,45 @@ function getServiceClient() {
 export async function POST(request: Request) {
   try {
     const supabase = await createServerClient();
+    const localDevBypass =
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!localDevBypass) {
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { data: adminRoleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin");
+
+      if (!adminRoleRows || adminRoleRows.length === 0) {
+        return NextResponse.json({ error: "Forbidden: admin role required" }, { status: 403 });
+      }
     }
 
-    const { data: adminRoleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin");
+    const isSuperAdmin =
+      localDevBypass || user?.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
+    let adminOrganizationId: string | null = null;
 
-    if (!adminRoleRows || adminRoleRows.length === 0) {
-      return NextResponse.json({ error: "Forbidden: admin role required" }, { status: 403 });
-    }
+    if (!localDevBypass && user) {
+      const { data: adminProfile } = await (supabase as any)
+        .from("profiles")
+        .select("organization_id, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      adminOrganizationId = adminProfile?.organization_id ?? null;
 
-    const isSuperAdmin = user.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
-
-    const { data: adminProfile } = await (supabase as any)
-      .from("profiles")
-      .select("organization_id, email")
-      .eq("id", user.id)
-      .maybeSingle();
-    let adminOrganizationId: string | null = adminProfile?.organization_id ?? null;
-
-    // Auto-provision using service role to bypass RLS on organizations table
-    if (!adminOrganizationId && !isSuperAdmin) {
-      const email = adminProfile?.email ?? user.email ?? "";
-      adminOrganizationId = await ensureUserOrganization(user.id, email);
+      // Auto-provision using service role to bypass RLS on organizations table
+      if (!adminOrganizationId && !isSuperAdmin) {
+        const email = adminProfile?.email ?? user.email ?? "";
+        adminOrganizationId = await ensureUserOrganization(user.id, email);
+      }
     }
 
     if (!isSuperAdmin && !adminOrganizationId) {
@@ -86,6 +94,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500 });
     }
 
+    let resolvedOrganizationId = (isSuperAdmin && targetOrganizationId) ? targetOrganizationId : adminOrganizationId;
+    if (localDevBypass && !resolvedOrganizationId) {
+      const { data: defaultOrganization } = await (service as any)
+        .from("organizations")
+        .select("id")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      resolvedOrganizationId = defaultOrganization?.id ?? null;
+    }
+
     const createResult = await service.auth.admin.createUser({
       email,
       password,
@@ -105,7 +124,7 @@ export async function POST(request: Request) {
         first_name: firstName,
         last_name: lastName,
         role,
-        organization_id: (isSuperAdmin && targetOrganizationId) ? targetOrganizationId : adminOrganizationId,
+        organization_id: resolvedOrganizationId,
       },
       { onConflict: "id" },
     );

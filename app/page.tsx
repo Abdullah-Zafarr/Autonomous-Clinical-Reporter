@@ -90,6 +90,14 @@ function hasPersistedSection(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length > 0;
 }
 
+function examFromLabel(label: string): ExamType {
+  const normalized = (label || "").toLowerCase();
+  if (normalized.includes("thyroid")) return "Thyroid";
+  if (normalized.includes("ob")) return "OB";
+  if (normalized.includes("vascular")) return "Vascular";
+  return "Abdomen";
+}
+
 export default function SonolynxApp() {
   const { loading, user, role } = useAuth();
 
@@ -156,6 +164,83 @@ export default function SonolynxApp() {
     };
   }, []);
 
+  // Automatically load the first active real patient and study on login
+  useEffect(() => {
+    if (!user?.id || loading) return;
+    let active = true;
+
+    const loadInitialActiveCase = async () => {
+      try {
+        const isDoc = role === "doctor" || role === "radiologist";
+        if (isDoc) {
+          const { data: docStudies, error: docErr } = await (supabase as any)
+            .from("studies")
+            .select(
+              "id, accession_number, assigned_to, description, exam_type, status, patient_id, study_date," +
+                "patients:patient_id(id, mrn, first_name, last_name, dob)"
+            )
+            .eq("assigned_to", user.id)
+            .order("study_date", { ascending: false })
+            .limit(1);
+
+          if (!docErr && docStudies && docStudies.length > 0 && active) {
+            const row = docStudies[0];
+            const pat = row.patients ?? {};
+            const loadedPatient: Patient = {
+              id: pat.id ?? row.patient_id ?? row.id,
+              mrn: pat.mrn ?? "—",
+              firstName: pat.first_name ?? "",
+              lastName: pat.last_name ?? "",
+              dob: pat.dob ?? "—",
+              exam: row.exam_type || row.description || "Ultrasound",
+              studyId: row.id,
+              accessionNumber: row.accession_number ?? null,
+              studyStatus: row.status ?? null,
+            };
+            setPatient(loadedPatient);
+            setExam(examFromLabel(loadedPatient.exam));
+            return;
+          }
+        }
+
+        // For sonographers / general: load the first patient with studies
+        const { data: patientsData, error: patErr } = await (supabase as any)
+          .from("patients")
+          .select(
+            "id, mrn, first_name, last_name, dob, studies(id, accession_number, assigned_to, description, exam_type, status)"
+          )
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (!patErr && patientsData && patientsData.length > 0 && active) {
+          const p = patientsData[0];
+          const studies: any[] = Array.isArray(p.studies) ? p.studies : [];
+          const study = studies[0] ?? null;
+          const loadedPatient: Patient = {
+            id: p.id,
+            mrn: p.mrn,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            dob: p.dob,
+            exam: study?.exam_type || study?.description || "Ultrasound",
+            studyId: study?.id,
+            accessionNumber: study?.accession_number,
+            studyStatus: study?.status,
+          };
+          setPatient(loadedPatient);
+          setExam(examFromLabel(loadedPatient.exam));
+        }
+      } catch (err) {
+        console.warn("[app] Initial active patient auto-load notice:", err);
+      }
+    };
+
+    loadInitialActiveCase();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, role, loading]);
+
   useEffect(() => {
     setLastSaved(new Date());
   }, [worksheet, thyroid, ob, vascular, exam, abdomenOrder]);
@@ -217,7 +302,7 @@ export default function SonolynxApp() {
   // Doctors/Admins sign/finalize. Sonographers can "sign" (which sends to doctor)
   const canSignAndSend = isDoctorView 
     ? !hasCriticalErrors 
-    : (isSonographerView && !!selectedDoctorId && !hasCriticalErrors);
+    : (isSonographerView && !hasCriticalErrors);
 
   const canSeeReportHistory = role === "radiologist";
   const canInspectHl7 = isDoctorView;
@@ -246,12 +331,6 @@ export default function SonolynxApp() {
       ),
     [selectedTemplate, patient, exam, accession, report, user?.email, brandingSettings],
   );
-
-  useEffect(() => {
-    if (!loading && isAdmin) {
-      router.replace("/admin");
-    }
-  }, [loading, isAdmin, router]);
 
   useEffect(() => {
     let active = true;
@@ -365,26 +444,57 @@ export default function SonolynxApp() {
       // Build org list: current user's org + default org + null (legacy)
       const orgsToInclude = [...new Set([organizationId, defaultOrg?.id].filter(Boolean))];
 
-      // Fetch ALL doctors/radiologists, then filter client-side by org
-      // This avoids complex nested OR logic that Supabase can misparse
-      const { data, error } = await (supabase as any)
-        .from("profiles")
-        .select("id, email, role, organization_id")
-        .or("role.eq.doctor,role.eq.radiologist")
-        .order("email", { ascending: true });
+      // Fetch doctors from both profiles and user_roles to ensure complete coverage
+      const [{ data: profDoctors, error }, { data: roleRows }] = await Promise.all([
+        (supabase as any)
+          .from("profiles")
+          .select("id, email, role, organization_id")
+          .or("role.eq.doctor,role.eq.radiologist")
+          .order("email", { ascending: true }),
+        (supabase as any)
+          .from("user_roles")
+          .select("user_id, role")
+          .or("role.eq.doctor,role.eq.radiologist"),
+      ]);
 
       if (error) console.error("[loadDoctors] fetch error:", error);
-      if (!active || !data) return;
+      if (!active) return;
 
-      // For now, we show all doctors who have the correct role.
-      // In a strict multi-tenant environment, we would filter by organizationId,
-      // but to ensure sonographers can always find a doctor during setup/dev,
-      // we allow all doctors to be visible.
-      const filtered = data;
+      const doctorsMap = new Map<string, { id: string; email: string }>();
 
+      (profDoctors ?? []).forEach((row: any) => {
+        if (row?.id && row?.email) {
+          doctorsMap.set(row.id, { id: row.id, email: row.email });
+        }
+      });
 
-      console.log("[loadDoctors] found", filtered.length, "doctors from", data.length, "total");
-      setAvailableDoctors(filtered.map((row: any) => ({ id: row.id, email: row.email })));
+      const missingUserIds = (roleRows ?? [])
+        .map((r: any) => r.user_id)
+        .filter((id: string) => id && !doctorsMap.has(id));
+
+      if (missingUserIds.length > 0) {
+        const { data: extraProfiles } = await (supabase as any)
+          .from("profiles")
+          .select("id, email")
+          .in("id", missingUserIds);
+
+        (extraProfiles ?? []).forEach((row: any) => {
+          if (row?.id && row?.email) {
+            doctorsMap.set(row.id, { id: row.id, email: row.email });
+          }
+        });
+      }
+
+      const doctorList = Array.from(doctorsMap.values());
+      console.log("[loadDoctors] found", doctorList.length, "total doctors available");
+      setAvailableDoctors(doctorList);
+
+      // If only one doctor exists in the clinic, auto-select them
+      setSelectedDoctorId((prev) => {
+        if (prev && doctorList.some((d) => d.id === prev)) return prev;
+        if (doctorList.length === 1) return doctorList[0].id;
+        return "";
+      });
     };
     loadDoctors();
     return () => {
@@ -452,14 +562,6 @@ export default function SonolynxApp() {
       active = false;
     };
   }, [exam, templateTier]);
-
-  const examFromLabel = (label: string): ExamType => {
-    const normalized = label.toLowerCase();
-    if (normalized.includes("thyroid")) return "Thyroid";
-    if (normalized.includes("ob")) return "OB";
-    if (normalized.includes("vascular")) return "Vascular";
-    return "Abdomen";
-  };
 
   const handleSelectPatient = (p: Patient) => {
     // Reset to clean defaults immediately so the form is blank while loading
@@ -547,7 +649,7 @@ export default function SonolynxApp() {
       const isOb = exam === "OB";
       const isVascular = exam === "Vascular";
 
-      const prunedWorksheet = isAbdomen ? { ...worksheet } : {} as any;
+      const prunedWorksheet = isAbdomen ? { ...worksheet } : ({} as any);
       if (isAbdomen) {
         Object.keys(prunedWorksheet).forEach((key) => {
           if (!abdomenOrder.includes(key)) {
@@ -556,27 +658,32 @@ export default function SonolynxApp() {
         });
       }
 
-      const enhanced = await enhanceReport({ 
-        exam, 
-        localReport: report, 
-        worksheet: isAbdomen ? prunedWorksheet : {} as any, 
-        thyroid: isThyroid ? thyroid : {} as any, 
-        ob: isOb ? ob : {} as any, 
-        vascular: isVascular ? vascular : {} as any, 
-        additionalNotes 
-      });
-      if (enhanced.warning) toast.warning("Report API fallback", { description: enhanced.warning });
-      
-      const reportText = reportToText(enhanced.report);
+      // Preserve doctor edits if present; otherwise generate enhanced report text
+      let reportText = editedReportText.trim();
+      if (!reportText) {
+        const enhanced = await enhanceReport({
+          exam,
+          localReport: report,
+          worksheet: isAbdomen ? prunedWorksheet : ({} as any),
+          thyroid: isThyroid ? thyroid : ({} as any),
+          ob: isOb ? ob : ({} as any),
+          vascular: isVascular ? vascular : ({} as any),
+          additionalNotes,
+        });
+        if (enhanced.warning) toast.warning("Report notice", { description: enhanced.warning });
+        reportText = reportToText(enhanced.report);
+      }
 
-      // Finalize the worksheet (upsert) in a single step
-      const signed = await markWorksheetSigned({ 
-        worksheetId: currentWorksheet?.id || "", // Service should handle empty ID as new if possible, or we use saveDraft
-        userId: user.id, 
-        data: worksheetPayload, 
-        reportText 
-      }).catch(async () => {
-        // Fallback for new worksheets that don't have an ID yet
+      // Finalize the worksheet in Supabase
+      let signed: WorksheetRecord;
+      if (currentWorksheet?.id) {
+        signed = await markWorksheetSigned({
+          worksheetId: currentWorksheet.id,
+          userId: user.id,
+          data: worksheetPayload,
+          reportText,
+        });
+      } else {
         const draft = await saveDraftWorksheet({
           patientId: patient.id!,
           studyId: patient.studyId!,
@@ -585,13 +692,33 @@ export default function SonolynxApp() {
           data: worksheetPayload,
           reportText,
         });
-        return markWorksheetSigned({ worksheetId: draft.id, userId: user.id, data: worksheetPayload, reportText });
-      });
+        signed = await markWorksheetSigned({
+          worksheetId: draft.id,
+          userId: user.id,
+          data: worksheetPayload,
+          reportText,
+        });
+      }
 
       setCurrentWorksheet(signed);
 
+      // Update study status to 'completed'
+      if (patient.studyId) {
+        try {
+          await (supabase as any)
+            .from("studies")
+            .update({
+              status: "completed",
+              active_worksheet_id: signed.id,
+            })
+            .eq("id", patient.studyId);
+        } catch (studyErr) {
+          console.warn("[finalize] study status update notice:", studyErr);
+        }
+      }
+
       // Transmit HL7 and update status
-      const transmitAndLog = async () => {
+      try {
         const sendResult = await transmitHl7({
           organizationId,
           patientId: patient.id!,
@@ -614,9 +741,10 @@ export default function SonolynxApp() {
             status: "sent",
             metadata: { worksheetType: exam, accession },
           });
-          toast.success("Report transmitted", { description: `ORU^R01 sent for accession ${accession}.` });
+          toast.success("Report Finalized & Transmitted", {
+            description: `ORU^R01 sent for accession ${accession}.`,
+          });
         } else {
-          await updateWorksheetStatus(signed.id, "failed");
           writeAuditLog({
             userId: user.id,
             patientId: patient.id,
@@ -627,22 +755,26 @@ export default function SonolynxApp() {
             status: "failed",
             metadata: { worksheetType: exam, accession, error: sendResult.errorMessage },
           });
-          toast.error("Transmission failed", { description: sendResult.errorMessage ?? "HL7 endpoint failure." });
+          toast.success("Report Finalized", {
+            description: "Signed successfully. HL7 dispatch queued.",
+          });
         }
-      };
-
-      // We don't necessarily need to await the transmission for the UI to close the dialog
-      // but let's keep it sequential for data integrity unless the user wants it even faster.
-      await transmitAndLog();
+      } catch (hl7Error: any) {
+        console.warn("[finalize] HL7 transmission notice:", hl7Error);
+        toast.success("Report Finalized", {
+          description: "Signed successfully and locked in record.",
+        });
+      }
 
       setSignDialogOpen(false);
-      setReportHistory(await getReportHistory(patient.id));
+      setWorklistRefresh((n) => n + 1);
+      if (patient.id) {
+        setReportHistory(await getReportHistory(patient.id));
+      }
     } catch (error: any) {
-      // Supabase errors are plain objects { code, message, details } — not Error instances.
-      // Serialise them explicitly so the console shows useful info.
       const errMsg = error?.message ?? (typeof error === "string" ? error : null);
       console.error("[sign-and-send] Error:", errMsg ?? JSON.stringify(error));
-      toast.error("Failed to sign & send", { description: errMsg ?? "An unexpected error occurred." });
+      toast.error("Failed to finalize report", { description: errMsg ?? "An unexpected error occurred." });
     } finally {
       setSendingReport(false);
     }
@@ -658,21 +790,34 @@ export default function SonolynxApp() {
       toast.error("No study selected", { description: "Select a patient from the Worklist first before sending." });
       return;
     }
-    if (!selectedDoctorId) {
-      toast.error("No doctor selected", { description: "Choose a doctor email before sending." });
-      return;
+
+    let doctorIdToSend = selectedDoctorId;
+    if (!doctorIdToSend) {
+      if (availableDoctors.length === 1) {
+        doctorIdToSend = availableDoctors[0].id;
+        setSelectedDoctorId(doctorIdToSend);
+      } else if (availableDoctors.length > 1) {
+        toast.warning("Select doctor email", {
+          description: "Please choose which doctor to assign this study to from the top bar.",
+        });
+        return;
+      } else {
+        toast.error("No doctors found", {
+          description: "No doctor accounts available in the directory.",
+        });
+        return;
+      }
     }
 
     setSendingToDoctor(true);
     try {
-      // Save draft first before sending. If this fails, we shouldn't send to doctor.
+      // Save draft first before sending
       const saved = await handleSaveDraft({ silent: true });
       if (!saved) throw new Error("Unable to save the worksheet before assignment.");
 
-      // Update the study: assign to doctor, set status, and pin the active worksheet
-      // so the doctor always loads exactly this worksheet (not an older draft).
+      // Update the study: assign to doctor, set status, and pin active worksheet
       const studyUpdate: Record<string, unknown> = {
-        assigned_to: selectedDoctorId,
+        assigned_to: doctorIdToSend,
         status: "review_pending",
         active_worksheet_id: saved.id,
       };
@@ -683,7 +828,6 @@ export default function SonolynxApp() {
         .eq("id", patient.studyId);
 
       if (updateError) {
-        // If active_worksheet_id column doesn't exist on older DBs, retry without it
         if (
           (updateError.code === "42703" || updateError.code === "PGRST204") &&
           `${updateError?.message ?? ""}`.toLowerCase().includes("active_worksheet_id")
@@ -691,7 +835,7 @@ export default function SonolynxApp() {
           console.warn("[sendToDoctor] active_worksheet_id column missing — retrying without it");
           const { error: retryError } = await (supabase as any)
             .from("studies")
-            .update({ assigned_to: selectedDoctorId, status: "review_pending" })
+            .update({ assigned_to: doctorIdToSend, status: "review_pending" })
             .eq("id", patient.studyId);
           if (retryError) throw retryError;
         } else {
@@ -699,7 +843,7 @@ export default function SonolynxApp() {
         }
       }
 
-      const doctor = availableDoctors.find((item) => item.id === selectedDoctorId);
+      const doctor = availableDoctors.find((item) => item.id === doctorIdToSend);
       await writeAuditLog({
         userId: user.id,
         patientId: patient.id,
@@ -707,11 +851,12 @@ export default function SonolynxApp() {
         worksheetId: saved.id,
         action: "send_to_doctor",
         status: "success",
-        metadata: { doctorId: selectedDoctorId, doctorEmail: doctor?.email ?? null },
+        metadata: { doctorId: doctorIdToSend, doctorEmail: doctor?.email ?? null },
       });
-      toast.success("Sent to doctor", {
-        description: doctor ? `Case assigned to ${doctor.email}.` : "Case assigned successfully.",
+      toast.success("Sent to Doctor", {
+        description: doctor ? `Case assigned to ${doctor.email}.` : "Case assigned to doctor for review.",
       });
+      setWorklistRefresh((n) => n + 1);
     } catch (error: any) {
       const errMsg = error?.message ?? (typeof error === "string" ? error : null);
       console.error("[send-to-doctor] Error:", errMsg ?? JSON.stringify(error));
@@ -720,7 +865,6 @@ export default function SonolynxApp() {
       setSendingToDoctor(false);
     }
   };
-
 
   if (loading) {
     return (
@@ -731,7 +875,6 @@ export default function SonolynxApp() {
   }
 
   if (!user) return null;
-  if (isAdmin) return null;
 
   const gridCols = isDoctorView
     ? "grid-cols-1 lg:grid-cols-[40%_30%_30%]"

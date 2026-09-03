@@ -287,6 +287,17 @@ function encodePcm16(samples: Float32Array) {
   return btoa(binary);
 }
 
+function floatTo16BitPCM(samples: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(samples.length * 2);
+  const view = new DataView(buffer);
+  let offset = 0;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buffer;
+}
+
 const ClinicalNotesSection = ({ 
   value, 
   onChange 
@@ -370,7 +381,7 @@ export function ClinicalWorksheet({
   const [dictationText, setDictationText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [sttMode, setSttMode] = useState<"gladia" | "browser" | null>(null);
+  const [sttMode, setSttMode] = useState<"deepgram" | "gladia" | "browser" | null>(null);
   const sttRef = useRef<{
     audioContext: AudioContext;
     processor: AudioWorkletNode;
@@ -387,96 +398,260 @@ export function ClinicalWorksheet({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const stopGladiaSession = () => {
+  const stopAudioSession = () => {
     const runtime = sttRef.current;
     sttRef.current = null;
     if (!runtime) return;
     try {
       runtime.audioContext.close();
     } catch {}
-    runtime.stream.getTracks().forEach((track) => track.stop());
-    if (runtime.socket.readyState === WebSocket.OPEN) {
-      runtime.socket.close();
-    }
+    try {
+      runtime.stream.getTracks().forEach((track) => track.stop());
+    } catch {}
+    try {
+      if (runtime.socket.readyState === WebSocket.OPEN || runtime.socket.readyState === WebSocket.CONNECTING) {
+        runtime.socket.close();
+      }
+    } catch {}
   };
 
   const stopBrowserStt = () => {
     if (browserSttRef.current) {
-      try { browserSttRef.current.stop(); } catch {}
+      try {
+        browserSttRef.current.stop();
+      } catch {}
       browserSttRef.current = null;
     }
   };
 
+  const stopListening = () => {
+    stopAudioSession();
+    stopBrowserStt();
+    setIsListening(false);
+    setSttMode(null);
+  };
+
   useEffect(() => {
     return () => {
-      stopGladiaSession();
+      stopAudioSession();
       stopBrowserStt();
     };
   }, []);
 
-  const startListening = async () => {
-    if (isListening) return;
-    try {
-      const sessionResponse = await fetch("/api/gladia/live", { method: "POST" });
-      const session = await sessionResponse.json();
-      if (!sessionResponse.ok || !session.url) throw new Error(session.error || "Gladia failure");
+  const startBrowserStt = (fallbackReason?: string) => {
+    const SpeechRecognition =
+      typeof window !== "undefined"
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition not supported in this browser", {
+        description: "Please use Chrome, Edge, or Safari, or check microphone permissions.",
       });
-      const audioContext = new AudioContext({ sampleRate: GLADIA_SAMPLE_RATE });
-      await audioContext.audioWorklet.addModule("/worklets/pcm-processor.js");
-      
-      const source = audioContext.createMediaStreamSource(stream);
-      const processor = new AudioWorkletNode(audioContext, "pcm-processor");
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 1.5;
+      setIsListening(false);
+      setSttMode(null);
+      return;
+    }
 
-      const socket = new WebSocket(session.url);
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
       baseTextRef.current = dictationText ? dictationText.replace(/\s+$/, "") + " " : "";
-      
-      socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (message.type === "transcript") {
-          const text = message.data?.utterance?.text?.trim();
-          if (!text) return;
-          if (message.data?.is_final) {
-            baseTextRef.current += text + " ";
-            partialTextRef.current = "";
+
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0]?.transcript || "";
+          if (event.results[i].isFinal) {
+            baseTextRef.current += transcript.trim() + " ";
             setDictationText(baseTextRef.current.trimStart());
           } else {
-            partialTextRef.current = text;
-            setDictationText((baseTextRef.current + partialTextRef.current).trimStart());
+            interim += transcript;
+            setDictationText((baseTextRef.current + interim).trimStart());
           }
         }
       };
 
-      socket.onopen = () => {
-        processor.port.onmessage = (event) => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "audio_chunk", data: { chunk: encodePcm16(event.data) } }));
-          }
-        };
-        source.connect(gainNode);
-        gainNode.connect(processor);
-        processor.connect(audioContext.destination);
+      recognition.onerror = (event: any) => {
+        console.warn("[Browser STT] error:", event.error);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          toast.error("Microphone access denied", { description: "Please enable microphone permissions in your browser." });
+          stopListening();
+        }
       };
 
-      sttRef.current = { audioContext, processor, source, stream, socket };
-      setSttMode("gladia");
+      recognition.onend = () => {
+        // Only restart if the user didn't intentionally stop
+        if (browserSttRef.current) {
+          try {
+            recognition.start();
+          } catch {}
+        }
+      };
+
+      recognition.start();
+      browserSttRef.current = recognition;
+      setSttMode("browser");
       setIsListening(true);
-    } catch (e) {
-      console.error(e);
-      setIsListening(false);
-      toast.error("STT failed to start");
+      toast.info("Using Browser Speech Recognition", {
+        description: fallbackReason || "Live dictation ready.",
+        duration: 3000,
+      });
+    } catch (e: any) {
+      console.error("[Browser STT] startup error:", e);
+      stopListening();
+      toast.error("Could not start speech recognition", { description: e?.message || "Check microphone permissions." });
     }
   };
 
-  const stopListening = () => {
-    stopGladiaSession();
-    stopBrowserStt();
-    setIsListening(false);
-    setSttMode(null);
+  const startListening = async () => {
+    if (isListening) return;
+
+    // 1. Try Deepgram Streaming (Medical Model)
+    try {
+      const tokenRes = await fetch("/api/stt/deepgram/token");
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        const deepgramKey = tokenData?.key;
+
+        if (deepgramKey) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          });
+          const audioContext = new AudioContext({ sampleRate: 16000 });
+          await audioContext.audioWorklet.addModule("/worklets/pcm-processor.js");
+
+          const source = audioContext.createMediaStreamSource(stream);
+          const processor = new AudioWorkletNode(audioContext, "pcm-processor");
+          const gainNode = audioContext.createGain();
+          gainNode.gain.value = 1.4;
+
+          const socketUrl =
+            "wss://api.deepgram.com/v1/listen?model=nova-2-medical&smart_format=true&encoding=linear16&sample_rate=16000";
+          const socket = new WebSocket(socketUrl, ["token", deepgramKey]);
+
+          baseTextRef.current = dictationText ? dictationText.replace(/\s+$/, "") + " " : "";
+
+          socket.onopen = () => {
+            processor.port.onmessage = (event) => {
+              if (socket.readyState === WebSocket.OPEN && event.data) {
+                const pcmBuffer = floatTo16BitPCM(event.data);
+                socket.send(pcmBuffer);
+              }
+            };
+            source.connect(gainNode);
+            gainNode.connect(processor);
+            processor.connect(audioContext.destination);
+          };
+
+          socket.onmessage = (event) => {
+            try {
+              const message = JSON.parse(event.data);
+              if (message.type === "Results") {
+                const alt = message.channel?.alternatives?.[0];
+                const text = alt?.transcript?.trim();
+                if (!text) return;
+                if (message.is_final) {
+                  baseTextRef.current += text + " ";
+                  partialTextRef.current = "";
+                  setDictationText(baseTextRef.current.trimStart());
+                } else {
+                  partialTextRef.current = text;
+                  setDictationText((baseTextRef.current + partialTextRef.current).trimStart());
+                }
+              }
+            } catch (err) {
+              console.warn("[Deepgram STT] message parse notice:", err);
+            }
+          };
+
+          socket.onerror = (err) => {
+            console.warn("[Deepgram STT] socket error, falling back to browser STT:", err);
+            stopAudioSession();
+            startBrowserStt("Switched to browser speech recognition.");
+          };
+
+          socket.onclose = (ev) => {
+            if (!ev.wasClean && sttRef.current?.socket === socket) {
+              stopAudioSession();
+              startBrowserStt("Connection interrupted; switched to browser speech recognition.");
+            }
+          };
+
+          sttRef.current = { audioContext, processor, source, stream, socket };
+          setSttMode("deepgram");
+          setIsListening(true);
+          toast.success("Listening with Deepgram Medical AI", { duration: 2500 });
+          return;
+        }
+      }
+    } catch (deepgramError) {
+      console.info("[STT] Deepgram initialization failed, attempting fallback:", deepgramError);
+    }
+
+    // 2. Try Gladia if available
+    try {
+      const sessionResponse = await fetch("/api/gladia/live", { method: "POST" });
+      if (sessionResponse.ok) {
+        const session = await sessionResponse.json();
+        if (session.url) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          });
+          const audioContext = new AudioContext({ sampleRate: GLADIA_SAMPLE_RATE });
+          await audioContext.audioWorklet.addModule("/worklets/pcm-processor.js");
+
+          const source = audioContext.createMediaStreamSource(stream);
+          const processor = new AudioWorkletNode(audioContext, "pcm-processor");
+          const gainNode = audioContext.createGain();
+          gainNode.gain.value = 1.4;
+
+          const socket = new WebSocket(session.url);
+          baseTextRef.current = dictationText ? dictationText.replace(/\s+$/, "") + " " : "";
+
+          socket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            if (message.type === "transcript") {
+              const text = message.data?.utterance?.text?.trim();
+              if (!text) return;
+              if (message.data?.is_final) {
+                baseTextRef.current += text + " ";
+                partialTextRef.current = "";
+                setDictationText(baseTextRef.current.trimStart());
+              } else {
+                partialTextRef.current = text;
+                setDictationText((baseTextRef.current + partialTextRef.current).trimStart());
+              }
+            }
+          };
+
+          socket.onopen = () => {
+            processor.port.onmessage = (event) => {
+              if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: "audio_chunk", data: { chunk: encodePcm16(event.data) } }));
+              }
+            };
+            source.connect(gainNode);
+            gainNode.connect(processor);
+            processor.connect(audioContext.destination);
+          };
+
+          sttRef.current = { audioContext, processor, source, stream, socket };
+          setSttMode("gladia");
+          setIsListening(true);
+          toast.success("Listening with Gladia AI", { duration: 2500 });
+          return;
+        }
+      }
+    } catch (gladiaError) {
+      console.info("[STT] Gladia initialization failed, using browser fallback:", gladiaError);
+    }
+
+    // 3. Guaranteed fallback: Browser Web Speech API
+    startBrowserStt();
   };
 
   const handleProcess = async () => {
@@ -812,7 +987,13 @@ export function ClinicalWorksheet({
                 isListening ? "bg-red-500/10 text-red-600 animate-pulse" : "bg-muted text-muted-foreground"
               )}>
                 <div className={cn("h-1.5 w-1.5 rounded-full", isListening ? "bg-red-500" : "bg-muted-foreground")} />
-                {isListening ? "Listening..." : "Microphone Off"}
+                {isListening
+                  ? sttMode === "deepgram"
+                    ? "Listening (Deepgram Medical)..."
+                    : sttMode === "browser"
+                      ? "Listening (Browser Speech)..."
+                      : "Listening..."
+                  : "Microphone Off"}
               </span>
             )}
           </div>

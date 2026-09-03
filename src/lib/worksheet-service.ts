@@ -209,15 +209,19 @@ export async function saveDraftWorksheet(params: {
   data: WorksheetPayload;
   reportText: string;
 }) {
-  if (params.worksheetId) {
+  let targetWorksheetId = params.worksheetId || undefined;
+
+  if (targetWorksheetId) {
     const { data: existing, error: existingError } = await db
       .from("worksheets")
       .select("status")
-      .eq("id", params.worksheetId)
-      .single();
-    if (existingError) throw existingError;
-    if (existing?.status && existing.status !== "draft" && existing.status !== "failed") {
-      throw new Error("Signed or transmitted worksheets cannot be overwritten as drafts.");
+      .eq("id", targetWorksheetId)
+      .maybeSingle();
+
+    if (!existingError && existing?.status && existing.status !== "draft" && existing.status !== "failed") {
+      // If the current worksheet was already signed or transmitted, create a new draft revision
+      // linked to the study instead of throwing a blocking error.
+      targetWorksheetId = undefined;
     }
   }
 
@@ -230,7 +234,7 @@ export async function saveDraftWorksheet(params: {
 
   const savedAt = new Date().toISOString();
   const row = {
-    id: params.worksheetId ?? undefined,
+    id: targetWorksheetId,
     patient_id: params.patientId,
     study_id: params.studyId,
     user_id: params.userId,
@@ -276,6 +280,10 @@ export async function markWorksheetSigned(params: {
   data: WorksheetPayload;
   reportText: string;
 }) {
+  if (!params.worksheetId || !params.worksheetId.trim()) {
+    throw new Error("Missing worksheetId for signing.");
+  }
+
   const signedAt = new Date().toISOString();
   const updates = {
     report_text: params.reportText,

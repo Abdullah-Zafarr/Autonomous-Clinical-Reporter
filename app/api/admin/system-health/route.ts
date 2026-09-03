@@ -8,9 +8,12 @@ export async function GET() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const isSuperAdmin = user?.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
+    const localDevBypass =
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+    const isSuperAdmin =
+      localDevBypass || user?.email?.toLowerCase() === process.env.SUPER_ADMIN_EMAIL?.toLowerCase();
 
-    if (!user || !isSuperAdmin) {
+    if (!localDevBypass && (!user || !isSuperAdmin)) {
       return NextResponse.json({ error: "Forbidden: super admin role required" }, { status: 403 });
     }
 

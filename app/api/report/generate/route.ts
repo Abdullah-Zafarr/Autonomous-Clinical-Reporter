@@ -2,13 +2,29 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   const supabase = await createServerClient();
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const { data: bearerUser } = await supabase.auth.getUser(token);
+      if (bearerUser?.user) {
+        user = bearerUser.user;
+      }
+    }
+  }
+
+  const devBypass =
+    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+
+  if (!user && !devBypass) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -25,15 +41,23 @@ export async function POST(req: Request) {
     apiKey,
     baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
   });
-  const aiModel = isGroq
-    ? (process.env.GROQ_MODEL || "llama-3.3-70b-versatile")
-    : (process.env.OPENAI_MODEL || "gpt-4o-mini");
 
+  const candidateModels: string[] = isGroq
+    ? [process.env.GROQ_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound-mini"].filter(
+        Boolean
+      ) as string[]
+    : [process.env.OPENAI_MODEL || "gpt-4o-mini"];
+
+  let body: any = {};
   try {
-    const body = await req.json();
-    const { exam, localReport, worksheet, thyroid, ob, vascular, additionalNotes } = body;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    const systemPrompt = `
+  const { exam, localReport, worksheet, thyroid, ob, vascular, additionalNotes } = body;
+
+  const systemPrompt = `
 You are an expert Radiologist. Your task is to take a draft ultrasound report and its structured findings, and polish it into a professional, clear, and highly accurate clinical report.
 
 ### GUIDELINES:
@@ -48,10 +72,10 @@ You are an expert Radiologist. Your task is to take a draft ultrasound report an
 
 ### INPUT DATA:
 - **Exam Type**: ${exam}
-- **Local Findings**: ${JSON.stringify(localReport.findings)}
-- **Local Impression**: ${JSON.stringify(localReport.impression)}
+- **Local Findings**: ${JSON.stringify(localReport?.findings ?? [])}
+- **Local Impression**: ${JSON.stringify(localReport?.impression ?? [])}
 - **Worksheet Data**: ${JSON.stringify({ worksheet, thyroid, ob, vascular })}
-- **Additional Notes**: ${additionalNotes}
+- **Additional Notes**: ${additionalNotes ?? ""}
 
 ### OUTPUT FORMAT:
 Return ONLY a JSON object with the following structure:
@@ -64,25 +88,31 @@ Return ONLY a JSON object with the following structure:
 }
 `;
 
-    const response = await aiClient.chat.completions.create({
-      model: aiModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 1000,
-    });
+  for (const model of candidateModels) {
+    try {
+      const response = await aiClient.chat.completions.create({
+        model,
+        messages: [{ role: "system", content: systemPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 1000,
+      });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    
-    if (!result.report) {
-       throw new Error("Invalid response format from AI");
+      const raw = response.choices[0].message.content || "{}";
+      const result = JSON.parse(raw);
+
+      if (result?.report?.findings && result?.report?.impression) {
+        return NextResponse.json(result);
+      }
+    } catch (modelErr: any) {
+      console.warn(`[report-generate] model ${model} failed, trying fallback:`, modelErr?.message || modelErr);
     }
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Report generation error:", error);
-    return NextResponse.json({ error: "Failed to generate enhanced report" }, { status: 500 });
   }
+
+  // Graceful fallback to local report rather than crashing clinical workflow
+  console.info("[report-generate] Falling back to local structured clinical report");
+  return NextResponse.json({
+    report: localReport ?? { findings: [], impression: [] },
+    warning: "AI polish unavailable; structured clinical findings preserved.",
+  });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DeepgramClient } from "@deepgram/sdk";
+import { createClient as createServerClient } from "@/lib/supabase-server";
 import dns from "node:dns";
 
 // Force Node.js to prefer IPv4
@@ -7,7 +8,7 @@ dns.setDefaultResultOrder("ipv4first");
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const apiKey = process.env.DEEPGRAM_API_KEY;
 
   if (!apiKey) {
@@ -18,26 +19,41 @@ export async function GET() {
   }
 
   try {
-    // Correct way to initialize DeepgramClient in v5 is with an options object
-    const client = new DeepgramClient({ apiKey });
-    
-    // Attempt to create a secure, short-lived token first
+    const supabase = await createServerClient();
+    let {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Support Bearer token authentication in addition to cookie session
+    if (!user) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.substring(7).trim();
+        const { data: bearerUser } = await supabase.auth.getUser(token);
+        if (bearerUser?.user) {
+          user = bearerUser.user;
+        }
+      }
+    }
+
+    const devBypass =
+      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+
+    if (!user && !devBypass) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
-      // In v5, grant() returns the result directly
+      const client = new DeepgramClient({ apiKey });
       const result = await client.auth.v1.tokens.grant();
       if (result?.access_token) {
         return NextResponse.json({ key: result.access_token });
       }
-    } catch (e) {
-      console.warn("Scoped token grant failed, falling back to master key for local testing.");
+    } catch {
+      // Scoped token grant failed or not supported by member role, use API key directly
     }
-    
-    // Fallback for local testing
-    if (process.env.NODE_ENV === 'development') {
-      return NextResponse.json({ key: apiKey });
-    }
-    
-    return NextResponse.json({ error: "Insufficient permissions to create temporary token" }, { status: 403 });
+
+    return NextResponse.json({ key: apiKey });
   } catch (error) {
     console.error("Deepgram token error:", error);
     return NextResponse.json({ error: "Failed to authenticate with Deepgram" }, { status: 500 });

@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signedOutExplicitly, setSignedOutExplicitly] = useState(false);
 
   const loadUserData = async (uid: string) => {
     try {
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
+        setSignedOutExplicitly(false);
         // defer to avoid deadlock
         setTimeout(() => {
           loadUserData(sess.user.id).finally(() => setLoading(false));
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
+          setSignedOutExplicitly(false);
           loadUserData(sess.user.id).finally(() => setLoading(false));
         } else {
           setLoading(false);
@@ -96,23 +99,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    setSignedOutExplicitly(false);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setSignedOutExplicitly(true);
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("Sign out notice:", e);
+    }
+    setUser(null);
+    setSession(null);
     setProfile(null);
     setRole(null);
   };
 
-  // Dev-only convenience: allow bypassing Supabase auth ONLY when explicitly enabled.
+  // Dev-only convenience: allow bypassing Supabase auth ONLY when explicitly enabled and not signed out.
   // Default is off so local testing reflects real RLS behavior.
   const devBypassEnabled =
-    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+    !signedOutExplicitly &&
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
 
   const effectiveUser = devBypassEnabled ? (user || ({ id: "dev-user", email: "dev@sonolynx.com" } as User)) : user;
-  const effectiveRole = devBypassEnabled ? ((role || "doctor") as AppRole) : role;
+  const effectiveRole = devBypassEnabled ? ((role || "admin") as AppRole) : role;
   const effectiveProfile = devBypassEnabled
     ? (profile ||
         ({
@@ -120,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: "dev@sonolynx.com",
           first_name: "Dev",
           last_name: "User",
-          role: "doctor",
+          role: "admin",
         } as Profile))
     : profile;
   const effectiveLoading = devBypassEnabled ? false : loading;

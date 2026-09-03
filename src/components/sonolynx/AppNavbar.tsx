@@ -38,9 +38,12 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
       : profile?.email ?? "User";
 
   const handleLogout = async () => {
-    await signOut();
-    toast.success("Signed out");
-    router.push("/login");
+    try {
+      await signOut();
+      toast.success("Signed out");
+    } finally {
+      window.location.href = "/login";
+    }
   };
 
   const canRegisterPatient = role === "sonographer";

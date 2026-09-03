@@ -182,7 +182,7 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
     } finally {
       setLoading(false);
     }
-  }, [user?.id, role, isDoctor]);
+  }, [user, role, isDoctor]);
 
   // Initial load + whenever refreshKey / role / user changes
   useEffect(() => {
