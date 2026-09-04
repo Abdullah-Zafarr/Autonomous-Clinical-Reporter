@@ -6,9 +6,20 @@ Sonolynx is a professional clinical reporting and ultrasound worksheet workflow 
 
 - **Dynamic Worksheets**: Support for various ultrasound types (Obstetrics, Pelvic, Abdominal, etc.).
 - **Doctor/Sonographer Modes**: Tailored interfaces for different clinical roles.
+- **AI Clinical Report Drafter**: Empower doctors and radiologists to draft structured, ACR-standard clinical reports in seconds using intelligent AI assistance or voice dictation.
 - **Automated Reporting**: Generate professional clinical reports with a single click.
 - **HL7 Integration**: Seamless data transmission to clinical systems.
 - **Organization Management**: Multi-clinic support with custom branding.
+
+## Doctor AI Report Assistant
+
+Sonolynx features an intelligent, guardrailed AI Clinical Drafter built directly into the doctor's review and sign-off workflow:
+
+- **Intelligent Report Generation**: Instantly transform raw findings, measurements, and clinical observations into comprehensive, structured radiology reports (Technique, Findings by organ/system, and Impression).
+- **Hands-Free Voice Dictation**: Live microphone dictation powered by speech recognition enables doctors to verbally capture observations hands-free.
+- **ACR Guardrails & Clinical Safety**: Powered by high-throughput Groq LLM inference configured with strict radiology transcription guardrails to ensure factual accuracy and prevent hallucinations.
+- **Clinical Presets & Quick Templates**: Built-in standardized templates for common exams (e.g., Normal Abdomen, Cholelithiasis, Thyroid, Renal) for rapid drafting.
+- **Full Physician-in-the-Loop Control**: Physicians maintain total autonomy to review, edit, refine, and digitally sign reports before final archiving or HL7 transmission.
 
 ## Screenshots
 
