@@ -29,6 +29,7 @@ function isSchemaCacheError(error: any, column?: string): boolean {
 }
 
 export async function createPendingHl7Message(params: Hl7TransmitParams) {
+  if (!params.organizationId) throw new Error("Clinic membership is required to send a report.");
   const endpointUrl = process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL || "";
 
   const fullPayload: Record<string, unknown> = {
@@ -53,6 +54,7 @@ export async function createPendingHl7Message(params: Hl7TransmitParams) {
   // with only the original columns that were present at table creation.
   if (error && isSchemaCacheError(error)) {
     const stripped: Record<string, unknown> = {
+      organization_id: params.organizationId,
       study_id: params.studyId,
       worksheet_id: params.worksheetId,
       message_type: "ORU^R01",
@@ -125,9 +127,11 @@ export async function transmitHl7(params: Hl7TransmitParams) {
         response_body: JSON.stringify(response ?? {}),
         sent_at: new Date().toISOString(),
       });
-      return { ok: true, messageId: pending.id };
+      return { ok: true, messageId: pending.id, demo: false };
     } catch (error) {
-      console.warn("[hl7-service] External gateway unreachable, falling back to local mock:", error);
+      const errorMessage = error instanceof Error ? error.message : "HL7 gateway failed.";
+      await updateHl7Message(pending.id, { status: "failed", error_message: errorMessage });
+      return { ok: false, messageId: pending.id, errorMessage, demo: false };
     }
   }
 
@@ -144,7 +148,7 @@ export async function transmitHl7(params: Hl7TransmitParams) {
       response_body: JSON.stringify(response ?? { mock: true }),
       sent_at: new Date().toISOString(),
     });
-    return { ok: true, messageId: pending.id };
+    return { ok: true, messageId: pending.id, demo: true };
   } catch (error) {
     const apiError = error instanceof ApiError ? error : null;
     const errorMessage = error instanceof Error ? error.message : "HL7 export failed.";
@@ -157,6 +161,7 @@ export async function transmitHl7(params: Hl7TransmitParams) {
       ok: false,
       messageId: pending.id,
       errorMessage,
+      demo: false,
     };
   }
 }
