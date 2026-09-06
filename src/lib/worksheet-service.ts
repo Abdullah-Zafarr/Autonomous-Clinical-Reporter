@@ -247,6 +247,7 @@ export async function saveDraftWorksheet(params: {
   reportText: string;
 }) {
   let targetWorksheetId = params.worksheetId || undefined;
+  let originalAuthor: { user_id: string | null; created_by: string | null; sonographer_id: string | null } | null = null;
   const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
   const organizationId = await getCurrentUserOrganizationId();
 
@@ -257,7 +258,7 @@ export async function saveDraftWorksheet(params: {
   if (targetWorksheetId) {
     const { data: existing, error: existingError } = await db
       .from("worksheets")
-      .select("status, signed_at, signed_by")
+      .select("status, signed_at, signed_by, user_id, created_by, sonographer_id")
       .eq("id", targetWorksheetId)
       .eq("organization_id", organizationId)
       .maybeSingle();
@@ -268,6 +269,8 @@ export async function saveDraftWorksheet(params: {
       // If the current worksheet was already signed or transmitted, create a new draft revision
       // linked to the study instead of throwing a blocking error.
       targetWorksheetId = undefined;
+    } else {
+      originalAuthor = existing;
     }
   }
 
@@ -276,9 +279,9 @@ export async function saveDraftWorksheet(params: {
     id: targetWorksheetId,
     patient_id: params.patientId,
     study_id: params.studyId,
-    user_id: params.userId,
-    created_by: params.userId,
-    sonographer_id: params.userId,
+    user_id: originalAuthor?.user_id ?? params.userId,
+    created_by: originalAuthor?.created_by ?? params.userId,
+    sonographer_id: originalAuthor?.sonographer_id ?? params.userId,
     worksheet_type: params.worksheetType,
     organization_id: organizationId,
     report_text: params.reportText,
@@ -291,23 +294,13 @@ export async function saveDraftWorksheet(params: {
 
   const { data, error } = await runWorksheetMutationWithSchemaFallback(
     { ...row, data: toJsonPayload(params.data) },
-    (payload) =>
-      db
-        .from("worksheets")
-        .upsert(payload, { onConflict: "id" })
-        .select("*")
-        .single(),
+    (payload) => {
+      const query = targetWorksheetId
+        ? db.from("worksheets").update(payload).eq("id", targetWorksheetId).eq("organization_id", organizationId).is("signed_at", null).is("signed_by", null)
+        : db.from("worksheets").insert(payload);
+      return query.select("*").single();
+    },
   );
-
-  if (isMissingColumnError(error, "data")) {
-    const retry = await db
-      .from("worksheets")
-      .upsert(row, { onConflict: "id" })
-      .select("*")
-      .single();
-    if (retry.error) throw retry.error;
-    return normalizeWorksheetRecord(retry.data) as WorksheetRecord;
-  }
 
   if (error) throw error;
   return normalizeWorksheetRecord(data) as WorksheetRecord;
@@ -344,6 +337,8 @@ export async function markWorksheetSigned(params: {
         .update(payload)
         .eq("id", params.worksheetId)
         .eq("organization_id", organizationId)
+        .is("signed_at", null)
+        .is("signed_by", null)
         .select("*")
         .single(),
   );
@@ -369,7 +364,7 @@ export async function updateWorksheetStatus(worksheetId: string, status: Workshe
   // Postgres returns error code 23514 (check_violation).
   // Gracefully downgrade so the rest of the flow doesn't crash.
   if (error?.code === "23514") {
-    const fallbackStatus: WorksheetStatus = status === "transmitted" ? "signed" : "draft";
+    const fallbackStatus: WorksheetStatus = "signed";
     console.warn(
       `[updateWorksheetStatus] CHECK constraint rejected status='${status}'. ` +
         `Downgrading to '${fallbackStatus}'. Run the schema fix migration to allow all statuses.`
@@ -409,6 +404,8 @@ export async function updateWorksheetReview(params: {
         .eq("id", params.worksheetId)
         .eq("study_id", params.studyId)
         .eq("organization_id", organizationId)
+        .is("signed_at", null)
+        .is("signed_by", null)
         .select("*")
         .single(),
   );
