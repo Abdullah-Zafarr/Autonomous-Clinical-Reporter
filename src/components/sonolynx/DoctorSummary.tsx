@@ -19,6 +19,12 @@ export function DoctorSummary() {
 
     const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
     const organizationId = await getCurrentUserOrganizationId();
+    if (!organizationId) {
+      setPending(0);
+      setCompleted(0);
+      setScheduled(0);
+      return;
+    }
 
     const [p, c, s] = await Promise.all([
       isDoctor
@@ -28,7 +34,7 @@ export function DoctorSummary() {
               .select("id", { count: "exact", head: true })
               .eq("assigned_to", user.id)
               .eq("status", "review_pending");
-            if (organizationId) q = q.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+            q = q.eq("organization_id", organizationId);
             return q;
           })()
         : (() => {
@@ -37,7 +43,7 @@ export function DoctorSummary() {
               .select("id", { count: "exact", head: true })
               .eq("sonographer_id", user.id)
               .eq("status", "draft");
-            if (organizationId) q = q.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+            q = q.eq("organization_id", organizationId);
             return q;
           })(),
       isDoctor
@@ -47,7 +53,7 @@ export function DoctorSummary() {
               .select("id", { count: "exact", head: true })
               .eq("signed_by", user.id)
               .gte("updated_at", today.toISOString());
-            if (organizationId) q = q.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+            q = q.eq("organization_id", organizationId);
             return q;
           })()
         : (() => {
@@ -57,7 +63,7 @@ export function DoctorSummary() {
               .eq("sonographer_id", user.id)
               .in("status", ["signed", "transmitted"])
               .gte("updated_at", today.toISOString());
-            if (organizationId) q = q.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+            q = q.eq("organization_id", organizationId);
             return q;
           })(),
       (() => {
@@ -65,7 +71,7 @@ export function DoctorSummary() {
           .from("studies")
           .select("id", { count: "exact", head: true })
           .eq("status", "scheduled");
-        if (organizationId) q = q.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+        q = q.eq("organization_id", organizationId);
         return q;
       })(),
     ]);
