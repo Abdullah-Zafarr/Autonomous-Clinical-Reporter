@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { FileText } from "lucide-react";
 import {
   Dialog,
@@ -30,6 +31,7 @@ interface Props {
   renderedDocument: RenderedTemplateDocument;
   tier: OrganizationTier;
   branding: ReportBrandingSettings;
+  useExactText?: boolean;
 }
 
 export function StructuredReportDialog({
@@ -42,14 +44,23 @@ export function StructuredReportDialog({
   renderedDocument,
   tier,
   branding,
+  useExactText = false,
 }: Props) {
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("formatted");
   const showSonolynxBranding = shouldShowSonolynxBranding(tier, branding);
+  const displayDocument = useExactText ? {
+    ...renderedDocument,
+    sections: [{ title: "Report", content: baseReportText }],
+    plainText: baseReportText,
+  } : renderedDocument;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(renderedDocument.plainText || baseReportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
+    try {
+      await navigator.clipboard.writeText(displayDocument.plainText || baseReportText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch { toast.error("Clipboard access failed. Use Download PDF instead."); }
   };
 
   return (
@@ -78,13 +89,13 @@ export function StructuredReportDialog({
               </option>
             ))}
           </select>
-          <ReportDownloadButton targetId="a4-print-root" />
+          {activeTab === "formatted" ? <ReportDownloadButton targetId="a4-print-root" /> : <span className="text-xs text-muted-foreground">Open A4 Preview to print or download.</span>}
           <button className="h-9 rounded-md border bg-background px-3 text-sm" onClick={handleCopy} type="button">
             {copied ? "Copied" : "Copy Text"}
           </button>
         </div>
 
-        <Tabs defaultValue="formatted" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="formatted">A4 Preview</TabsTrigger>
             <TabsTrigger value="raw">Raw Text</TabsTrigger>
@@ -93,14 +104,14 @@ export function StructuredReportDialog({
           <TabsContent value="formatted" className="mt-3">
             <ScrollArea className="h-[70vh] rounded-md border bg-slate-100 p-3">
               <div id="a4-print-root">
-                <A4ReportPreview document={renderedDocument} branding={branding} showSonolynxBranding={showSonolynxBranding} />
+                <A4ReportPreview document={displayDocument} branding={branding} showSonolynxBranding={showSonolynxBranding} />
               </div>
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="raw" className="mt-3">
             <pre className="max-h-[70vh] overflow-auto rounded-md border bg-white p-4 text-xs leading-relaxed">
-              {renderedDocument.plainText || baseReportText}
+              {displayDocument.plainText || baseReportText}
             </pre>
           </TabsContent>
         </Tabs>
