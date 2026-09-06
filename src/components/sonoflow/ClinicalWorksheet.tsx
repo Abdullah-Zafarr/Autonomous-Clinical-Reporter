@@ -536,7 +536,7 @@ export function ClinicalWorksheet({
 
           const socketUrl =
             "wss://api.deepgram.com/v1/listen?model=nova-2-medical&smart_format=true&encoding=linear16&sample_rate=16000";
-          const socket = new WebSocket(socketUrl, ["token", deepgramKey]);
+          const socket = new WebSocket(socketUrl, ["bearer", deepgramKey]);
 
           baseTextRef.current = dictationText ? dictationText.replace(/\s+$/, "") + " " : "";
 
@@ -716,7 +716,8 @@ export function ClinicalWorksheet({
       }
       
       setDictationText("");
-      toast.success("Findings extracted");
+      if (updates.warning) toast.warning("Dictation saved as notes", { description: updates.warning });
+      else toast.success("Findings extracted");
     } catch (e) {
       toast.error("Extraction failed");
     } finally {
