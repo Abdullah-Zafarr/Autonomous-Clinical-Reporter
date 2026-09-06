@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     const devBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+      false;
 
     if (!user && !devBypass) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,6 +41,8 @@ export async function POST(req: Request) {
     const aiClient = new OpenAI({
       apiKey,
       baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
+      timeout: 12000,
+      maxRetries: 0,
     });
 
     const candidateModels: string[] = isGroq
@@ -64,6 +66,18 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (JSON.stringify(body).length > 60000 || rawFindings.length > 12000) {
+      return NextResponse.json({ error: "The dictation or report context is too large." }, { status: 400 });
+    }
+    if (typeof examType !== "string" || examType.length > 120) {
+      return NextResponse.json({ error: "Invalid exam type." }, { status: 400 });
+    }
+    if (!patientInfo || typeof patientInfo !== "object" || Array.isArray(patientInfo)) {
+      return NextResponse.json({ error: "Invalid patient information." }, { status: 400 });
+    }
+    if (typeof existingReportText !== "string" || existingReportText.length > 12000) {
+      return NextResponse.json({ error: "Invalid existing report context." }, { status: 400 });
+    }
 
     const systemPrompt = `
 You are an expert ACR (American College of Radiology) Certified Clinical Scribe and Transcriptionist.
@@ -77,7 +91,7 @@ Your duty is to assist the interpreting physician by transforming their raw dict
    Format the response strictly with the following clear ACR sections:
    
    CLINICAL INDICATION: [Indication or 'Evaluation of clinical symptoms']
-   TECHNIQUE: Real-time gray scale and color Doppler ultrasound examination of the ${examType}.
+   TECHNIQUE: Real-time gray scale and color Doppler ultrasound examination of the provided exam.
    COMPARISON: None available.
 
    FINDINGS:
@@ -105,7 +119,7 @@ Generate the formal clinical ultrasound report now following the ACR guidelines 
     let generatedReport: string | null = null;
     let lastError: any = null;
 
-    for (const model of candidateModels) {
+    for (const model of [...new Set(candidateModels)].slice(0, 2)) {
       try {
         const completion = await aiClient.chat.completions.create({
           model,
@@ -117,9 +131,13 @@ Generate the formal clinical ultrasound report now following the ACR guidelines 
           max_tokens: 1200,
         });
 
+        if (completion.choices[0]?.finish_reason !== "stop") {
+          throw new Error("Incomplete AI response");
+        }
         const content = completion.choices[0]?.message?.content?.trim();
         if (content) {
           generatedReport = content.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
+          if (generatedReport.length > 24000) throw new Error("AI response was too large");
           break;
         }
       } catch (err) {
