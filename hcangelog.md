@@ -2,6 +2,14 @@
 
 This file records the major features and reliability improvements implemented in the current Sonolynx project.
 
+## 2026-09-06 — Admin Login Routing Fix
+
+- Route administrators to `/admin` after sign-in; clinical roles continue to `/`.
+- Wait for the authenticated role to load before choosing the login destination.
+- Remove the unconditional clinical-workspace navigation after password sign-in.
+- Preserve intentional access to the Clinical Workspace through the navigation menu.
+- Add regression checks for admin routing, clinical roles, and stale role rows.
+
 ## 2026-09-06 — Key Images and Worksheet Correction Workflow
 
 ### Key images inside reports

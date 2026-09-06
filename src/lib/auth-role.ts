@@ -1,4 +1,7 @@
 export type ClinicalRole = "admin" | "doctor" | "radiologist" | "sonographer";
+export function loginDestination(role: ClinicalRole | null): "/admin" | "/" {
+  return role === "admin" ? "/admin" : "/";
+}
 export function resolveRole(profileRole: string | null | undefined, rows: Array<{ role: string }>): ClinicalRole | null {
   const valid: ClinicalRole[] = ["admin", "radiologist", "doctor", "sonographer"];
   // The profile is authoritative; stale role rows must not override a demotion.

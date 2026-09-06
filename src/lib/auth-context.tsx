@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
+        setLoading(true);
         setSignedOutExplicitly(false);
         // defer to avoid deadlock
         setTimeout(() => {
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(sess);
         setUser(sess?.user ?? null);
         if (sess?.user) {
+          setLoading(true);
           setSignedOutExplicitly(false);
           loadUserData(sess.user.id).finally(() => setLoading(false));
         } else {
@@ -95,8 +97,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setSignedOutExplicitly(false);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setLoading(false);
+      // Successful login stays loading until the auth listener resolves the role.
+      return { error: error?.message ?? null };
+    } catch (error) {
+      setLoading(false);
+      return { error: error instanceof Error ? error.message : "Unable to sign in. Please try again." };
+    }
   };
 
   const signOut = async () => {

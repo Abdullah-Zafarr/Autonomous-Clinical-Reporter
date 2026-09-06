@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/sonolynx/Logo";
 import { useAuth } from "@/lib/auth-context";
+import { loginDestination } from "@/lib/auth-role";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
-  const { signIn, user, loading } = useAuth();
+  const { signIn, user, role, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,9 +23,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/");
+      router.replace(loginDestination(role));
     }
-  }, [user, loading, router]);
+  }, [user, role, loading, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,7 +37,7 @@ export default function LoginPage() {
       return;
     }
     toast.success("Welcome back");
-    router.push("/");
+    // The effect navigates only after AuthProvider has resolved the user's role.
   };
 
   return (
