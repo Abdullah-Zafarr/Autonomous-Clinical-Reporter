@@ -33,11 +33,14 @@ export async function POST() {
     }
 
     // No org — provision one using service role (bypasses RLS)
+    if (profile?.role !== "admin") {
+      return NextResponse.json({ error: "Clinic membership must be assigned by an administrator." }, { status: 403 });
+    }
     const email = profile?.email ?? user.email ?? "";
     const organizationId = await ensureUserOrganization(user.id, email, {
       first_name: profile?.first_name ?? "",
       last_name: profile?.last_name ?? "",
-      role: profile?.role ?? "admin",
+      role: "admin",
     });
 
     if (!organizationId) {
