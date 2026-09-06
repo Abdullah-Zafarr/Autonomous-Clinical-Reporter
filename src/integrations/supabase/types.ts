@@ -14,30 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          patient_id: string | null
+          study_id: string | null
+          worksheet_id: string | null
+          hl7_message_id: string | null
+          action: string
+          status: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          patient_id?: string | null
+          study_id?: string | null
+          worksheet_id?: string | null
+          hl7_message_id?: string | null
+          action: string
+          status: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          action?: string
+          status?: string
+          metadata?: Json
+        }
+        Relationships: []
+      }
       hl7_messages: {
         Row: {
           created_at: string
           id: string
           message_type: string
+          organization_id: string | null
+          patient_id: string | null
           payload: string
+          response_body: string | null
+          error_message: string | null
+          endpoint_url: string | null
+          sent_by: string | null
+          sent_at: string | null
           status: string
-          worksheet_id: string
+          study_id: string | null
+          worksheet_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           message_type?: string
+          organization_id?: string | null
+          patient_id?: string | null
           payload: string
+          response_body?: string | null
+          error_message?: string | null
+          endpoint_url?: string | null
+          sent_by?: string | null
+          sent_at?: string | null
           status?: string
+          study_id?: string | null
           worksheet_id: string
         }
         Update: {
           created_at?: string
           id?: string
           message_type?: string
+          organization_id?: string | null
+          patient_id?: string | null
           payload?: string
+          response_body?: string | null
+          error_message?: string | null
+          endpoint_url?: string | null
+          sent_by?: string | null
+          sent_at?: string | null
           status?: string
-          worksheet_id?: string
+          study_id?: string | null
+          worksheet_id?: string | null
         }
         Relationships: [
           {
@@ -121,6 +177,7 @@ export type Database = {
       studies: {
         Row: {
           accession_number: string
+          active_worksheet_id: string | null
           assigned_to: string | null
           clinical_indication: string | null
           description: string | null
@@ -136,6 +193,7 @@ export type Database = {
         }
         Insert: {
           accession_number: string
+          active_worksheet_id?: string | null
           assigned_to?: string | null
           clinical_indication?: string | null
           description?: string | null
@@ -151,6 +209,7 @@ export type Database = {
         }
         Update: {
           accession_number?: string
+          active_worksheet_id?: string | null
           assigned_to?: string | null
           clinical_indication?: string | null
           description?: string | null
