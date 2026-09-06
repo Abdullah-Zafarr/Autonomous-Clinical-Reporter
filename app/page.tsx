@@ -15,6 +15,7 @@ import { AppNavbar } from "@/components/sonolynx/AppNavbar";
 import { DoctorSummary } from "@/components/sonolynx/DoctorSummary";
 import { ReportHistory } from "@/components/sonolynx/ReportHistory";
 import { SignReportDialog } from "@/components/sonolynx/SignReportDialog";
+import { WorkflowProgress } from "@/components/sonolynx/WorkflowProgress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
 
@@ -64,7 +65,6 @@ import {
   type WorksheetPayload,
   type WorksheetRecord,
 } from "@/lib/worksheet-service";
-import { enhanceReport } from "@/lib/report-service";
 import { transmitHl7 } from "@/lib/hl7-service";
 import { writeAuditLog } from "@/lib/audit-service";
 import { Monitor, Loader2, PanelLeft, Activity } from "lucide-react";
@@ -98,6 +98,16 @@ function examFromLabel(label: string): ExamType {
   return "Abdomen";
 }
 
+const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
+const emptyPatient: Patient = {
+  id: "",
+  mrn: "—",
+  firstName: "",
+  lastName: "",
+  dob: "—",
+  exam: "Ultrasound",
+};
+
 export default function SonolynxApp() {
   const { loading, user, role } = useAuth();
 
@@ -108,7 +118,7 @@ export default function SonolynxApp() {
   }, [loading, user, router]);
 
   const initialMockCase = mockPatientCases[0];
-  const [patient, setPatient] = useState<Patient>(initialMockCase?.patient ?? mockPatients[0]);
+  const [patient, setPatient] = useState<Patient>(demoDataEnabled ? (initialMockCase?.patient ?? mockPatients[0]) : emptyPatient);
   const [worksheet, setWorksheet] = useState<WorksheetData>(defaultWorksheet);
   const [thyroid, setThyroid] = useState<ThyroidData>(defaultThyroid);
   const [ob, setOb] = useState<ObData>(defaultOb);
@@ -119,6 +129,7 @@ export default function SonolynxApp() {
   const [hl7Open, setHl7Open] = useState(false);
   const [structuredReportOpen, setStructuredReportOpen] = useState(false);
   const [dialogReportText, setDialogReportText] = useState("");
+  const [dialogExactText, setDialogExactText] = useState(false);
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [currentWorksheet, setCurrentWorksheet] = useState<WorksheetRecord | null>(null);
   const [reportHistory, setReportHistory] = useState<any[]>([]);
@@ -132,7 +143,7 @@ export default function SonolynxApp() {
   const [isDirty, setIsDirty] = useState(false);
   const isInitialMount = useRef(true);
   const [worklistRefresh, setWorklistRefresh] = useState(0);
-  const [editedReportText, setEditedReportText] = useState("");
+  const [editedReportText, setEditedReportText] = useState<string | null>(null);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [availableDoctors, setAvailableDoctors] = useState<Array<{ id: string; email: string }>>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -154,6 +165,7 @@ export default function SonolynxApp() {
 
   useEffect(() => {
     let active = true;
+    if (loading || !user?.id) return;
     getCurrentUserOrganizationId().then((id) => {
       if (!active) return;
       setOrganizationId(id);
@@ -165,7 +177,7 @@ export default function SonolynxApp() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loading, user?.id]);
 
   // Automatically load the first active real patient and study on login
   useEffect(() => {
@@ -174,6 +186,12 @@ export default function SonolynxApp() {
 
     const loadInitialActiveCase = async () => {
       try {
+        const currentOrganizationId = await getCurrentUserOrganizationId();
+        // Never auto-load an unscoped patient/study. A missing organisation
+        // link must be repaired by an administrator before clinical data is
+        // shown.
+        if (!currentOrganizationId) return;
+
         const isDoc = role === "doctor" || role === "radiologist";
         if (isDoc) {
           const { data: docStudies, error: docErr } = await (supabase as any)
@@ -183,6 +201,7 @@ export default function SonolynxApp() {
                 "patients:patient_id(id, mrn, first_name, last_name, dob)"
             )
             .eq("assigned_to", user.id)
+            .eq("organization_id", currentOrganizationId)
             .order("study_date", { ascending: false })
             .limit(1);
 
@@ -212,6 +231,7 @@ export default function SonolynxApp() {
           .select(
             "id, mrn, first_name, last_name, dob, studies(id, accession_number, assigned_to, description, exam_type, status)"
           )
+          .eq("organization_id", currentOrganizationId)
           .order("created_at", { ascending: false })
           .limit(1);
 
@@ -281,7 +301,7 @@ export default function SonolynxApp() {
   }, [exam, thyroid, worksheet, ob, vascular]);
 
   const finalReportText = useMemo(() => {
-    if (editedReportText) return editedReportText;
+    if (editedReportText !== null) return editedReportText;
     const base = reportToText(report);
     const notes = additionalNotes.trim();
     return notes ? `${base}\n\n**ADDITIONAL NOTES:**\n${notes}` : base;
@@ -320,7 +340,7 @@ export default function SonolynxApp() {
     ? !hasCriticalErrors 
     : (isSonographerView && !hasCriticalErrors);
 
-  const canSeeReportHistory = role === "radiologist";
+  const canSeeReportHistory = isDoctorView;
   const canInspectHl7 = isDoctorView;
   const selectedTemplate = useMemo(
     () => availableTemplates.find((item) => item.id === selectedTemplateId) ?? null,
@@ -376,6 +396,7 @@ export default function SonolynxApp() {
         const existing = await loadWorksheet(patient.studyId, undefined, activeWorksheetId);
         if (!active) return;
         if (!existing) {
+          isInitialMount.current = true;
           setCurrentWorksheet(null);
           setWorksheet(defaultWorksheet);
           setThyroid(defaultThyroid);
@@ -383,10 +404,12 @@ export default function SonolynxApp() {
           setVascular(defaultVascular);
           setAbdomenOrder([]);
           setAdditionalNotes("");
-          setEditedReportText("");
+          setEditedReportText(null);
           setIsDirty(false);
           return;
         }
+        isInitialMount.current = true;
+        setIsDirty(false);
         setCurrentWorksheet(existing);
         console.info(
           "[worksheet-load] Hydrating state from record:",
@@ -417,7 +440,7 @@ export default function SonolynxApp() {
         if (hasPersistedSection(payload.ob)) setOb(payload.ob as unknown as ObData);
         if (hasPersistedSection(payload.vascular)) setVascular(payload.vascular as unknown as VascularData);
         if (typeof payload.additionalNotes === "string") setAdditionalNotes(payload.additionalNotes);
-        setEditedReportText(isDoctorView && existing.report_text ? existing.report_text : "");
+        setEditedReportText(isDoctorView && existing.report_text ? existing.report_text : null);
 
         setLastSaved(existing.updated_at ? new Date(existing.updated_at) : new Date());
       } catch (error) {
@@ -457,23 +480,19 @@ export default function SonolynxApp() {
     let active = true;
     const loadDoctors = async () => {
       if (!isSonographerView) return;
+      if (!organizationId) {
+        setAvailableDoctors([]);
+        setSelectedDoctorId("");
+        return;
+      }
 
-      // Get the default-org ID so we always show system-level doctors
-      const { data: defaultOrg } = await (supabase as any)
-        .from("organizations")
-        .select("id")
-        .eq("code", "default-org")
-        .maybeSingle();
-
-      // Build org list: current user's org + default org + null (legacy)
-      const orgsToInclude = [...new Set([organizationId, defaultOrg?.id].filter(Boolean))];
-
-      // Fetch doctors from both profiles and user_roles to ensure complete coverage
-      const [{ data: profDoctors, error }, { data: roleRows }] = await Promise.all([
+      // Profiles are the tenant boundary. Resolve the role table only for
+      // those profiles so a doctor from another clinic can never be assigned.
+      const [{ data: clinicProfiles, error }, { data: roleRows }] = await Promise.all([
         (supabase as any)
           .from("profiles")
           .select("id, email, role, organization_id")
-          .or("role.eq.doctor,role.eq.radiologist")
+          .eq("organization_id", organizationId)
           .order("email", { ascending: true }),
         (supabase as any)
           .from("user_roles")
@@ -484,30 +503,22 @@ export default function SonolynxApp() {
       if (error) console.error("[loadDoctors] fetch error:", error);
       if (!active) return;
 
-      const doctorsMap = new Map<string, { id: string; email: string }>();
-
-      (profDoctors ?? []).forEach((row: any) => {
-        if (row?.id && row?.email) {
-          doctorsMap.set(row.id, { id: row.id, email: row.email });
+      const clinicProfileIds = new Set((clinicProfiles ?? []).map((row: any) => row.id));
+      const roleMap = new Map<string, string>();
+      (roleRows ?? []).forEach((row: any) => {
+        if (clinicProfileIds.has(row?.user_id) && (row.role === "doctor" || row.role === "radiologist")) {
+          roleMap.set(row.user_id, row.role);
         }
       });
 
-      const missingUserIds = (roleRows ?? [])
-        .map((r: any) => r.user_id)
-        .filter((id: string) => id && !doctorsMap.has(id));
+      const doctorsMap = new Map<string, { id: string; email: string }>();
 
-      if (missingUserIds.length > 0) {
-        const { data: extraProfiles } = await (supabase as any)
-          .from("profiles")
-          .select("id, email")
-          .in("id", missingUserIds);
-
-        (extraProfiles ?? []).forEach((row: any) => {
-          if (row?.id && row?.email) {
-            doctorsMap.set(row.id, { id: row.id, email: row.email });
-          }
-        });
-      }
+      (clinicProfiles ?? []).forEach((row: any) => {
+        const resolvedRole = row?.role || roleMap.get(row?.id);
+        if (row?.id && row?.email && (resolvedRole === "doctor" || resolvedRole === "radiologist")) {
+          doctorsMap.set(row.id, { id: row.id, email: row.email });
+        }
+      });
 
       const doctorList = Array.from(doctorsMap.values());
       console.log("[loadDoctors] found", doctorList.length, "total doctors available");
@@ -533,7 +544,16 @@ export default function SonolynxApp() {
         setSelectedDoctorId("");
         return;
       }
-      const { data } = await (supabase as any).from("studies").select("assigned_to").eq("id", patient.studyId).maybeSingle();
+      if (!organizationId) {
+        setSelectedDoctorId("");
+        return;
+      }
+      const { data } = await (supabase as any)
+        .from("studies")
+        .select("assigned_to")
+        .eq("id", patient.studyId)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
       if (!active) return;
       setSelectedDoctorId(data?.assigned_to ?? "");
     };
@@ -541,7 +561,7 @@ export default function SonolynxApp() {
     return () => {
       active = false;
     };
-  }, [isSonographerView, patient.studyId]);
+  }, [isSonographerView, patient.studyId, organizationId]);
 
   useEffect(() => {
     let active = true;
@@ -588,6 +608,13 @@ export default function SonolynxApp() {
   }, [exam, templateTier]);
 
   const handleSelectPatient = (p: Patient) => {
+    if (savingDraft || sendingToDoctor || sendingReport) {
+      toast.info("Please wait for the current save or send to finish.");
+      return;
+    }
+    if (isDirty && !window.confirm("Discard unsaved changes and open another case?")) return;
+    isInitialMount.current = true;
+    setIsDirty(false);
     // Reset to clean defaults immediately so the form is blank while loading
     setWorksheet(defaultWorksheet);
     setThyroid(defaultThyroid);
@@ -596,7 +623,7 @@ export default function SonolynxApp() {
     setAdditionalNotes("");
     setAbdomenOrder([]);
     setCurrentWorksheet(null);
-    setEditedReportText("");
+    setEditedReportText(null);
     // Set exam type from the study label as a sensible default;
     // the useEffect will override it with the actual saved worksheet_type
     setExam(examFromLabel(p.exam));
@@ -662,42 +689,19 @@ export default function SonolynxApp() {
   };
 
   const handleConfirmSignAndSend = async () => {
+    if (!isDoctorView || hasCriticalErrors || !finalReportText.trim() || (!report.findings.length && !editedReportText?.trim() && !additionalNotes.trim())) {
+      toast.error("Cannot sign report", { description: "A clinician must review a nonempty report and resolve blocking issues first." });
+      return;
+    }
     if (!user || !patient.studyId) {
       toast.error("Sign/send blocked", { description: "Select a study and ensure you are signed in." });
       return;
     }
     setSendingReport(true);
     try {
-      // Prune data to only include the active exam type and selected Abdomen sections
-      const isAbdomen = exam === "Abdomen";
-      const isThyroid = exam === "Thyroid";
-      const isOb = exam === "OB";
-      const isVascular = exam === "Vascular";
-
-      const prunedWorksheet = isAbdomen ? { ...worksheet } : ({} as any);
-      if (isAbdomen) {
-        Object.keys(prunedWorksheet).forEach((key) => {
-          if (!abdomenOrder.includes(key)) {
-            delete prunedWorksheet[key];
-          }
-        });
-      }
-
-      // Preserve doctor edits if present; otherwise generate enhanced report text
-      let reportText = editedReportText.trim();
-      if (!reportText) {
-        const enhanced = await enhanceReport({
-          exam,
-          localReport: report,
-          worksheet: isAbdomen ? prunedWorksheet : ({} as any),
-          thyroid: isThyroid ? thyroid : ({} as any),
-          ob: isOb ? ob : ({} as any),
-          vascular: isVascular ? vascular : ({} as any),
-          additionalNotes,
-        });
-        if (enhanced.warning) toast.warning("Report notice", { description: enhanced.warning });
-        reportText = reportToText(enhanced.report);
-      }
+      // Sign exactly the report the clinician reviewed, including additional notes.
+      // AI wording changes are previewed and applied through the report tools first.
+      const reportText = finalReportText;
 
       // Finalize the worksheet in Supabase
       let signed: WorksheetRecord;
@@ -726,18 +730,22 @@ export default function SonolynxApp() {
       }
 
       setCurrentWorksheet(signed);
+      isInitialMount.current = true;
+      setEditedReportText(reportText);
       setIsDirty(false);
 
       // Update study status to 'completed'
       if (patient.studyId) {
         try {
-          await (supabase as any)
+          const { error: studyUpdateError } = await (supabase as any)
             .from("studies")
             .update({
               status: "completed",
               active_worksheet_id: signed.id,
             })
-            .eq("id", patient.studyId);
+            .eq("id", patient.studyId)
+            .eq("organization_id", organizationId);
+          if (studyUpdateError) throw studyUpdateError;
         } catch (studyErr) {
           console.warn("[finalize] study status update notice:", studyErr);
         }
@@ -756,7 +764,8 @@ export default function SonolynxApp() {
         });
 
         if (sendResult.ok) {
-          await updateWorksheetStatus(signed.id, "transmitted");
+          const transmitted = await updateWorksheetStatus(signed.id, "transmitted");
+          setCurrentWorksheet(transmitted);
           writeAuditLog({
             userId: user.id,
             patientId: patient.id,
@@ -767,8 +776,8 @@ export default function SonolynxApp() {
             status: "sent",
             metadata: { worksheetType: exam, accession },
           });
-          toast.success("Report Finalized & Transmitted", {
-            description: `ORU^R01 sent for accession ${accession}.`,
+          toast.success(sendResult.demo ? "Report finalized · Demo delivery" : "Report Finalized & Transmitted", {
+            description: sendResult.demo ? "Acknowledged by the local demo receiver; not sent to a clinical system." : `ORU^R01 sent for accession ${accession}.`,
           });
         } else {
           writeAuditLog({
@@ -781,14 +790,14 @@ export default function SonolynxApp() {
             status: "failed",
             metadata: { worksheetType: exam, accession, error: sendResult.errorMessage },
           });
-          toast.success("Report Finalized", {
-            description: "Signed successfully. HL7 dispatch queued.",
+          toast.warning("Report signed · Delivery failed", {
+            description: "The signed report is saved. Check the HL7 gateway before retrying delivery.",
           });
         }
       } catch (hl7Error: any) {
         console.warn("[finalize] HL7 transmission notice:", hl7Error);
-        toast.success("Report Finalized", {
-          description: "Signed successfully and locked in record.",
+        toast.warning("Report signed · Delivery pending", {
+          description: "The signed report is saved, but delivery could not be confirmed.",
         });
       }
 
@@ -851,7 +860,8 @@ export default function SonolynxApp() {
       const { error: updateError } = await (supabase as any)
         .from("studies")
         .update(studyUpdate)
-        .eq("id", patient.studyId);
+        .eq("id", patient.studyId)
+        .eq("organization_id", organizationId);
 
       if (updateError) {
         if (
@@ -862,7 +872,8 @@ export default function SonolynxApp() {
           const { error: retryError } = await (supabase as any)
             .from("studies")
             .update({ assigned_to: doctorIdToSend, status: "review_pending" })
-            .eq("id", patient.studyId);
+            .eq("id", patient.studyId)
+            .eq("organization_id", organizationId);
           if (retryError) throw retryError;
         } else {
           throw updateError;
@@ -901,6 +912,18 @@ export default function SonolynxApp() {
   }
 
   if (!user) return null;
+  if (!role) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-center">
+        <div className="max-w-md space-y-2">
+          <h1 className="text-lg font-semibold">Clinic role not assigned</h1>
+          <p className="text-sm text-muted-foreground">
+            Your account is signed in, but a clinical role has not been assigned. Contact your clinic administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const gridCols = isDoctorView
     ? "grid-cols-1 lg:grid-cols-[40%_30%_30%]"
@@ -941,24 +964,46 @@ export default function SonolynxApp() {
       </div>
 
       {isSonographerView && (
-        <div className="flex flex-wrap items-center gap-2 border-b bg-card px-3 py-2 sm:px-4">
-          <span className="text-xs font-medium text-muted-foreground">Send case to doctor:</span>
-          <select
-            value={selectedDoctorId}
-            onChange={(event) => setSelectedDoctorId(event.target.value)}
-            className="h-8 min-w-64 rounded-md border bg-background px-2 text-xs"
-          >
-            <option value="">Select doctor email</option>
-            {availableDoctors.map((doctor) => (
-              <option key={doctor.id} value={doctor.id}>
-                {doctor.email}
-              </option>
-            ))}
-          </select>
-          <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || !selectedDoctorId}>
-            {sendingToDoctor ? "Sending..." : "Send to Doctor"}
-          </Button>
+        <div className="flex shrink-0 flex-col border-b bg-card xl:flex-row xl:items-center">
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4 xl:shrink-0 xl:border-r">
+            <span className="text-xs font-medium text-muted-foreground">Send case to doctor:</span>
+            <select
+              value={selectedDoctorId}
+              onChange={(event) => setSelectedDoctorId(event.target.value)}
+              className="h-8 min-w-64 rounded-md border bg-background px-2 text-xs"
+            >
+              <option value="">Select doctor email</option>
+              {availableDoctors.map((doctor) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.email}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || !selectedDoctorId}>
+              {sendingToDoctor ? "Sending..." : "Send to Doctor"}
+            </Button>
+          </div>
+          <WorkflowProgress
+            key={patient.studyId ?? patient.id}
+            studyId={patient.studyId}
+            worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
+            revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
+            patientLabel={`${patient.lastName}, ${patient.firstName}`}
+            busy={savingDraft || sendingToDoctor || sendingReport}
+            compact
+          />
         </div>
+      )}
+
+      {!isSonographerView && (
+        <WorkflowProgress
+          key={patient.studyId ?? patient.id}
+          studyId={patient.studyId}
+          worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
+          revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
+          patientLabel={`${patient.lastName}, ${patient.firstName}`}
+          busy={savingDraft || sendingToDoctor || sendingReport}
+        />
       )}
 
       {!mounted ? (
@@ -1000,6 +1045,7 @@ export default function SonolynxApp() {
                     setHl7Open(true);
                   }}
                   onGenerateReport={() => {
+                    setDialogExactText(false);
                     setDialogReportText(structuredReportText);
                     setStructuredReportOpen(true);
                   }}
@@ -1023,18 +1069,23 @@ export default function SonolynxApp() {
         <ResizablePanel defaultSize={isDoctorView ? 50 : 50} minSize={25}>
           <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
             <ReportPreview
+              key={`${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
               patient={patient}
               accession={accession}
               report={report}
               additionalNotes={additionalNotes}
               validationIssues={validationIssues}
               onPrint={() => {
-                setDialogReportText(structuredReportText);
+                setDialogExactText(editedReportText !== null);
+                setDialogReportText(editedReportText !== null ? `Patient: ${patient.lastName}, ${patient.firstName}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
                 setStructuredReportOpen(true);
               }}
               isDoctorMode={isDoctorView}
-              editableText={editedReportText || finalReportText}
-              hasBeenEdited={!!editedReportText}
+              editableText={finalReportText}
+              worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
+              isSigned={currentWorksheet?.study_id === patient.studyId && !!currentWorksheet?.signed_at && !!currentWorksheet?.signed_by && currentWorksheet.status !== "draft"}
+              canUseAiTools={role === "doctor" || role === "radiologist"}
+              hasBeenEdited={editedReportText !== null}
               onEditableTextChange={setEditedReportText}
               onSign={() => setSignDialogOpen(true)}
             />
@@ -1046,7 +1097,7 @@ export default function SonolynxApp() {
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={isDoctorView ? 50 : 40} minSize={20}>
               <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
-                <DicomViewer accession={accession} />
+                <DicomViewer key={patient.studyId ?? patient.id} accession={accession} />
               </div>
             </ResizablePanel>
           </>
@@ -1060,6 +1111,7 @@ export default function SonolynxApp() {
           items={reportHistory}
           loading={loadingHistory}
           onOpen={(text) => {
+            setDialogExactText(true);
             setDialogReportText(text);
             setStructuredReportOpen(true);
           }}
@@ -1095,6 +1147,7 @@ export default function SonolynxApp() {
         open={structuredReportOpen}
         onOpenChange={setStructuredReportOpen}
         baseReportText={dialogReportText || structuredReportText}
+        useExactText={dialogExactText}
         templates={availableTemplates}
         selectedTemplateId={selectedTemplateId}
         onTemplateChange={setSelectedTemplateId}
