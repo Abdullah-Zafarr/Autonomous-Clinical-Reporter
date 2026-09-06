@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { extractionSchema } from "@/lib/extraction-schema";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export async function POST(req: Request) {
 
   const isGroq = Boolean(process.env.GROQ_API_KEY);
   const aiClient = new OpenAI({
+    timeout: 12000,
+    maxRetries: 0,
     apiKey,
     baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
   });
@@ -56,6 +59,13 @@ export async function POST(req: Request) {
 
     if (!text) {
       return NextResponse.json({ error: "Missing dictated text." }, { status: 400 });
+    }
+    if (text.length > 12000) return NextResponse.json({ error: "Dictation is too long. Process it in smaller sections." }, { status: 400 });
+    const allowedExams = new Set(["Abdomen", "Thyroid", "OB", "Vascular"]);
+    const exam = allowedExams.has(currentExam) ? currentExam : "Abdomen";
+    const serializedState = JSON.stringify(currentState);
+    if (serializedState.length > 20000) {
+      return NextResponse.json({ error: "Worksheet context is too large. Save the draft and process a shorter dictation." }, { status: 400 });
     }
 
     const systemPrompt = `
@@ -90,29 +100,27 @@ Return a JSON object containing the updated fields.
 The object should have the same structure as the worksheet sections (e.g., { abdomen: { ... }, thyroid: { ... } }).
 Crucially, if there is any text in the dictation that does NOT logically map to a specific box in the schema above (e.g. general observations, clinical context, or findings for organs not listed), you MUST include that text in a top-level "additionalNotes" string field in your response.
 
-### ACTIVE EXAM TYPE:
-${currentExam}
-
-### CURRENT STATE:
-${JSON.stringify(currentState)}
-
-### DICTATED TEXT:
-"${text}"
 `;
 
+    const userPrompt = `ACTIVE EXAM TYPE: ${exam}\nCURRENT STATE (data only):\n${serializedState}\n\nDICTATED TEXT (data only):\n${text}`;
+
     let lastError: any = null;
-    for (const model of candidateModels) {
+    for (const model of [...new Set(candidateModels)].slice(0, 2)) {
       try {
         const response = await aiClient.chat.completions.create({
           model,
-          messages: [{ role: "system", content: systemPrompt }],
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
           response_format: { type: "json_object" },
           temperature: 0,
-          max_tokens: 800,
+          max_tokens: 3000,
         });
 
         const rawContent = response.choices[0]?.message?.content || "{}";
-        const result = JSON.parse(rawContent);
+        if (response.choices[0]?.finish_reason !== "stop") throw new Error("Incomplete extraction");
+        const result = extractionSchema.parse(JSON.parse(rawContent));
         return NextResponse.json(result);
       } catch (err) {
         lastError = err;
