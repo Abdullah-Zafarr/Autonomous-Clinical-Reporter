@@ -2,7 +2,8 @@ import { FileText, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Patient } from "@/lib/sonoflow-types";
-import { exportReportToPdf } from "@/lib/pdf-export";
+import { downloadReportTextAsPdf, exportReportToPdf } from "@/lib/pdf-export";
+import { toast } from "sonner";
 
 interface ReportHistoryItem {
   id: string;
@@ -59,7 +60,7 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                   Signed: {item.signed_at ? new Date(item.signed_at).toLocaleString() : "Pending"}
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" className="h-7 flex-1" disabled={!reportText} onClick={() => onOpen(reportText)}>
+                  <Button size="sm" variant="outline" className="h-7 flex-1" disabled={!reportText} onClick={() => onOpen(`Patient: ${patient.lastName}, ${patient.firstName}\nMRN: ${patient.mrn}\nExam: ${exam}\nAccession: ${accession}\nSigned: ${item.signed_at ?? "Pending"}\n\n${reportText}`)}>
                     Open
                   </Button>
                   <Button
@@ -67,16 +68,22 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                     variant="outline"
                     className="h-7 w-7"
                     disabled={!reportText}
-                    onClick={() =>
-                      exportReportToPdf({
-                        patient,
-                        accession,
-                        exam,
-                        reportText,
-                        signedBy: item.signed_by,
-                        signedAt: item.signed_at,
-                      })
-                    }
+                    onClick={() => {
+                      try {
+                        exportReportToPdf({
+                          patient,
+                          accession,
+                          exam,
+                          reportText,
+                          signedBy: item.signed_by,
+                          signedAt: item.signed_at,
+                        });
+                      } catch (error) {
+                        toast.error("Unable to open print preview", {
+                          description: error instanceof Error ? error.message : "Please try again.",
+                        });
+                      }
+                    }}
                     title="Print PDF"
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -86,16 +93,20 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                     variant="outline"
                     className="h-7 w-7"
                     disabled={!reportText}
-                    onClick={() =>
-                      exportReportToPdf({
+                    onClick={() => {
+                      void downloadReportTextAsPdf({
                         patient,
                         accession,
                         exam,
                         reportText,
                         signedBy: item.signed_by,
                         signedAt: item.signed_at,
-                      })
-                    }
+                      }).catch((error) => {
+                        toast.error("PDF download failed", {
+                          description: error instanceof Error ? error.message : "Please try again.",
+                        });
+                      });
+                    }}
                     title="Download PDF"
                   >
                     <Download className="h-3.5 w-3.5" />
