@@ -13,7 +13,8 @@ export interface WorkflowSnapshot {
 export function workflowProgress(snapshot: WorkflowSnapshot) {
   const { worksheet, delivery } = snapshot;
   const signed = !!worksheet?.signed_at && !!worksheet.signed_by && worksheet.status !== "draft";
-  const review = signed || snapshot.studyStatus === "review_pending" || !!snapshot.reviewAt;
+  const correctionRequested = snapshot.studyStatus === "correction_requested";
+  const review = signed || snapshot.studyStatus === "review_pending" || correctionRequested || !!snapshot.reviewAt;
   let demo = false;
   try {
     const response = JSON.parse(delivery?.response_body || "{}");
@@ -36,7 +37,9 @@ export function workflowProgress(snapshot: WorkflowSnapshot) {
         : signed
           ? "Signed · Awaiting delivery"
           : review
-            ? "Awaiting doctor review"
+            ? correctionRequested
+              ? "Correction requested"
+              : "Awaiting doctor review"
             : worksheet
               ? "Worksheet in progress"
               : "Worksheet not started",
@@ -51,7 +54,7 @@ export function workflowProgress(snapshot: WorkflowSnapshot) {
         label: "Doctor Review",
         complete: signed,
         time: snapshot.reviewAt,
-        detail: review ? "Submitted for review" : "Awaiting submission",
+        detail: correctionRequested ? "Returned for correction" : review ? "Submitted for review" : "Awaiting submission",
       },
       {
         label: "Signed",

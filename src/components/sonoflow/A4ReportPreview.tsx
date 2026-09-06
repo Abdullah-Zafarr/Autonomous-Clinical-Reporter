@@ -3,11 +3,13 @@
 import { escapeHtml } from "@/lib/html-utils";
 import type { RenderedTemplateDocument } from "@/lib/report-template-engine";
 import type { ReportBrandingSettings } from "@/lib/report-template-types";
+import type { KeyReportImage } from "@/lib/clinical-workflow-types";
 
 interface Props {
   document: RenderedTemplateDocument;
   branding: ReportBrandingSettings;
   showSonolynxBranding: boolean;
+  keyImages?: KeyReportImage[];
 }
 
 export function buildA4ReportHtml(
@@ -43,7 +45,7 @@ export function buildA4ReportHtml(
   </div>`;
 }
 
-export function A4ReportPreview({ document, branding, showSonolynxBranding }: Props) {
+export function A4ReportPreview({ document, branding, showSonolynxBranding, keyImages = [] }: Props) {
   return (
     <div className="mx-auto w-full max-w-[794px] bg-white p-6 shadow-sm">
       <header className="mb-4 flex items-start justify-between gap-3 break-inside-avoid">
@@ -74,6 +76,21 @@ export function A4ReportPreview({ document, branding, showSonolynxBranding }: Pr
           </section>
         ))}
       </div>
+
+      {keyImages.length > 0 && (
+        <section className="mt-4 break-before-auto">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide">Key Images</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {keyImages.map((image) => (
+              <figure key={image.id} className="break-inside-avoid overflow-hidden rounded-md border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image.dataUrl} alt={image.caption} className="aspect-[4/3] w-full bg-black object-contain" />
+                <figcaption className="p-2 text-[10px] leading-snug">{image.caption}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       {(branding.footerText || showSonolynxBranding) && (
         <footer className="mt-4 border-t pt-2 text-center text-[10px] text-muted-foreground">

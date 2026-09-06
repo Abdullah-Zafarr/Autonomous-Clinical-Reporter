@@ -31,6 +31,13 @@ test("submission activates review without claiming signature", () => {
   assert.equal(progress.steps[2].complete, false);
   assert.equal(progress.steps[1].time, null);
 });
+test("returned cases remain in review and show correction status", () => {
+  const progress = workflowProgress({ ...base, worksheet: draft, studyStatus: "correction_requested" });
+  assert.equal(progress.active, 1);
+  assert.equal(progress.summary, "Correction requested");
+  assert.equal(progress.steps[1].detail, "Returned for correction");
+  assert.equal(progress.steps[2].complete, false);
+});
 test("completed study does not imply delivery or signing a new draft", () => {
   assert.equal(workflowProgress({ ...base, studyStatus: "completed", worksheet: draft }).active, 0);
   assert.equal(

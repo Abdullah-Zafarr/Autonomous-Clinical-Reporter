@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Wifi, Maximize2, Layers, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { Crosshair, Wifi, Maximize2, Layers, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchWithTimeout } from "@/lib/api-client";
+import type { KeyReportImage } from "@/lib/clinical-workflow-types";
+import { toast } from "sonner";
 
 let csInitialized = false;
 
 interface DicomViewerProps {
   accession?: string;
+  keyImages?: KeyReportImage[];
+  onKeyImagesChange?: (images: KeyReportImage[]) => void;
+  currentUserId?: string;
+  canSelectKeyImages?: boolean;
 }
 
-export function DicomViewer({ accession }: DicomViewerProps) {
+export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, currentUserId = "", canSelectKeyImages = false }: DicomViewerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const csRef = useRef<any>(null);
@@ -23,6 +31,11 @@ export function DicomViewer({ accession }: DicomViewerProps) {
   const [status, setStatus] = useState("Waiting for images...");
   const [loading, setLoading] = useState(false);
   const [lastFetchFailed, setLastFetchFailed] = useState(false);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState<{ dataUrl: string; frameNumber: number } | null>(null);
+  const [caption, setCaption] = useState("");
+  const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
 
 
   const hasImages = imageIds.length > 0;
@@ -218,6 +231,97 @@ export function DicomViewer({ accession }: DicomViewerProps) {
     cornerstone.reset(el);
   };
 
+  const beginKeyImage = () => {
+    const sourceCanvas = viewportRef.current?.querySelector("canvas");
+    if (!sourceCanvas || sourceCanvas.width === 0 || sourceCanvas.height === 0) {
+      toast.error("Key image unavailable", { description: "Render a DICOM frame before selecting it." });
+      return;
+    }
+    if (keyImages.length >= 6) {
+      toast.info("Key image limit reached", { description: "Remove an image before adding another (maximum 6)." });
+      return;
+    }
+    setSnapshot({ dataUrl: sourceCanvas.toDataURL("image/jpeg", 0.86), frameNumber: currentFrame });
+    setCaption("");
+    setAnnotationOpen(true);
+  };
+
+  const prepareAnnotationCanvas = (image: HTMLImageElement) => {
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const pointerPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * canvas.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * canvas.height,
+    };
+  };
+
+  const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    canvas.setPointerCapture(event.pointerId);
+    const point = pointerPosition(event);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    context.strokeStyle = "#ef4444";
+    context.lineWidth = Math.max(3, canvas.width / 240);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    drawingRef.current = true;
+  };
+
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    const point = pointerPosition(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const clearAnnotation = () => {
+    const canvas = annotationCanvasRef.current;
+    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const saveKeyImage = async () => {
+    if (!snapshot) return;
+    const annotation = annotationCanvasRef.current;
+    const image = new Image();
+    image.onload = () => {
+      const maxWidth = 1200;
+      const scale = Math.min(1, maxWidth / image.naturalWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.naturalWidth * scale);
+      canvas.height = Math.round(image.naturalHeight * scale);
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      if (annotation) context.drawImage(annotation, 0, 0, canvas.width, canvas.height);
+      const next: KeyReportImage = {
+        id: crypto.randomUUID(),
+        dataUrl: canvas.toDataURL("image/jpeg", 0.82),
+        caption: caption.trim() || `Key ultrasound image · frame ${snapshot.frameNumber}`,
+        frameNumber: snapshot.frameNumber,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUserId,
+      };
+      onKeyImagesChange?.([...keyImages, next]);
+      setAnnotationOpen(false);
+      setSnapshot(null);
+      toast.success("Key image added", { description: "It will be included in the report and PDF." });
+    };
+    image.src = snapshot.dataUrl;
+  };
+
   return (
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-slate-950 text-slate-200 lg:border-l">
       <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
@@ -249,6 +353,18 @@ export function DicomViewer({ accession }: DicomViewerProps) {
             <Upload className="mr-1.5 h-3.5 w-3.5" />
             Upload
           </Button>
+
+          {canSelectKeyImages && (
+            <Button
+              size="sm"
+              className="h-8 bg-blue-600 text-white hover:bg-blue-500"
+              onClick={beginKeyImage}
+              disabled={!hasImages}
+            >
+              <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
+              Add key image
+            </Button>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -337,6 +453,27 @@ export function DicomViewer({ accession }: DicomViewerProps) {
       </div>
 
       <footer className="border-t border-slate-800 px-4 py-2 text-[10px] text-slate-400">
+        {keyImages.length > 0 && (
+          <div className="mb-2 flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
+            {keyImages.map((image) => (
+              <div key={image.id} className="group relative w-20 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image.dataUrl} alt={image.caption} className="h-12 w-20 rounded border border-slate-700 object-cover" />
+                {canSelectKeyImages && (
+                  <button
+                    type="button"
+                    className="absolute right-0.5 top-0.5 rounded bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={() => onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id))}
+                    aria-label={`Remove ${image.caption}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+                <p className="mt-1 truncate" title={image.caption}>{image.caption}</p>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
             <Layers className="mb-1 h-3 w-3 text-slate-500" />
@@ -353,6 +490,43 @@ export function DicomViewer({ accession }: DicomViewerProps) {
         </div>
         <div className="mt-2 text-center text-[10px] text-slate-500">Left drag: WW/WL · Middle drag: Pan · Right drag: Zoom</div>
       </footer>
+
+      <Dialog open={annotationOpen} onOpenChange={setAnnotationOpen}>
+        <DialogContent className="max-w-4xl bg-slate-950 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Annotate key image</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Draw over the image to mark the finding, then add a clinical caption.
+            </DialogDescription>
+          </DialogHeader>
+          {snapshot && (
+            <div className="mx-auto max-h-[60vh] max-w-full overflow-auto rounded border border-slate-700 bg-black">
+              <div className="relative inline-block touch-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={snapshot.dataUrl} alt="Selected DICOM frame" className="block max-h-[55vh] max-w-full" onLoad={(event) => prepareAnnotationCanvas(event.currentTarget)} />
+                <canvas
+                  ref={annotationCanvasRef}
+                  className="absolute inset-0 h-full w-full cursor-crosshair"
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={() => { drawingRef.current = false; }}
+                  onPointerCancel={() => { drawingRef.current = false; }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Input value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Caption, e.g. Gallstone with posterior acoustic shadowing" className="border-slate-700 bg-slate-900" />
+            <Button type="button" variant="secondary" onClick={clearAnnotation}>
+              <Undo2 className="mr-1.5 h-4 w-4" /> Clear ink
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAnnotationOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={saveKeyImage}>Add to report</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

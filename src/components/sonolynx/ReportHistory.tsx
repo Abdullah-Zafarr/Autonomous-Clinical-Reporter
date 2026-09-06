@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Patient } from "@/lib/sonoflow-types";
 import { downloadReportTextAsPdf, exportReportToPdf } from "@/lib/pdf-export";
 import { toast } from "sonner";
+import type { KeyReportImage } from "@/lib/clinical-workflow-types";
 
 interface ReportHistoryItem {
   id: string;
@@ -12,6 +13,8 @@ interface ReportHistoryItem {
   report_text: string | null;
   signed_at: string | null;
   signed_by: string | null;
+  data?: { keyImages?: KeyReportImage[] } | null;
+  form_data?: { keyImages?: KeyReportImage[] } | null;
   studies?: {
     accession_number?: string | null;
     exam_type?: string | null;
@@ -23,7 +26,7 @@ interface ReportHistoryProps {
   patient: Patient;
   items: ReportHistoryItem[];
   loading: boolean;
-  onOpen: (reportText: string) => void;
+  onOpen: (reportText: string, keyImages: KeyReportImage[]) => void;
 }
 
 export function ReportHistory({ patient, items, loading, onOpen }: ReportHistoryProps) {
@@ -47,6 +50,7 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
             const reportText = item.report_text ?? "";
             const accession = item.studies?.accession_number ?? patient.accessionNumber ?? "Pending";
             const exam = item.studies?.exam_type ?? item.studies?.description ?? item.worksheet_type;
+            const keyImages = item.data?.keyImages ?? item.form_data?.keyImages ?? [];
             return (
               <div key={item.id} className="min-w-64 rounded-md border bg-background p-3 text-xs">
                 <div className="flex items-start justify-between gap-2">
@@ -60,7 +64,7 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                   Signed: {item.signed_at ? new Date(item.signed_at).toLocaleString() : "Pending"}
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" className="h-7 flex-1" disabled={!reportText} onClick={() => onOpen(`Patient: ${patient.lastName}, ${patient.firstName}\nMRN: ${patient.mrn}\nExam: ${exam}\nAccession: ${accession}\nSigned: ${item.signed_at ?? "Pending"}\n\n${reportText}`)}>
+                  <Button size="sm" variant="outline" className="h-7 flex-1" disabled={!reportText} onClick={() => onOpen(`Patient: ${patient.lastName}, ${patient.firstName}\nMRN: ${patient.mrn}\nExam: ${exam}\nAccession: ${accession}\nSigned: ${item.signed_at ?? "Pending"}\n\n${reportText}`, keyImages)}>
                     Open
                   </Button>
                   <Button
@@ -77,6 +81,7 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                           reportText,
                           signedBy: item.signed_by,
                           signedAt: item.signed_at,
+                          keyImages,
                         });
                       } catch (error) {
                         toast.error("Unable to open print preview", {
@@ -101,6 +106,7 @@ export function ReportHistory({ patient, items, loading, onOpen }: ReportHistory
                         reportText,
                         signedBy: item.signed_by,
                         signedAt: item.signed_at,
+                        keyImages,
                       }).catch((error) => {
                         toast.error("PDF download failed", {
                           description: error instanceof Error ? error.message : "Please try again.",

@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
 import { ReportCopilot } from "./ReportCopilot";
+import { CorrectionPanel } from "@/components/sonolynx/CorrectionPanel";
+import type { CorrectionFieldOption, KeyReportImage, WorksheetCorrection } from "@/lib/clinical-workflow-types";
 
 interface Props {
   patient: Patient;
@@ -25,6 +27,14 @@ interface Props {
   onSign?: () => void;
   worksheetId?: string;
   isSigned?: boolean;
+  keyImages?: KeyReportImage[];
+  correctionFields?: CorrectionFieldOption[];
+  corrections?: WorksheetCorrection[];
+  onCorrectionsChange?: (corrections: WorksheetCorrection[]) => void;
+  currentUserId?: string;
+  studyStatus?: string | null;
+  returningForCorrection?: boolean;
+  onReturnForCorrection?: () => void;
 }
 
 export function ReportPreview({
@@ -42,6 +52,14 @@ export function ReportPreview({
   onSign,
   worksheetId,
   isSigned = false,
+  keyImages = [],
+  correctionFields = [],
+  corrections = [],
+  onCorrectionsChange,
+  currentUserId = "",
+  studyStatus,
+  returningForCorrection,
+  onReturnForCorrection,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
@@ -139,6 +157,19 @@ export function ReportPreview({
         onApply={(text) => { onEditableTextChange?.(text); setIsEditing(true); }}
       />}
 
+      {onCorrectionsChange && (
+        <CorrectionPanel
+          fields={correctionFields}
+          corrections={corrections}
+          onChange={onCorrectionsChange}
+          isDoctorMode={!!isDoctorMode}
+          currentUserId={currentUserId}
+          studyStatus={studyStatus}
+          returning={returningForCorrection}
+          onReturn={onReturnForCorrection}
+        />
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
         {isDoctorMode && isEditing ? (
           <textarea
@@ -200,6 +231,21 @@ export function ReportPreview({
                     </li>
                   ))}
                 </ol>
+              </section>
+            )}
+
+            {keyImages.length > 0 && (
+              <section className="break-inside-avoid-page">
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">Key Images</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {keyImages.map((image) => (
+                    <figure key={image.id} className="overflow-hidden rounded-md border bg-black">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={image.dataUrl} alt={image.caption} className="aspect-[4/3] w-full object-contain" />
+                      <figcaption className="bg-white p-2 font-sans text-[11px] text-slate-700">{image.caption}</figcaption>
+                    </figure>
+                  ))}
+                </div>
               </section>
             )}
 

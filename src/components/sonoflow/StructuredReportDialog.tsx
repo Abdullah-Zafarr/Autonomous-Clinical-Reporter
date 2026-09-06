@@ -20,6 +20,7 @@ import type { RenderedTemplateDocument } from "@/lib/report-template-engine";
 import type { ReportBrandingSettings } from "@/lib/report-template-types";
 import { shouldShowSonolynxBranding } from "@/lib/template-tier-access";
 import type { OrganizationTier } from "@/lib/org-scope";
+import type { KeyReportImage } from "@/lib/clinical-workflow-types";
 
 interface Props {
   open: boolean;
@@ -32,6 +33,7 @@ interface Props {
   tier: OrganizationTier;
   branding: ReportBrandingSettings;
   useExactText?: boolean;
+  keyImages?: KeyReportImage[];
 }
 
 export function StructuredReportDialog({
@@ -45,6 +47,7 @@ export function StructuredReportDialog({
   tier,
   branding,
   useExactText = false,
+  keyImages = [],
 }: Props) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("formatted");
@@ -104,7 +107,7 @@ export function StructuredReportDialog({
           <TabsContent value="formatted" className="mt-3">
             <ScrollArea className="h-[70vh] rounded-md border bg-slate-100 p-3">
               <div id="a4-print-root">
-                <A4ReportPreview document={displayDocument} branding={branding} showSonolynxBranding={showSonolynxBranding} />
+                <A4ReportPreview document={displayDocument} branding={branding} showSonolynxBranding={showSonolynxBranding} keyImages={keyImages} />
               </div>
             </ScrollArea>
           </TabsContent>

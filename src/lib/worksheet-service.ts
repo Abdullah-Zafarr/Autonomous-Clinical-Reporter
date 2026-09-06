@@ -1,6 +1,7 @@
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExamType } from "@/lib/sonoflow-types";
+import type { KeyReportImage, WorksheetCorrection } from "@/lib/clinical-workflow-types";
 
 export type WorksheetStatus = "draft" | "signed" | "transmitted" | "failed";
 
@@ -11,6 +12,8 @@ export interface WorksheetPayload {
   ob: unknown;
   vascular: unknown;
   additionalNotes: string;
+  keyImages?: KeyReportImage[];
+  corrections?: WorksheetCorrection[];
 }
 
 export interface WorksheetRecord {
@@ -40,6 +43,32 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 const hasKeys = (value: unknown) => isObject(value) && Object.keys(value).length > 0;
 
+const normalizeKeyImages = (value: unknown): KeyReportImage[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((image): image is KeyReportImage =>
+      isObject(image) &&
+      typeof image.id === "string" &&
+      typeof image.caption === "string" &&
+      typeof image.dataUrl === "string" &&
+      /^(data:image\/(jpeg|png);base64,)/.test(image.dataUrl) &&
+      image.dataUrl.length <= 3_000_000,
+    )
+    .slice(0, 6);
+};
+
+const normalizeCorrections = (value: unknown): WorksheetCorrection[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is WorksheetCorrection =>
+    isObject(item) &&
+    typeof item.id === "string" &&
+    typeof item.fieldPath === "string" &&
+    typeof item.fieldLabel === "string" &&
+    typeof item.comment === "string" &&
+    (item.status === "open" || item.status === "resolved"),
+  );
+};
+
 const hasWorksheetPayloadShape = (value: unknown) =>
   isObject(value) &&
   ("abdomen" in value ||
@@ -47,7 +76,9 @@ const hasWorksheetPayloadShape = (value: unknown) =>
     "thyroid" in value ||
     "ob" in value ||
     "vascular" in value ||
-    "additionalNotes" in value);
+    "additionalNotes" in value ||
+    "keyImages" in value ||
+    "corrections" in value);
 
 const normalizePayload = (value: unknown, worksheetType: ExamType): WorksheetPayload => {
   if (hasWorksheetPayloadShape(value)) {
@@ -59,6 +90,8 @@ const normalizePayload = (value: unknown, worksheetType: ExamType): WorksheetPay
       ob: payload.ob ?? {},
       vascular: payload.vascular ?? {},
       additionalNotes: typeof payload.additionalNotes === "string" ? payload.additionalNotes : "",
+      keyImages: normalizeKeyImages(payload.keyImages),
+      corrections: normalizeCorrections(payload.corrections),
     };
   }
 
@@ -70,6 +103,8 @@ const normalizePayload = (value: unknown, worksheetType: ExamType): WorksheetPay
     ob: worksheetType === "OB" ? legacySection : {},
     vascular: worksheetType === "Vascular" ? legacySection : {},
     additionalNotes: "",
+    keyImages: [],
+    corrections: [],
   };
 };
 
@@ -354,6 +389,40 @@ export async function updateWorksheetStatus(worksheetId: string, status: Workshe
   return normalizeWorksheetRecord(data) as WorksheetRecord;
 }
 
+export async function updateWorksheetReview(params: {
+  worksheetId: string;
+  studyId: string;
+  data: WorksheetPayload;
+  studyStatus: "correction_requested" | "review_pending";
+}) {
+  const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) throw new Error("Organization context not found. Please sign in again.");
+
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await runWorksheetMutationWithSchemaFallback(
+    { form_data: toJsonPayload(params.data), data: toJsonPayload(params.data), updated_at: updatedAt },
+    (payload) =>
+      db
+        .from("worksheets")
+        .update(payload)
+        .eq("id", params.worksheetId)
+        .eq("study_id", params.studyId)
+        .eq("organization_id", organizationId)
+        .select("*")
+        .single(),
+  );
+  if (error) throw error;
+
+  const studyUpdate = await db
+    .from("studies")
+    .update({ status: params.studyStatus })
+    .eq("id", params.studyId)
+    .eq("organization_id", organizationId);
+  if (studyUpdate.error) throw studyUpdate.error;
+  return normalizeWorksheetRecord(data) as WorksheetRecord;
+}
+
 
 export async function getReportHistory(patientId: string) {
   const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
@@ -368,6 +437,8 @@ export async function getReportHistory(patientId: string) {
       worksheet_type,
       status,
       report_text,
+      data,
+      form_data,
       signed_by,
       signed_at,
       created_at,
@@ -408,6 +479,8 @@ export async function getReportHistory(patientId: string) {
         worksheet_type,
         status,
         report_text,
+        data,
+        form_data,
         signed_by,
         signed_at,
         created_at,
