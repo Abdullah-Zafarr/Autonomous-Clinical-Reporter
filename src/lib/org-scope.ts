@@ -54,20 +54,10 @@ export async function getCurrentUserOrganizationId(): Promise<string | null> {
 
   if (data?.organization_id) return data.organization_id as string;
 
-  // Fallback to "Default Organization" if it exists (avoids island creation)
-  const { data: defaultOrg } = await db
-    .from("organizations")
-    .select("id")
-    .eq("code", "default-org")
-    .maybeSingle();
-  
-  if (defaultOrg?.id) {
-    console.info("[org-scope] User", user.id, "has no org, falling back to default-org");
-    return defaultOrg.id;
-  }
-
-  // No org yet and no default — provision one via the server-side API
-  console.info("[org-scope] No org found and no default exists — calling provision-org API");
+  // Do not fall back to a shared/default organisation. That would make a
+  // missing membership look valid and could expose another clinic's data.
+  // Provisioning is restricted to administrator accounts by the server route.
+  console.info("[org-scope] No organization linked — requesting administrator provisioning");
   return provisionOrgViaApi();
 }
 
@@ -129,7 +119,7 @@ export const TIER_CONFIG: Record<OrganizationTier, TierCapabilities> = {
 export async function getCurrentUserOrganizationTier(): Promise<OrganizationTier> {
   try {
     const { db, user } = await getAuthedUser();
-    if (!user?.id) return "enterprise";
+    if (!user?.id) return "individual";
 
     const { data: profile } = await db
       .from("profiles")
@@ -137,7 +127,7 @@ export async function getCurrentUserOrganizationTier(): Promise<OrganizationTier
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile?.organization_id) return "enterprise";
+    if (!profile?.organization_id) return "individual";
 
     const { data: org, error } = await db
       .from("organizations")
@@ -147,15 +137,15 @@ export async function getCurrentUserOrganizationTier(): Promise<OrganizationTier
 
     if (error) {
       console.warn(
-        "[org-scope] Could not read tier (migration pending?), defaulting to enterprise:",
+        "[org-scope] Could not read tier, defaulting to individual:",
         error.message,
       );
-      return "enterprise";
+      return "individual";
     }
 
-    return (org?.tier as OrganizationTier) ?? "enterprise";
+    return (org?.tier as OrganizationTier) ?? "individual";
   } catch (err) {
-    console.warn("[org-scope] Unexpected error reading tier, defaulting to enterprise:", err);
-    return "enterprise";
+    console.warn("[org-scope] Unexpected error reading tier, defaulting to individual:", err);
+    return "individual";
   }
 }
