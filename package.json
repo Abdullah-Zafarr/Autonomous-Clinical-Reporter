@@ -9,6 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "validate:rules": "tsx scripts/random-findings-validation.ts",
+    "test:report-ai": "node --import tsx --test scripts/report-ai-safety.test.ts",
+    "test:workflow": "node --import tsx --test scripts/workflow-progress.test.ts",
     "lint": "eslint .",
     "format": "prettier --write --ignore-path .gitignore ."
   },

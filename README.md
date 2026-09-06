@@ -21,6 +21,23 @@ Sonolynx features an intelligent, guardrailed AI Clinical Drafter built directly
 - **Clinical Presets & Quick Templates**: Built-in standardized templates for common exams (e.g., Normal Abdomen, Cholelithiasis, Thyroid, Renal) for rapid drafting.
 - **Full Physician-in-the-Loop Control**: Physicians maintain total autonomy to review, edit, refine, and digitally sign reports before final archiving or HL7 transmission.
 
+## AI Report Tools
+
+The workspace also shows **Case Progress** above the clinical panels: Worksheet → Doctor Review → Signed → Sent. It follows saved worksheets, review submissions, signatures, and delivery records, displaying recorded timestamps when available. Local mock acknowledgments are labeled **Demo sent**. The tracker refreshes after workflow actions, on window focus, and every 30 seconds while visible; a refresh button is also available. Run status-transition checks with `npm run test:workflow`.
+
+The doctor report panel includes two labeled buttons using the existing application theme:
+
+- **Edit Report with AI** opens conversational editing with quick instructions, optional browser voice input, and a side-by-side before/after preview. Numeric facts are checked in code, followed by an AI clinical-meaning check. The clinician reviews the proposal before applying it to the draft; this does not sign the report.
+- **Patient-friendly Explanation** generates an explanation of the saved signed report in English, Urdu, Arabic, or Spanish. Urdu and Arabic use right-to-left text. A clinician can edit the explanation, compare it with the source, and approve it before copy or UTF-8 text download becomes available. Changing the explanation or language clears approval.
+
+These tools use the existing server-side `GROQ_API_KEY` or `OPENAI_API_KEY` configuration and optional model environment variables. The `/api/report/copilot` endpoint requires a signed-in doctor or radiologist. Explanations require a saved signed worksheet in the clinician's organization. Approvals record the reviewer, language, source hash, explanation text, and approval time in the existing `audit_logs` table; sharing stays disabled if recording approval fails. No new database migration is needed if the existing workflow migrations have been applied.
+
+For a demo, open a case in doctor mode, select **Edit Report with AI**, choose **Make the impression shorter**, then preview and apply. After signing the report, select **Patient-friendly Explanation**, choose a language, generate, review, and approve. Copy/download prepares the explanation for the clinic's usual sharing process; it does not automatically send a message to the patient. Close/reopen starts a fresh explanation review; approved copies remain recorded in the audit log.
+
+Run focused validation with `npm run test:report-ai`. AI checks assist review and do not guarantee clinical equivalence or translation accuracy.
+
+Synthetic worklist data is disabled by default. For a local presentation only, set `NEXT_PUBLIC_ENABLE_DEMO_DATA=true`; keep it false for shared or production environments.
+
 ## Screenshots
 
 ### Main Interface
