@@ -62,12 +62,12 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
         <Logo size="sm" />
       </Link>
       <Badge variant="secondary" className="hidden text-[10px] font-medium uppercase tracking-wider sm:inline-flex">
-        HIPAA · Production
+        {process.env.NODE_ENV === "development" ? "Development workspace" : "Clinical workspace"}
       </Badge>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         {canRegisterPatient && (
-          <Button size="sm" variant="outline" onClick={() => setRegisterOpen(true)} className="h-8 px-2 sm:px-3">
+          <Button aria-label="Register Patient" size="sm" variant="outline" onClick={() => setRegisterOpen(true)} className="h-8 px-2 sm:px-3">
             <UserPlus className="h-3.5 w-3.5 sm:mr-1.5" />
             <span className="hidden sm:inline">Register Patient</span>
           </Button>
@@ -76,7 +76,7 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
           {roleLabel}
         </span>
         <DropdownMenu>
-          <DropdownMenuTrigger className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+          <DropdownMenuTrigger aria-label="Account menu" className="rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             <Avatar className="h-9 w-9 border-2 border-border transition-colors hover:border-primary">
               <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                 {initials}

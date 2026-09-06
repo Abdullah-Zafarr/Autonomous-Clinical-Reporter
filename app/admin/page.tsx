@@ -963,7 +963,7 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="newPassword">Temporary Password</Label>
-              <Input id="newPassword" type="text" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Strong temporary password" />
+              <Input id="newPassword" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Strong temporary password" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

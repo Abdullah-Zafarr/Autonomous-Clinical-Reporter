@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-client";
 import { resolveRole } from "@/lib/auth-role";
@@ -36,16 +36,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [signedOutExplicitly, setSignedOutExplicitly] = useState(false);
+  const roleRequest = useRef(0);
 
   const loadUserData = async (uid: string) => {
+    const request = ++roleRequest.current;
     try {
       const [{ data: prof }, { data: roles }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", uid),
       ]);
+      if (request !== roleRequest.current) return;
       setProfile(prof as Profile | null);
       setRole(resolveRole((prof as Profile | null)?.role, roles ?? []));
     } catch {
+      if (request !== roleRequest.current) return;
       setProfile(null);
       setRole(null);
     }
@@ -64,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           loadUserData(sess.user.id).finally(() => setLoading(false));
         }, 0);
       } else {
+        roleRequest.current += 1;
         setProfile(null);
         setRole(null);
         setLoading(false);
@@ -110,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    roleRequest.current += 1;
     setSignedOutExplicitly(true);
     try {
       await supabase.auth.signOut();

@@ -51,7 +51,7 @@ export default function LoginPage() {
         <div className="mb-8 flex flex-col items-center text-center">
           <Logo size="lg" />
           <p className="mt-4 text-sm font-medium text-slate-500">
-            HIPAA-compliant Radiology Workflow Platform
+            Ultrasound reporting and clinical review
           </p>
         </div>
 
