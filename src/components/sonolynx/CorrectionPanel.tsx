@@ -70,14 +70,14 @@ export function CorrectionPanel({
   if (!isDoctorMode && corrections.length === 0) return null;
 
   return (
-    <section className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-slate-900 sm:mx-5">
-      <div className="flex items-center gap-2">
+    <details open={corrections.length > 0 || undefined} className="mx-4 mt-3 shrink-0 rounded-lg border bg-muted/20 p-3 sm:mx-5">
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-muted-foreground">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <h3 className="text-xs font-bold uppercase tracking-wide">Worksheet corrections</h3>
+        <h3 className="text-xs font-medium">Worksheet corrections</h3>
         <Badge variant="outline" className="ml-auto border-amber-300 bg-white text-[10px]">
           {openCorrections.length} open
         </Badge>
-      </div>
+      </summary>
 
       {corrections.length > 0 && (
         <div className="mt-3 space-y-2">
@@ -162,6 +162,6 @@ export function CorrectionPanel({
       {!isDoctorMode && openCorrections.length === 0 && corrections.length > 0 && (
         <p className="mt-3 text-xs font-medium text-emerald-700">All requests are resolved. Save and resubmit the case for review.</p>
       )}
-    </section>
+    </details>
   );
 }

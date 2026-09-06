@@ -1145,18 +1145,29 @@ export function ClinicalWorksheet({
           <TabsContent value="OB" className="mt-0 p-4 sm:p-6">
              <div className="rounded-lg border bg-card p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                   <Field label="Gestational Age"><Input placeholder="e.g. 20w 3d" value={ob.gestationalAge} onChange={(e) => updateOb({ gestationalAge: e.target.value })} /></Field>
-                   <Field label="Fetal Heart Rate (bpm)"><Input value={ob.fetalHeartRate} onChange={(e) => updateOb({ fetalHeartRate: e.target.value })} /></Field>
+                   <Field label="Gestational Age"><Input aria-label="Gestational age" placeholder="e.g. 20w 3d" value={ob.gestationalAge} onChange={(e) => updateOb({ gestationalAge: e.target.value })} /></Field>
+                   <Field label="Fetal Heart Rate (bpm)"><Input aria-label="Fetal heart rate (bpm)" inputMode="decimal" value={ob.fetalHeartRate} onChange={(e) => updateOb({ fetalHeartRate: e.target.value })} /><FieldError field="ob.fetalHeartRate" issues={validationIssues} /></Field>
+                   <Field label="Presentation"><select aria-label="Fetal presentation" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.presentation} onChange={(e) => updateOb({ presentation: e.target.value as ObData["presentation"] })}>{["Cephalic", "Breech", "Transverse", "Variable"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Placenta location"><select aria-label="Placenta location" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.placentaLocation} onChange={(e) => updateOb({ placentaLocation: e.target.value as ObData["placentaLocation"] })}>{["Anterior", "Posterior", "Fundal", "Low-lying", "Previa"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Amniotic fluid"><select aria-label="Amniotic fluid" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.amnioticFluid} onChange={(e) => updateOb({ amnioticFluid: e.target.value as ObData["amnioticFluid"] })}>{["Normal", "Reduced", "Increased"].map((value) => <option key={value}>{value}</option>)}</select></Field>
                 </div>
-                <Field label="Impression"><Textarea value={ob.impression} onChange={(e) => updateOb({ impression: e.target.value })} /></Field>
+                <Field label="Biometry notes"><Textarea aria-label="Biometry notes" value={ob.biometryNotes} onChange={(e) => updateOb({ biometryNotes: e.target.value })} /></Field>
+                <Field label="Impression"><Textarea aria-label="Obstetric impression" value={ob.impression} onChange={(e) => updateOb({ impression: e.target.value })} /></Field>
              </div>
              <ClinicalNotesSection value={additionalNotes} onChange={onAdditionalNotesChange} />
           </TabsContent>
 
           <TabsContent value="Vascular" className="mt-0 p-4 sm:p-6">
              <div className="rounded-lg border bg-card p-4 space-y-4">
-                <Field label="Vessel Examined"><Input value={vascular.vesselExamined} onChange={(e) => updateVascular({ vesselExamined: e.target.value })} /></Field>
-                <Field label="Impression"><Textarea value={vascular.impression} onChange={(e) => updateVascular({ impression: e.target.value })} /></Field>
+                <Field label="Vessel Examined"><Input aria-label="Vessel examined" value={vascular.vesselExamined} onChange={(e) => updateVascular({ vesselExamined: e.target.value })} /></Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Laterality"><select aria-label="Vascular laterality" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.laterality} onChange={(e) => updateVascular({ laterality: e.target.value as VascularData["laterality"] })}>{["Right", "Left", "Bilateral", "Midline"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                  <Field label="Flow patency"><select aria-label="Flow patency" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.flowPatency} onChange={(e) => updateVascular({ flowPatency: e.target.value as VascularData["flowPatency"] })}>{["Patent", "Partially occluded", "Occluded"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                  <Field label="Thrombus"><select aria-label="Thrombus presence" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.thrombusPresence} onChange={(e) => updateVascular({ thrombusPresence: e.target.value as VascularData["thrombusPresence"] })}>{["Absent", "Present", "Indeterminate"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                </div>
+                <Field label="Stenosis findings"><Textarea aria-label="Stenosis findings" value={vascular.stenosisFindings} onChange={(e) => updateVascular({ stenosisFindings: e.target.value })} /></Field>
+                <Field label="Waveform notes"><Textarea aria-label="Waveform notes" value={vascular.waveformNotes} onChange={(e) => updateVascular({ waveformNotes: e.target.value })} /></Field>
+                <Field label="Impression"><Textarea aria-label="Vascular impression" value={vascular.impression} onChange={(e) => updateVascular({ impression: e.target.value })} /></Field>
              </div>
              <ClinicalNotesSection value={additionalNotes} onChange={onAdditionalNotesChange} />
           </TabsContent>
@@ -1167,11 +1178,11 @@ export function ClinicalWorksheet({
       <footer className="border-t bg-card px-3 py-2 pb-5 sm:px-6 sm:pb-6">
         <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="flex items-center gap-1.5 shrink-0">
-            <Button variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
+            {isDoctorMode && <Button aria-label="Inspect HL7" variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
               <Code2 className="h-4 w-4" /> 
               {!isCompact && <span>Inspect HL7</span>}
-            </Button>
-            <Button variant="outline" size="sm" onClick={onGenerateReport} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
+            </Button>}
+            <Button aria-label="Generate report" variant="outline" size="sm" onClick={onGenerateReport} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
               <FileText className="h-4 w-4" /> 
               {!isCompact && <span>Generate</span>}
             </Button>
@@ -1188,7 +1199,7 @@ export function ClinicalWorksheet({
               </div>
             )}
 
-            <Button variant="outline" size="sm" onClick={onSaveDraft} disabled={savingDraft} className={cn("h-8 sm:h-9 gap-2 shrink-0 px-3", isCompact && "w-8 p-0")}>
+            <Button aria-label="Save draft" variant="outline" size="sm" onClick={onSaveDraft} disabled={savingDraft || sendingToDoctor || sendingReport} className={cn("h-8 sm:h-9 gap-2 shrink-0 px-3", isCompact && "w-8 p-0")}>
               {savingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} 
               {!isCompact && <span>Draft</span>}
             </Button>
@@ -1197,7 +1208,8 @@ export function ClinicalWorksheet({
             <Button 
               size="sm" 
               onClick={onSign} 
-              disabled={!canSignAndSend || sendingReport || sendingToDoctor} 
+              aria-label={isDoctorMode ? "Finalize report" : "Send to Doctor"}
+              disabled={!canSignAndSend || savingDraft || sendingReport || sendingToDoctor}
               className={cn(
                 "h-8 px-3 sm:h-9 gap-2 shrink-0", 
                 isDoctorMode && "bg-emerald-600 hover:bg-emerald-700 text-white",

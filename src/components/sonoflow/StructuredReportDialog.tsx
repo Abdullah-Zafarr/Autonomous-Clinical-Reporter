@@ -68,7 +68,7 @@ export function StructuredReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl">
+      <DialogContent className="max-h-[95dvh] max-w-6xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
@@ -76,15 +76,16 @@ export function StructuredReportDialog({
             <Badge variant="outline" className="ml-1 text-[10px]">A4 Preview</Badge>
           </DialogTitle>
           <DialogDescription>
-            Visual template wraps existing generated findings and impression text.
+            Review the report, choose a layout, and export a copy.
           </DialogDescription>
         </DialogHeader>
 
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 p-2">
           <select
             value={selectedTemplateId}
+            aria-label="Report template"
             onChange={(event) => onTemplateChange(event.target.value)}
-            className="h-9 min-w-64 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm sm:w-auto sm:min-w-64"
           >
             {templates.map((template) => (
               <option key={template.id} value={template.id}>

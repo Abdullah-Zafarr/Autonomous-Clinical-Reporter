@@ -18,6 +18,7 @@ import { SignReportDialog } from "@/components/sonolynx/SignReportDialog";
 import { WorkflowProgress } from "@/components/sonolynx/WorkflowProgress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ResizablePanelGroup = dynamic(
   () => import("@/components/ui/resizable").then((mod) => mod.ResizablePanelGroup),
@@ -118,6 +119,7 @@ export default function SonolynxApp() {
   const { loading, user, role } = useAuth();
 
   const router = useRouter();
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -146,7 +148,11 @@ export default function SonolynxApp() {
   
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(new Date());
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [loadingWorksheet, setLoadingWorksheet] = useState(false);
+  const [worksheetLoadError, setWorksheetLoadError] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const draftVersion = useRef(0);
   const [isDirty, setIsDirty] = useState(false);
   const isInitialMount = useRef(true);
   const [worklistRefresh, setWorklistRefresh] = useState(0);
@@ -280,6 +286,7 @@ export default function SonolynxApp() {
       return;
     }
     setIsDirty(true);
+    draftVersion.current += 1;
   }, [worksheet, thyroid, ob, vascular, exam, abdomenOrder, additionalNotes, editedReportText, keyImages, corrections]);
 
   useEffect(() => {
@@ -370,8 +377,9 @@ export default function SonolynxApp() {
           examType: exam,
           accession,
           report,
-          signedBy: user?.email ?? null,
-          signedAt: null,
+          additionalNotes,
+          signedBy: currentWorksheet?.signed_by ?? null,
+          signedAt: currentWorksheet?.signed_at ?? null,
           worksheetSummary: report.findings.slice(0, 3).join(" "),
           studyDate: new Date().toLocaleDateString(),
           referringPhysician: "",
@@ -380,14 +388,18 @@ export default function SonolynxApp() {
         },
         brandingSettings,
       ),
-    [selectedTemplate, patient, exam, accession, report, user?.email, brandingSettings],
+    [selectedTemplate, patient, exam, accession, report, additionalNotes, currentWorksheet?.signed_by, currentWorksheet?.signed_at, brandingSettings],
   );
 
   useEffect(() => {
     let active = true;
     const run = async () => {
+      setLoadingWorksheet(true);
+      setWorksheetLoadError(false);
+      setLastSaved(null);
       if (!patient.studyId) {
         setCurrentWorksheet(null);
+        setLoadingWorksheet(false);
         return;
       }
       try {
@@ -449,13 +461,13 @@ export default function SonolynxApp() {
           notesLength: payload.additionalNotes?.length ?? 0,
         });
 
-        if (hasPersistedSection(payload.abdomen)) setWorksheet(payload.abdomen as unknown as WorksheetData);
+        setWorksheet(hasPersistedSection(payload.abdomen) ? payload.abdomen as unknown as WorksheetData : defaultWorksheet);
         if (payload.abdomenOrder) {
           setAbdomenOrder(payload.abdomenOrder);
         }
-        if (hasPersistedSection(payload.thyroid)) setThyroid(payload.thyroid as unknown as ThyroidData);
-        if (hasPersistedSection(payload.ob)) setOb(payload.ob as unknown as ObData);
-        if (hasPersistedSection(payload.vascular)) setVascular(payload.vascular as unknown as VascularData);
+        setThyroid(hasPersistedSection(payload.thyroid) ? payload.thyroid as unknown as ThyroidData : defaultThyroid);
+        setOb(hasPersistedSection(payload.ob) ? payload.ob as unknown as ObData : defaultOb);
+        setVascular(hasPersistedSection(payload.vascular) ? payload.vascular as unknown as VascularData : defaultVascular);
         if (typeof payload.additionalNotes === "string") setAdditionalNotes(payload.additionalNotes);
         setKeyImages(Array.isArray(payload.keyImages) ? payload.keyImages : []);
         setCorrections(Array.isArray(payload.corrections) ? payload.corrections : []);
@@ -463,10 +475,14 @@ export default function SonolynxApp() {
 
         setLastSaved(existing.updated_at ? new Date(existing.updated_at) : new Date());
       } catch (error) {
+        if (!active) return;
+        setWorksheetLoadError(true);
         console.warn("[worksheet-load] Notice:", (error as any)?.message || error);
         toast.error("Worksheet load notice", {
           description: error instanceof Error ? error.message : "Unable to load worksheet",
         });
+      } finally {
+        if (active) setLoadingWorksheet(false);
       }
     };
     run();
@@ -627,7 +643,11 @@ export default function SonolynxApp() {
   }, [exam, templateTier]);
 
   const handleSelectPatient = (p: Patient) => {
-    if (savingDraft || sendingToDoctor || sendingReport) {
+    if (p.id === patient.id && p.studyId === patient.studyId && !worksheetLoadError) {
+      setShowWorklist(false);
+      return;
+    }
+    if (savingDraft || sendingToDoctor || sendingReport || returningForCorrection) {
       toast.info("Please wait for the current save or send to finish.");
       return;
     }
@@ -645,6 +665,9 @@ export default function SonolynxApp() {
     setAbdomenOrder([]);
     setCurrentWorksheet(null);
     setEditedReportText(null);
+    setLastSaved(null);
+    setWorksheetLoadError(false);
+    setLoadingWorksheet(!!p.studyId);
     // Set exam type from the study label as a sensible default;
     // the useEffect will override it with the actual saved worksheet_type
     setExam(examFromLabel(p.exam));
@@ -654,11 +677,16 @@ export default function SonolynxApp() {
   };
 
   const handleSaveDraft = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (loadingWorksheet || worksheetLoadError || savingDraft || sendingReport || returningForCorrection) {
+      if (!silent) toast.info("Wait for the case to finish loading or saving before making another save.");
+      return null;
+    }
     if (!user || !patient.studyId) {
       if (!silent) toast.error("Draft save blocked", { description: "Select a study and ensure you are signed in." });
       return null;
     }
     setSavingDraft(true);
+    const savingVersion = draftVersion.current;
     try {
       const saved = await saveDraftWorksheet({
         worksheetId: currentWorksheet?.id,
@@ -669,9 +697,14 @@ export default function SonolynxApp() {
         data: worksheetPayload,
         reportText: finalReportText,
       });
+      if (saved.id !== currentWorksheet?.id) {
+        const { error: pinError } = await (supabase as any).from("studies")
+          .update({ active_worksheet_id: saved.id }).eq("id", patient.studyId).eq("organization_id", organizationId);
+        if (pinError) throw pinError;
+      }
       setCurrentWorksheet(saved);
       setLastSaved(saved.updated_at ? new Date(saved.updated_at) : new Date());
-      setIsDirty(false);
+      setIsDirty(draftVersion.current !== savingVersion);
       await writeAuditLog({
         userId: user.id,
         patientId: patient.id,
@@ -686,13 +719,15 @@ export default function SonolynxApp() {
     } catch (error: any) {
       const description = error?.message || (typeof error === 'string' ? error : "Unable to save draft");
       if (!silent) toast.error("Draft save failed", { description });
-      throw error;
+      if (silent) throw error;
+      return null;
     } finally {
       setSavingDraft(false);
     }
   };
 
   const handleSign = () => {
+    if (loadingWorksheet || worksheetLoadError || savingDraft || sendingReport || returningForCorrection) return;
     if (isSonographerView) {
       handleSendToDoctor();
       return;
@@ -710,6 +745,7 @@ export default function SonolynxApp() {
   };
 
   const handleConfirmSignAndSend = async () => {
+    if (sendingReport || savingDraft || loadingWorksheet || worksheetLoadError || returningForCorrection) return;
     if (!isDoctorView || hasCriticalErrors || !finalReportText.trim() || (!report.findings.length && !editedReportText?.trim() && !additionalNotes.trim())) {
       toast.error("Cannot sign report", { description: "A clinician must review a nonempty report and resolve blocking issues first." });
       return;
@@ -732,7 +768,7 @@ export default function SonolynxApp() {
 
       // Finalize the worksheet in Supabase
       let signed: WorksheetRecord;
-      if (currentWorksheet?.id) {
+      if (currentWorksheet?.id && !currentWorksheet.signed_at && !currentWorksheet.signed_by) {
         signed = await markWorksheetSigned({
           worksheetId: currentWorksheet.id,
           userId: user.id,
@@ -773,6 +809,7 @@ export default function SonolynxApp() {
             .eq("id", patient.studyId)
             .eq("organization_id", organizationId);
           if (studyUpdateError) throw studyUpdateError;
+          setPatient((current) => ({ ...current, studyStatus: "completed" }));
         } catch (studyErr) {
           console.warn("[finalize] study status update notice:", studyErr);
         }
@@ -844,6 +881,11 @@ export default function SonolynxApp() {
 
   const handleSendToDoctor = async () => {
     if (!isSonographerView) return;
+    if (sendingToDoctor || savingDraft || sendingReport || loadingWorksheet || worksheetLoadError) return;
+    if (hasCriticalErrors || (!report.findings.length && !additionalNotes.trim())) {
+      toast.error("Cannot submit worksheet", { description: "Record findings and resolve critical validation issues before sending to a doctor." });
+      return;
+    }
     if (!user) {
       toast.error("Not authenticated", { description: "Please log in and try again." });
       return;
@@ -937,7 +979,24 @@ export default function SonolynxApp() {
     }
   };
 
+  const handleRetryDelivery = async () => {
+    if (sendingReport || savingDraft || isDirty || !user || !patient.studyId || !currentWorksheet?.signed_at || !currentWorksheet.report_text) return;
+    setSendingReport(true);
+    try {
+      const result = await transmitHl7({ organizationId, patientId: patient.id, studyId: patient.studyId, worksheetId: currentWorksheet.id, accessionNumber: accession, payload: buildHL7(patient, currentWorksheet.report_text, accession, exam), userId: user.id });
+      if (!result.ok) throw new Error(result.errorMessage || "Delivery could not be confirmed.");
+      setCurrentWorksheet(await updateWorksheetStatus(currentWorksheet.id, "transmitted"));
+      toast.success(result.demo ? "Demo delivery acknowledged" : "Report delivered", { description: result.demo ? "Acknowledged by the local demo receiver." : "The existing signed report was delivered." });
+    } catch (error) {
+      toast.error("Delivery failed", { description: error instanceof Error ? error.message : "The signed report remains saved." });
+    } finally {
+      setSendingReport(false);
+      setWorklistRefresh((value) => value + 1);
+    }
+  };
+
   const handleReturnForCorrection = async () => {
+    if (!isDoctorView || returningForCorrection || sendingReport || savingDraft || loadingWorksheet || currentWorksheet?.signed_at) return;
     if (!user?.id || !patient.studyId || !currentWorksheet?.id) {
       toast.error("Return unavailable", { description: "Open a saved worksheet before returning a case." });
       return;
@@ -1000,42 +1059,23 @@ export default function SonolynxApp() {
     );
   }
 
-  const gridCols = isDoctorView
-    ? "grid-cols-1 lg:grid-cols-[40%_30%_30%]"
-    : showDicom
-      ? "grid-cols-1 lg:grid-cols-[40%_30%_30%]"
-      : "grid-cols-1 lg:grid-cols-2 xl:grid-cols-[58%_42%]";
-
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background">
       <AppNavbar onPatientRegistered={() => setWorklistRefresh((n) => n + 1)} />
       <div className="flex min-h-10 shrink-0 items-center gap-3 border-b bg-card px-3 py-1 sm:px-4">
         <Button variant="outline" size="sm" onClick={() => setShowWorklist(true)} className="h-7">
           <PanelLeft className="mr-1.5 h-3.5 w-3.5" />
           Worklist
         </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => {
-            router.push("/");
-            toast.info("Clinical Workspace is already active", {
-              description: "You are currently viewing the clinical tools.",
-              icon: <Activity className="h-4 w-4" />
-            });
-          }} 
-          className="h-7 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          Clinical Workspace
-        </Button>
-        {!isDoctorView && (
-          <div className="ml-auto">
+        <span className="hidden text-xs text-muted-foreground sm:inline">{isDoctorView ? "Clinical review" : "Clinical workspace"}</span>
+          <div className="ml-auto flex items-center gap-2">
+            {canInspectHl7 && <Button variant="ghost" size="sm" className="h-7" onClick={() => setHl7Open(true)}>HL7</Button>}
+            {canSeeReportHistory && <Button variant={showHistory ? "secondary" : "ghost"} size="sm" className="h-7" onClick={() => setShowHistory((value) => !value)}>History{reportHistory.length > 0 ? ` (${reportHistory.length})` : ""}</Button>}
             <Button variant={showDicom ? "default" : "outline"} size="sm" onClick={() => setShowDicom((v) => !v)} className="h-7">
               <Monitor className="mr-1.5 h-3.5 w-3.5" />
-              {showDicom ? "Hide DICOM" : "View DICOM Images"}
+              {showDicom ? "Hide images" : "Images"}
             </Button>
           </div>
-        )}
       </div>
 
       {isSonographerView && (
@@ -1044,8 +1084,9 @@ export default function SonolynxApp() {
             <span className="text-xs font-medium text-muted-foreground">Send case to doctor:</span>
             <select
               value={selectedDoctorId}
+              aria-label="Assign doctor"
               onChange={(event) => setSelectedDoctorId(event.target.value)}
-              className="h-8 min-w-64 rounded-md border bg-background px-2 text-xs"
+              className="h-8 w-full min-w-0 rounded-md border bg-background px-2 text-xs sm:w-auto sm:min-w-64"
             >
               <option value="">Select doctor email</option>
               {availableDoctors.map((doctor) => (
@@ -1054,7 +1095,7 @@ export default function SonolynxApp() {
                 </option>
               ))}
             </select>
-            <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || !selectedDoctorId}>
+            <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || savingDraft || loadingWorksheet || worksheetLoadError || hasCriticalErrors || !patient.studyId || !selectedDoctorId}>
               {sendingToDoctor ? "Sending..." : "Send to Doctor"}
             </Button>
           </div>
@@ -1081,12 +1122,25 @@ export default function SonolynxApp() {
         />
       )}
 
-      {!mounted ? (
+      {!patient.id ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <PanelLeft className="h-8 w-8 text-primary" />
+          <h1 className="text-lg font-semibold">Select a case to begin</h1>
+          <p className="max-w-sm text-sm text-muted-foreground">Open your worklist to review a study{isSonographerView ? ", or register a patient to start a new examination" : " assigned to you"}.</p>
+          <Button onClick={() => setShowWorklist(true)}>Open worklist</Button>
+        </div>
+      ) : worksheetLoadError ? (
+        <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <h2 className="font-semibold">This worksheet could not be loaded</h2>
+          <p className="text-sm text-muted-foreground">Reopen the case from the worklist or reload the workspace before editing.</p>
+          <Button onClick={() => window.location.reload()}>Reload workspace</Button>
+        </div>
+      ) : !mounted || loadingWorksheet ? (
         <div className="flex-1 flex items-center justify-center">
           <Activity className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
-        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+        <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} className="flex-1 min-h-0">
         {isSonographerView && (
           <>
             <ResizablePanel 
@@ -1142,7 +1196,7 @@ export default function SonolynxApp() {
           </>
         )}
 
-        <ResizablePanel defaultSize={isDoctorView ? 50 : 50} minSize={25}>
+        <ResizablePanel defaultSize={isDoctorView ? 60 : 50} minSize={25}>
           <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
             <ReportPreview
               key={`${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
@@ -1164,11 +1218,16 @@ export default function SonolynxApp() {
               canUseAiTools={role === "doctor" || role === "radiologist"}
               hasBeenEdited={editedReportText !== null}
               onEditableTextChange={setEditedReportText}
-              onSign={() => setSignDialogOpen(true)}
+              onSign={handleSign}
+              onSaveDraft={() => { void handleSaveDraft(); }}
+              onRetryDelivery={currentWorksheet?.signed_at && currentWorksheet.status !== "transmitted" ? handleRetryDelivery : undefined}
+              busy={savingDraft || sendingReport || returningForCorrection}
+              dirty={isDirty}
+              canSign={canSignAndSend && !!patient.studyId && !!finalReportText.trim() && (report.findings.length > 0 || !!editedReportText?.trim() || !!additionalNotes.trim()) && !corrections.some((item) => item.status === "open") && patient.studyStatus !== "correction_requested"}
               keyImages={keyImages}
               correctionFields={correctionFields}
               corrections={corrections}
-              onCorrectionsChange={setCorrections}
+              onCorrectionsChange={currentWorksheet?.signed_at ? undefined : setCorrections}
               currentUserId={user?.id ?? ""}
               studyStatus={patient.studyStatus}
               returningForCorrection={returningForCorrection}
@@ -1177,10 +1236,10 @@ export default function SonolynxApp() {
           </div>
         </ResizablePanel>
 
-        {(isDoctorView || showDicom) && (
+        {showDicom && (
           <>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={isDoctorView ? 50 : 40} minSize={20}>
+            <ResizablePanel defaultSize={40} minSize={20}>
               <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
                 <DicomViewer
                   key={patient.studyId ?? patient.id}
@@ -1197,7 +1256,7 @@ export default function SonolynxApp() {
         </ResizablePanelGroup>
       )}
 
-      {canSeeReportHistory && (
+      {canSeeReportHistory && showHistory && (
         <ReportHistory
           patient={patient}
           items={reportHistory}
@@ -1219,7 +1278,7 @@ export default function SonolynxApp() {
           <div className="flex h-full min-h-0 flex-col">
             <DoctorSummary />
             <div className="min-h-0 flex-1 overflow-hidden">
-              <PatientWorklist selectedId={patient.id} onSelect={handleSelectPatient} refreshKey={worklistRefresh} />
+              <PatientWorklist selectedId={patient.id} selectedStudyId={patient.studyId} onSelect={handleSelectPatient} refreshKey={worklistRefresh} />
             </div>
           </div>
         </SheetContent>

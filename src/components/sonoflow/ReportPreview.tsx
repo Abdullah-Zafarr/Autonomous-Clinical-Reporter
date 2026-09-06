@@ -25,6 +25,11 @@ interface Props {
   editableText?: string;
   onEditableTextChange?: (text: string) => void;
   onSign?: () => void;
+  onSaveDraft?: () => void;
+  onRetryDelivery?: () => void;
+  busy?: boolean;
+  dirty?: boolean;
+  canSign?: boolean;
   worksheetId?: string;
   isSigned?: boolean;
   keyImages?: KeyReportImage[];
@@ -50,6 +55,11 @@ export function ReportPreview({
   editableText,
   onEditableTextChange,
   onSign,
+  onSaveDraft,
+  onRetryDelivery,
+  busy = false,
+  dirty = false,
+  canSign = true,
   worksheetId,
   isSigned = false,
   keyImages = [],
@@ -68,13 +78,13 @@ export function ReportPreview({
 
   return (
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-card lg:border-l">
-      <header className="border-b px-4 py-4 sm:px-5">
-        <div className="flex items-center gap-2">
+      <header className="shrink-0 border-b px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold tracking-tight">Report Preview</h2>
-          <div className="ml-auto flex items-center gap-2">
+          <h2 className="text-sm font-semibold tracking-tight">{isDoctorMode ? "Clinical report" : "Report Preview"}</h2>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             {onPrint && <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={onPrint}>Preview / Export</Button>}
-            <Badge variant="outline" className="text-[10px]">LIVE</Badge>
+            <Badge variant="outline" className="text-[10px]">{dirty ? "UNSAVED" : isSigned ? "SIGNED" : "DRAFT"}</Badge>
             {isDoctorMode && (
               <>
                 {showAiTools && <Button
@@ -82,6 +92,7 @@ export function ReportPreview({
                   size="sm"
                   className="h-6 px-2 text-[10px] font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1 transition-all shadow-xs"
                   onClick={() => setAiAssistantOpen(true)}
+                  disabled={busy}
                   title="Draft or enhance report with AI Clinical Assistant"
                 >
                   <Sparkles className="h-3 w-3 text-blue-600" />
@@ -92,6 +103,7 @@ export function ReportPreview({
                   size="sm"
                   className="h-6 px-2.5 text-[10px] font-semibold tracking-wide"
                   onClick={() => setIsEditing(!isEditing)}
+                  disabled={busy}
                 >
                   {isEditing ? (
                     <><Check className="mr-1.5 h-3 w-3" /> Done</>
@@ -170,10 +182,12 @@ export function ReportPreview({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
         {isDoctorMode && isEditing ? (
           <textarea
-            className="w-full h-full min-h-[500px] resize-none bg-transparent border-0 p-0 font-mono text-[13px] leading-relaxed focus:outline-none focus:ring-0 text-foreground"
+            aria-label="Clinical report text"
+            disabled={busy}
+            className="w-full min-h-72 resize-y bg-transparent border-0 p-0 text-sm leading-relaxed focus:outline-none focus:ring-0 text-foreground"
             value={editableText || ""}
             onChange={(e) => onEditableTextChange?.(e.target.value)}
             placeholder="Review and edit the report text here..."
@@ -181,7 +195,7 @@ export function ReportPreview({
           />
         ) : hasBeenEdited ? (
           <div 
-            className="font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-foreground cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors"
+            className="text-sm leading-7 whitespace-pre-wrap text-foreground cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors"
             onClick={() => isDoctorMode && setIsEditing(true)}
             title={isDoctorMode ? "Click to edit report" : undefined}
           >
@@ -189,7 +203,7 @@ export function ReportPreview({
           </div>
         ) : (
           <article 
-            className={cn("space-y-6 font-mono text-[13px] leading-relaxed text-foreground", isDoctorMode && "cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors")}
+            className={cn("space-y-6 text-sm leading-7 text-foreground", isDoctorMode && "cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors")}
             onClick={() => isDoctorMode && setIsEditing(true)}
             title={isDoctorMode ? "Click to edit report" : undefined}
           >
@@ -199,6 +213,7 @@ export function ReportPreview({
                 Findings
               </h3>
               <div className="space-y-2.5">
+                {!report.findings.length && <p className="text-muted-foreground">No findings recorded yet. {isDoctorMode ? "Open a submitted case or edit the report to begin your review." : "Complete the worksheet to generate findings."}</p>}
                 {report.findings.map((line, i) => (
                   <p key={i}>{line}</p>
                 ))}
@@ -234,21 +249,6 @@ export function ReportPreview({
               </section>
             )}
 
-            {keyImages.length > 0 && (
-              <section className="break-inside-avoid-page">
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">Key Images</h3>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {keyImages.map((image) => (
-                    <figure key={image.id} className="overflow-hidden rounded-md border bg-black">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.dataUrl} alt={image.caption} className="aspect-[4/3] w-full object-contain" />
-                      <figcaption className="bg-white p-2 font-sans text-[11px] text-slate-700">{image.caption}</figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </section>
-            )}
-
             <Separator />
 
             <section>
@@ -265,27 +265,42 @@ export function ReportPreview({
             </section>
           </article>
         )}
+            {keyImages.length > 0 && (
+              <section className="break-inside-avoid-page">
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">Key Images</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {keyImages.map((image) => (
+                    <figure key={image.id} className="overflow-hidden rounded-md border bg-black">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={image.dataUrl} alt={image.caption} className="aspect-[4/3] w-full object-contain" />
+                      <figcaption className="bg-white p-2 font-sans text-[11px] text-slate-700">{image.caption}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </section>
+            )}
+
       </div>
 
       {isDoctorMode ? (
-        <footer className="border-t px-4 py-3 sm:px-5 bg-card">
+        <footer className="shrink-0 border-t px-4 py-3 sm:px-5 bg-card">
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-              <span>Doctor Review Mode</span>
-              <span>{isSigned ? "Saved report signed" : "Pending Doctor Signature"}</span>
+              <span>{dirty ? "Unsaved changes" : "Clinician review"}</span>
+              <span>{isSigned ? dirty ? "Changes will create a new revision" : "Signed report saved" : "Awaiting signature"}</span>
             </div>
-            <div className="flex gap-2">
-              {showAiTools && <Button
+            <div className="flex flex-wrap gap-2">
+              {onSaveDraft && <Button
                 type="button"
                 variant="outline"
-                className="font-semibold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-800 gap-1.5 transition-all"
-                onClick={() => setAiAssistantOpen(true)}
+                disabled={busy || !dirty}
+                onClick={onSaveDraft}
               >
-                <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-                Draft with AI
+                Save draft
               </Button>}
-              <Button variant="default" className="flex-1 font-bold" onClick={onSign}>
-                Sign & Finalize Report
+              {onRetryDelivery && <Button variant="outline" disabled={busy || dirty} onClick={onRetryDelivery}>Retry delivery</Button>}
+              <Button disabled={busy || !canSign || (isSigned && !dirty)} variant="default" className="ml-auto font-semibold" onClick={onSign}>
+                {busy ? "Saving…" : isSigned && dirty ? "Sign new revision" : isSigned ? "Report signed" : "Sign & finalize"}
               </Button>
             </div>
           </div>

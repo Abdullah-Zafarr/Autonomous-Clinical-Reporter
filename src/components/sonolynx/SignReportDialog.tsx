@@ -36,7 +36,7 @@ export function SignReportDialog({
   const warnings = issues.filter((issue) => issue.level === "warning");
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirm final sign and send</AlertDialogTitle>
@@ -83,7 +83,7 @@ export function SignReportDialog({
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-          <AlertDialogAction disabled={busy || errors.length > 0} onClick={onConfirm}>
+          <AlertDialogAction disabled={busy || errors.length > 0} onClick={(event) => { event.preventDefault(); onConfirm(); }}>
             {busy ? "Sending..." : warnings.length > 0 ? "Confirm with Warnings" : "Sign & Send"}
           </AlertDialogAction>
         </AlertDialogFooter>

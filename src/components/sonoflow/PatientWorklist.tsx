@@ -15,6 +15,7 @@ const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
 
 interface Props {
   selectedId: string;
+  selectedStudyId?: string;
   onSelect: (p: Patient) => void;
   refreshKey?: number;
 }
@@ -133,7 +134,7 @@ async function fetchSonographerWorklist(role: string | null, userId?: string): P
 // ----------------------------------------------------------------
 // Component
 // ----------------------------------------------------------------
-export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props) {
+export function PatientWorklist({ selectedId, selectedStudyId, onSelect, refreshKey = 0 }: Props) {
   const { user, role } = useAuth();
   const [q, setQ] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -215,7 +216,7 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
   }, [isDoctor, user?.id, load]);
 
   const filtered = patients.filter((p) =>
-    `${p.firstName} ${p.lastName} ${p.mrn}`.toLowerCase().includes(q.toLowerCase())
+    `${p.firstName} ${p.lastName} ${p.mrn} ${p.accessionNumber ?? ""} ${p.exam}`.toLowerCase().includes(q.trim().toLowerCase())
   );
 
   const worklistLabel = isDoctor ? "My Assigned Cases" : "Worklist";
@@ -237,6 +238,7 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
             onClick={load}
             disabled={loading}
             title="Refresh worklist"
+            aria-label="Refresh worklist"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           </Button>
@@ -246,7 +248,8 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name or MRN…"
+            aria-label="Search worklist"
+            placeholder="Search name, MRN or accession…"
             className="pl-8 h-9"
           />
         </div>
@@ -286,10 +289,10 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
               <User className="h-8 w-8 text-muted-foreground/30 mb-2" />
             )}
             <p className="text-sm font-medium text-muted-foreground">
-              {isDoctor ? "No cases assigned" : "No patients found"}
+              {q.trim() ? "No matching cases" : isDoctor ? "No cases assigned" : "No patients found"}
             </p>
             <p className="text-xs text-muted-foreground/70 max-w-[180px] mt-1">
-              {isDoctor
+              {q.trim() ? "Try adjusting your search terms" : isDoctor
                 ? "Ask the sonographer to use 'Send to Doctor' to assign cases"
                 : q
                 ? "Try adjusting your search terms"
@@ -305,11 +308,15 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
 
         {filtered.map((p) => {
           // Use studyId as the card key (unique per study), but track selection by patient id
-          const isActive = p.id === selectedId;
+          const isActive = selectedStudyId ? p.studyId === selectedStudyId : p.id === selectedId;
           return (
             <Card
               key={p.studyId ?? p.id}
               onClick={() => onSelect(p)}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isActive}
+              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(p); } }}
               className={cn(
                 "cursor-pointer p-3 transition-all hover:shadow-sm",
                 isActive
