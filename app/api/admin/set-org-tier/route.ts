@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     const devBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+      false;
 
     const superAdmin = devBypass || (await isUserSuperAdmin(user, serviceSb));
     if (!superAdmin) {
