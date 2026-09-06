@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { escapeHtml } from "@/lib/html-utils";
 import type { RenderedTemplateDocument } from "@/lib/report-template-engine";
 import type { ReportBrandingSettings } from "@/lib/report-template-types";
 
@@ -8,13 +8,6 @@ interface Props {
   document: RenderedTemplateDocument;
   branding: ReportBrandingSettings;
   showSonolynxBranding: boolean;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }
 
 export function buildA4ReportHtml(
@@ -60,13 +53,15 @@ export function A4ReportPreview({ document, branding, showSonolynxBranding }: Pr
           <p className="mt-1 text-[11px] text-muted-foreground">{document.templateName}</p>
         </div>
         {branding.logoUrl ? (
-          <Image
+          // Branding URLs are tenant-configured and may be hosted on any
+          // clinic domain; plain img avoids Next Image remote-host allowlists.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={branding.logoUrl}
             alt="Hospital logo"
             width={220}
             height={56}
             className="h-14 w-auto object-contain"
-            unoptimized
           />
         ) : null}
       </header>
