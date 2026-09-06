@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     const devBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+      false;
 
     const superAdmin = devBypass || (await isUserSuperAdmin(user, serviceSb));
     if (!superAdmin) {
@@ -66,15 +66,13 @@ export async function POST(request: Request) {
     if (profErr) {
       return NextResponse.json({ error: profErr.message }, { status: 500 });
     }
+    if (!profData) return NextResponse.json({ error: "User profile not found" }, { status: 404 });
 
     // 2. Sync user_roles table
-    try {
-      await serviceSb
-        .from("user_roles")
-        .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
-    } catch (e) {
-      console.warn("[set-user-role] user_roles sync notice:", e);
-    }
+    const removed = await serviceSb.from("user_roles").delete().eq("user_id", userId).neq("role", role);
+    if (removed.error) return NextResponse.json({ error: "Role change incomplete: old permissions could not be removed. Retry the role change." }, { status: 500 });
+    const assigned = await serviceSb.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+    if (assigned.error) return NextResponse.json({ error: "Role change incomplete: permission assignment failed. Retry the role change." }, { status: 500 });
 
     return NextResponse.json({ success: true, profile: profData });
   } catch (err: any) {
