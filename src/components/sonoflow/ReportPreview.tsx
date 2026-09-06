@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
+import { ReportCopilot } from "./ReportCopilot";
 
 interface Props {
   patient: Patient;
@@ -17,10 +18,13 @@ interface Props {
   validationIssues: ValidationIssue[];
   onPrint?: () => void;
   isDoctorMode?: boolean;
+  canUseAiTools?: boolean;
   hasBeenEdited?: boolean;
   editableText?: string;
   onEditableTextChange?: (text: string) => void;
   onSign?: () => void;
+  worksheetId?: string;
+  isSigned?: boolean;
 }
 
 export function ReportPreview({
@@ -31,14 +35,18 @@ export function ReportPreview({
   validationIssues,
   onPrint,
   isDoctorMode,
+  canUseAiTools = isDoctorMode,
   hasBeenEdited,
   editableText,
   onEditableTextChange,
   onSign,
+  worksheetId,
+  isSigned = false,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const notes = additionalNotes.trim();
+  const showAiTools = Boolean(isDoctorMode && canUseAiTools);
 
   return (
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-card lg:border-l">
@@ -47,10 +55,11 @@ export function ReportPreview({
           <FileText className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold tracking-tight">Report Preview</h2>
           <div className="ml-auto flex items-center gap-2">
+            {onPrint && <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={onPrint}>Preview / Export</Button>}
             <Badge variant="outline" className="text-[10px]">LIVE</Badge>
             {isDoctorMode && (
               <>
-                <Button
+                {showAiTools && <Button
                   variant="outline"
                   size="sm"
                   className="h-6 px-2 text-[10px] font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1 transition-all shadow-xs"
@@ -59,7 +68,7 @@ export function ReportPreview({
                 >
                   <Sparkles className="h-3 w-3 text-blue-600" />
                   AI Drafter
-                </Button>
+                </Button>}
                 <Button
                   variant={isEditing ? "default" : "outline"}
                   size="sm"
@@ -120,6 +129,15 @@ export function ReportPreview({
           </div>
         </div>
       </header>
+
+      {showAiTools && <ReportCopilot
+        key={`${patient.id}-${patient.studyId}-${worksheetId}-${isSigned}`}
+        reportText={editableText || ""}
+        worksheetId={worksheetId}
+        signed={isSigned}
+        patientLabel={`${patient.lastName}, ${patient.firstName} · ${accession}`}
+        onApply={(text) => { onEditableTextChange?.(text); setIsEditing(true); }}
+      />}
 
       <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
         {isDoctorMode && isEditing ? (
@@ -208,10 +226,10 @@ export function ReportPreview({
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center text-[11px] text-muted-foreground">
               <span>Doctor Review Mode</span>
-              <span>Pending Doctor Signature</span>
+              <span>{isSigned ? "Saved report signed" : "Pending Doctor Signature"}</span>
             </div>
             <div className="flex gap-2">
-              <Button
+              {showAiTools && <Button
                 type="button"
                 variant="outline"
                 className="font-semibold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-800 gap-1.5 transition-all"
@@ -219,7 +237,7 @@ export function ReportPreview({
               >
                 <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                 Draft with AI
-              </Button>
+              </Button>}
               <Button variant="default" className="flex-1 font-bold" onClick={onSign}>
                 Sign & Finalize Report
               </Button>
@@ -233,7 +251,7 @@ export function ReportPreview({
       )}
 
       <AiReportAssistantDialog
-        open={aiAssistantOpen}
+        open={showAiTools && aiAssistantOpen}
         onOpenChange={setAiAssistantOpen}
         examType={patient.exam || "Ultrasound"}
         patient={patient}
