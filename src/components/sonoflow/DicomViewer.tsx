@@ -72,7 +72,7 @@ export function DicomViewer({ accession }: DicomViewerProps) {
       cornerstoneTools.setToolActive("Pan", { mouseButtonMask: 4 });
       cornerstoneTools.setToolActive("Zoom", { mouseButtonMask: 2 });
       setStatus("Viewer ready");
-    })();
+    })().catch(() => { if (mounted) setStatus("Viewer initialization failed. Reload to try again."); });
 
     return () => {
       mounted = false;
@@ -86,15 +86,18 @@ export function DicomViewer({ accession }: DicomViewerProps) {
     const el = viewportRef.current;
     const cornerstone = csRef.current;
     if (!el || !hasImages || !cornerstone) return;
+    let active = true;
     cornerstone
       .loadAndCacheImage(imageIds[currentIndex])
       .then((image: any) => {
+        if (!active) return;
         cornerstone.displayImage(el, image);
         setStatus("DICOM rendered");
       })
       .catch(() => {
-        setStatus("Failed to render image");
+        if (active) setStatus("Failed to render image");
       });
+    return () => { active = false; };
   }, [imageIds, currentIndex, hasImages]);
 
   const handleFiles = (files: FileList | null) => {
@@ -204,7 +207,7 @@ export function DicomViewer({ accession }: DicomViewerProps) {
     if (!el || !cornerstone) return;
     const viewport = cornerstone.getViewport(el);
     if (!viewport) return;
-    viewport.scale += delta;
+    viewport.scale = Math.max(0.1, Math.min(20, viewport.scale + delta));
     cornerstone.setViewport(el, viewport);
   };
 
@@ -223,7 +226,7 @@ export function DicomViewer({ accession }: DicomViewerProps) {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-100">DICOM Viewer</h2>
         </div>
         <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-300">
-          <Wifi className="mr-1 h-2.5 w-2.5" /> CONNECTED
+          <Wifi className="mr-1 h-2.5 w-2.5" /> {hasImages ? "IMAGES LOADED" : "NO IMAGES"}
         </Badge>
       </header>
 
