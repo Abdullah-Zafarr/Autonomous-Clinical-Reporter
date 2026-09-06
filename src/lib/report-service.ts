@@ -1,6 +1,7 @@
 import { postJson } from "@/lib/api-client";
 import type { ExamType, ObData, VascularData, WorksheetData, ThyroidData } from "@/lib/sonoflow-types";
 import type { ReportSections } from "@/lib/report-engine";
+import { reportSectionsSchema } from "@/lib/report-schema";
 
 export async function enhanceReport(params: {
   exam: ExamType;
@@ -33,8 +34,9 @@ export async function enhanceReport(params: {
         { timeoutMs: 15000, retries: 0 },
       );
 
-      if (response?.report?.findings && response.report.impression) {
-        return { report: response.report, enhanced: true, warning: null };
+      const parsed = reportSectionsSchema.safeParse(response?.report);
+      if (parsed.success) {
+        return { report: parsed.data, enhanced: true, warning: null };
       }
     } catch (error) {
       console.warn("[report-service] External API failed, falling back to local:", error);
@@ -43,14 +45,15 @@ export async function enhanceReport(params: {
 
   // Fallback to local API
   try {
-    const response = await postJson<{ report?: ReportSections }>(
+    const response = await postJson<{ report?: ReportSections; warning?: string }>(
       localUrl,
       payload,
-      { timeoutMs: 20000, retries: 1 },
+      { timeoutMs: 30000, retries: 0 },
     );
 
-    if (response?.report?.findings && response.report.impression) {
-      return { report: response.report, enhanced: true, warning: null };
+    const parsed = reportSectionsSchema.safeParse(response?.report);
+    if (parsed.success) {
+      return { report: parsed.data, enhanced: !response.warning, warning: response.warning ?? null };
     }
     return { report: params.localReport, enhanced: false, warning: "Local report enhancement returned invalid data." };
   } catch (error) {
