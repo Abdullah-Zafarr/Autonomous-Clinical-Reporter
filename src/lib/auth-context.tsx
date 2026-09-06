@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-client";
+import { resolveRole } from "@/lib/auth-role";
 
 const supabase = createClient();
 
@@ -43,16 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from("user_roles").select("role").eq("user_id", uid),
       ]);
       setProfile(prof as Profile | null);
-      const roleSet = new Set((roles ?? []).map((r: { role: string }) => r.role));
-      if (roleSet.has("admin")) setRole("admin");
-      else if (roleSet.has("radiologist")) setRole("radiologist");
-      else if (roleSet.has("sonographer")) setRole("sonographer");
-      else if ((prof as Profile | null)?.role === "radiologist") setRole("radiologist");
-      else if ((prof as Profile | null)?.role === "sonographer") setRole("sonographer");
-      else setRole("doctor");
+      setRole(resolveRole((prof as Profile | null)?.role, roles ?? []));
     } catch {
       setProfile(null);
-      setRole("doctor");
+      setRole(null);
     }
   };
 
