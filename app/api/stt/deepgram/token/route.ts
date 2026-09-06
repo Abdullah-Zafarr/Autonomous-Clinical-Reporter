@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     }
 
     const devBypass =
-      process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+      false;
 
     if (!user && !devBypass) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,13 +47,13 @@ export async function GET(request: Request) {
       const client = new DeepgramClient({ apiKey });
       const result = await client.auth.v1.tokens.grant();
       if (result?.access_token) {
-        return NextResponse.json({ key: result.access_token });
+        return NextResponse.json({ key: result.access_token }, { headers: { "Cache-Control": "no-store" } });
       }
     } catch {
-      // Scoped token grant failed or not supported by member role, use API key directly
+      // The browser can fall back to browser dictation; never disclose the API key.
     }
 
-    return NextResponse.json({ key: apiKey });
+    return NextResponse.json({ error: "Unable to issue a temporary speech token. Browser dictation remains available." }, { status: 503 });
   } catch (error) {
     console.error("Deepgram token error:", error);
     return NextResponse.json({ error: "Failed to authenticate with Deepgram" }, { status: 500 });
