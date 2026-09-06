@@ -1,10 +1,11 @@
 import type { Patient } from "@/lib/sonoflow-types";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { escapeHtml } from "@/lib/html-utils";
 
 export async function downloadElementAsPdf(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
   if (!element) throw new Error("Element not found");
+
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
 
   const canvas = await html2canvas(element, {
     scale: 1.5, // Reduced from 2.0 to balance quality and size
@@ -27,8 +28,55 @@ export async function downloadElementAsPdf(elementId: string, filename: string) 
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const pageCount = Math.max(1, Math.ceil(pdfHeight / pageHeight));
+  for (let page = 0; page < pageCount; page++) {
+    if (page > 0) pdf.addPage();
+    pdf.addImage(imgData, "JPEG", 0, -page * pageHeight, pdfWidth, pdfHeight, "report", "FAST");
+  }
   pdf.save(`${filename}.pdf`);
+}
+
+/** Download a text report directly when the report is opened from history. */
+export async function downloadReportTextAsPdf(params: {
+  patient: Patient;
+  accession: string;
+  exam: string;
+  reportText: string;
+  signedBy?: string | null;
+  signedAt?: string | null;
+}) {
+  const { default: jsPDF } = await import("jspdf");
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const margin = 18;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const lineHeight = 5.5;
+  let y = margin;
+
+  pdf.setFontSize(16);
+  pdf.text("Sonolynx Radiology", margin, y);
+  y += 7;
+  pdf.setFontSize(10);
+  pdf.text(`Patient: ${params.patient.lastName}, ${params.patient.firstName}`, margin, y);
+  y += lineHeight;
+  pdf.text(`MRN: ${params.patient.mrn}   Accession: ${params.accession}`, margin, y);
+  y += lineHeight;
+  pdf.text(`Exam: ${params.exam}`, margin, y);
+  y += lineHeight;
+  pdf.text(`Signed: ${params.signedAt ?? "Pending"}   By: ${params.signedBy ?? "Pending"}`, margin, y);
+  y += 8;
+  pdf.setFont("courier", "normal");
+  const lines = pdf.splitTextToSize(params.reportText, pageWidth - margin * 2) as string[];
+  for (const line of lines) {
+    if (y > pageHeight - margin) {
+      pdf.addPage();
+      y = margin;
+    }
+    pdf.text(line, margin, y);
+    y += lineHeight;
+  }
+  pdf.save(`Report-${params.accession || "history"}.pdf`);
 }
 
 export function exportReportToPdf(params: {
@@ -39,21 +87,19 @@ export function exportReportToPdf(params: {
   signedBy?: string | null;
   signedAt?: string | null;
 }) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1100");
+  const printWindow = window.open("", "_blank", "width=900,height=1100");
   if (!printWindow) {
     throw new Error("Popup blocked. Allow popups to export PDF.");
   }
+  printWindow.opener = null;
 
-  const safeText = params.reportText
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  const safeText = escapeHtml(params.reportText);
 
   printWindow.document.write(`
     <!doctype html>
     <html>
       <head>
-        <title>Sonolynx Report ${params.accession}</title>
+        <title>Sonolynx Report ${escapeHtml(params.accession)}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 40px; color: #111827; }
           h1 { font-size: 20px; margin: 0 0 4px; }
@@ -69,13 +115,13 @@ export function exportReportToPdf(params: {
         <h1>Sonolynx Radiology</h1>
         <div>Signed Ultrasound Report</div>
         <div class="meta">
-          <div><strong>Patient:</strong> ${params.patient.lastName}, ${params.patient.firstName}</div>
-          <div><strong>MRN:</strong> ${params.patient.mrn}</div>
-          <div><strong>DOB:</strong> ${params.patient.dob}</div>
-          <div><strong>Exam:</strong> ${params.exam}</div>
-          <div><strong>Accession:</strong> ${params.accession}</div>
-          <div><strong>Signed At:</strong> ${params.signedAt ?? "Pending"}</div>
-          <div><strong>Signed By:</strong> ${params.signedBy ?? "Pending"}</div>
+          <div><strong>Patient:</strong> ${escapeHtml(params.patient.lastName)}, ${escapeHtml(params.patient.firstName)}</div>
+          <div><strong>MRN:</strong> ${escapeHtml(params.patient.mrn)}</div>
+          <div><strong>DOB:</strong> ${escapeHtml(params.patient.dob)}</div>
+          <div><strong>Exam:</strong> ${escapeHtml(params.exam)}</div>
+          <div><strong>Accession:</strong> ${escapeHtml(params.accession)}</div>
+          <div><strong>Signed At:</strong> ${escapeHtml(params.signedAt ?? "Pending")}</div>
+          <div><strong>Signed By:</strong> ${escapeHtml(params.signedBy ?? "Pending")}</div>
         </div>
         <h2>Report</h2>
         <div class="report">${safeText}</div>
