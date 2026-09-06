@@ -106,11 +106,6 @@ const isMissingColumnError = (error: any, column: string) => {
 const OPTIONAL_WORKSHEET_COLUMNS = new Set([
   "created_by",
   "data",
-  "organization_id",
-  "patient_id",
-  "report_text",
-  "signed_at",
-  "signed_by",
   "user_id",
   "worksheet_type",
 ]);
@@ -158,12 +153,18 @@ export async function loadWorksheet(
   worksheetType?: ExamType,
   activeWorksheetId?: string | null
 ) {
+  const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) return null;
+
   // 1. Most deterministic path: load the exact worksheet the sonographer pinned
   if (activeWorksheetId) {
     const { data: pinned, error: pinnedError } = await db
       .from("worksheets")
       .select("*")
       .eq("id", activeWorksheetId)
+      .eq("study_id", studyId)
+      .eq("organization_id", organizationId)
       .maybeSingle();
 
     // If the column or row doesn't exist, fall through to the study-based path
@@ -181,6 +182,7 @@ export async function loadWorksheet(
     .from("worksheets")
     .select("*")
     .eq("study_id", studyId)
+    .eq("organization_id", organizationId)
     .order("updated_at", { ascending: false })
     .limit(1);
 
@@ -210,26 +212,28 @@ export async function saveDraftWorksheet(params: {
   reportText: string;
 }) {
   let targetWorksheetId = params.worksheetId || undefined;
-
-  if (targetWorksheetId) {
-    const { data: existing, error: existingError } = await db
-      .from("worksheets")
-      .select("status")
-      .eq("id", targetWorksheetId)
-      .maybeSingle();
-
-    if (!existingError && existing?.status && existing.status !== "draft" && existing.status !== "failed") {
-      // If the current worksheet was already signed or transmitted, create a new draft revision
-      // linked to the study instead of throwing a blocking error.
-      targetWorksheetId = undefined;
-    }
-  }
-
   const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
   const organizationId = await getCurrentUserOrganizationId();
 
   if (!organizationId) {
     throw new Error("Organization context not found. Please ensure you are logged in correctly.");
+  }
+
+  if (targetWorksheetId) {
+    const { data: existing, error: existingError } = await db
+      .from("worksheets")
+      .select("status, signed_at, signed_by")
+      .eq("id", targetWorksheetId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+    if (!existing) throw new Error("Worksheet not found in your organization.");
+    if (existing.signed_at || existing.signed_by || (existing.status !== "draft" && existing.status !== "failed")) {
+      // If the current worksheet was already signed or transmitted, create a new draft revision
+      // linked to the study instead of throwing a blocking error.
+      targetWorksheetId = undefined;
+    }
   }
 
   const savedAt = new Date().toISOString();
@@ -285,6 +289,9 @@ export async function markWorksheetSigned(params: {
   }
 
   const signedAt = new Date().toISOString();
+  const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) throw new Error("Organization context not found. Please sign in again.");
   const updates = {
     report_text: params.reportText,
     signed_by: params.userId,
@@ -301,6 +308,7 @@ export async function markWorksheetSigned(params: {
         .from("worksheets")
         .update(payload)
         .eq("id", params.worksheetId)
+        .eq("organization_id", organizationId)
         .select("*")
         .single(),
   );
@@ -310,10 +318,14 @@ export async function markWorksheetSigned(params: {
 }
 
 export async function updateWorksheetStatus(worksheetId: string, status: WorksheetStatus) {
+  const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) throw new Error("Organization context not found. Please sign in again.");
   const { data, error } = await db
     .from("worksheets")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", worksheetId)
+    .eq("organization_id", organizationId)
     .select("*")
     .single();
 
@@ -331,6 +343,7 @@ export async function updateWorksheetStatus(worksheetId: string, status: Workshe
       .from("worksheets")
       .update({ status: fallbackStatus, updated_at: new Date().toISOString() })
       .eq("id", worksheetId)
+      .eq("organization_id", organizationId)
       .select("*")
       .single();
     if (retry.error) throw retry.error;
@@ -343,6 +356,9 @@ export async function updateWorksheetStatus(worksheetId: string, status: Workshe
 
 
 export async function getReportHistory(patientId: string) {
+  const { getCurrentUserOrganizationId } = await import("@/lib/org-scope");
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) return [];
   const { data, error } = await db
     .from("worksheets")
     .select(`
@@ -364,6 +380,7 @@ export async function getReportHistory(patientId: string) {
       )
     `)
     .eq("patient_id", patientId)
+    .eq("organization_id", organizationId)
     .in("status", ["signed", "transmitted", "failed"])
     .order("signed_at", { ascending: false, nullsFirst: false });
 
@@ -375,7 +392,8 @@ export async function getReportHistory(patientId: string) {
     const { data: studies, error: studiesError } = await db
       .from("studies")
       .select("id")
-      .eq("patient_id", patientId);
+      .eq("patient_id", patientId)
+      .eq("organization_id", organizationId);
 
     if (studiesError) throw studiesError;
 
@@ -402,6 +420,7 @@ export async function getReportHistory(patientId: string) {
         )
       `)
       .in("study_id", studyIds)
+      .eq("organization_id", organizationId)
       .in("status", ["signed", "transmitted", "failed"])
       .order("signed_at", { ascending: false, nullsFirst: false });
 
