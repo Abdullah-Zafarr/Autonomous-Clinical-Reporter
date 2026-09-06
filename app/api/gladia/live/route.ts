@@ -76,25 +76,25 @@ export async function POST() {
     };
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    response = (await Promise.race([
-      fetch("https://api.gladia.io/v2/live", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-gladia-key": apiKey,
-        },
-        body: JSON.stringify(payload),
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Gladia session setup timed out")), 12000),
-      ),
-    ])) as Response;
+    response = await fetch("https://api.gladia.io/v2/live", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-gladia-key": apiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gladia request failed" },
+      { error: error instanceof Error && error.name === "AbortError" ? "Gladia session setup timed out" : error instanceof Error ? error.message : "Gladia request failed" },
       { status: 502 },
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!response.ok) {
