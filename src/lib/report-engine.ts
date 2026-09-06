@@ -85,7 +85,7 @@ export function generateReport(data: WorksheetData, sectionsOrder?: string[]): R
         const liverSize = data.liver?.size ? ` measuring ${data.liver.size} cm` : "";
         if (data.liver?.echotexture === "Homogeneous") {
           findings.push(
-            `Liver: The liver is normal in size${liverSize} and demonstrates homogeneous echotexture with a ${(data.liver?.surface || "smooth").toLowerCase()} contour.`,
+            `Liver: The liver${liverSize} demonstrates homogeneous echotexture with a ${(data.liver?.surface || "smooth").toLowerCase()} contour.`,
           );
         } else if (data.liver?.echotexture === "Diffusely echogenic (fatty infiltration)") {
           findings.push(
@@ -122,7 +122,7 @@ export function generateReport(data: WorksheetData, sectionsOrder?: string[]): R
         const wt = parseFloat(data.gallbladder?.wallThickness || "");
         const wallStr = data.gallbladder?.wallThickness
           ? `Gallbladder wall measures ${data.gallbladder.wallThickness} mm`
-          : "Gallbladder wall thickness within normal limits";
+          : "Gallbladder wall thickness not documented";
         const wallAbnormal = !isNaN(wt) && wt > THRESHOLDS.gallbladderWallMmUpper;
 
         if (data.gallbladder?.content === "Gallstones") {
@@ -291,8 +291,8 @@ export function generateReport(data: WorksheetData, sectionsOrder?: string[]): R
     }
   });
 
-  if (impression.length === 0) {
-    impression.push("Unremarkable complete abdominal ultrasound.");
+  if (impression.length === 0 && findings.length > 0) {
+    impression.push(defaultOrder.every((section) => order.includes(section)) ? "Unremarkable complete abdominal ultrasound." : "No abnormality documented in the selected sections.");
   }
 
   return { findings, impression };
@@ -354,11 +354,11 @@ export function generateThyroidReport(data: ThyroidData): ReportSections {
 
     const suspicious = data.nodules.filter((n) => n.tirads === "TR4" || n.tirads === "TR5");
     if (suspicious.length > 0) {
-      impression.push("Suspicious thyroid nodule(s) as described. Recommend FNA biopsy.");
+      impression.push("Suspicious thyroid nodule(s) as described; management follows the size-based ACR TI-RADS recommendations below.");
     }
     const benign = data.nodules.filter((n) => n.tirads === "TR1" || n.tirads === "TR2" || n.tirads === "TR3");
     if (benign.length > 0 && suspicious.length === 0) {
-      impression.push(`${benign.length} benign-appearing thyroid nodule(s). Routine follow-up recommended.`);
+      impression.push(`${benign.length} low-suspicion thyroid nodule(s) as described; see the size-based ACR TI-RADS recommendations below.`);
     }
   }
 
@@ -416,6 +416,11 @@ export function reportToText(report: ReportSections): string {
   return `FINDINGS:\n\n${findings}\n\nIMPRESSION:\n\n${impression}${recSection}`;
 }
 
+export function escapeHl7Field(value: string): string {
+  const escapes: Record<string, string> = { "\\": "\\E\\", "|": "\\F\\", "^": "\\S\\", "~": "\\R\\", "&": "\\T\\", "\r": "\\X0D\\", "\n": "\\X0A\\" };
+  return value.replace(/[\\|^~&\r\n]/g, (character) => escapes[character]);
+}
+
 export function buildHL7(
   patient: Patient,
   reportText: string,
@@ -444,9 +449,9 @@ export function buildHL7(
 
   const segments = [
     `MSH|^~\\&|SONOFLOW|CLINIC|RIS|HOSP|${ts}||ORU^R01|${msgId}|P|2.3`,
-    `PID|1||${patient.mrn}||${patient.lastName}^${patient.firstName}||${dob}|`,
-    `OBR|1||${accession}|US^Ultrasound^${examDesc}|||${ts}||||||||||||`,
-    ...reportText.split("\n").map((line, i) => `OBX|${i + 1}|TX|REPORT||${line || " "}||||||F`),
+    `PID|1||${escapeHl7Field(patient.mrn)}||${escapeHl7Field(patient.lastName)}^${escapeHl7Field(patient.firstName)}||${escapeHl7Field(dob)}|`,
+    `OBR|1||${escapeHl7Field(accession)}|US^Ultrasound^${examDesc}|||${ts}||||||||||||`,
+    ...reportText.split(/\r?\n/).map((line, i) => `OBX|${i + 1}|TX|REPORT||${escapeHl7Field(line || " ")}||||||F`),
   ];
 
   return segments.join("\r\n");
