@@ -23,6 +23,7 @@ export interface ReportTemplateContext {
   worksheetSummary?: string | null;
   patientAge?: string | null;
   patientGender?: string | null;
+  additionalNotes?: string | null;
   // Clinical measurements for conditional logic evaluation
   clinicalData?: Record<string, number | string>;
 }
@@ -79,6 +80,8 @@ export function buildTemplateContext(
     "{{referringPhysician}}": safe(context.referringPhysician, "-"),
     "{{findings}}":           safe(findings,                 "No findings available."),
     "{{impression}}":         safe(impression,               "No impression available."),
+    "{{recommendations}}":    (context.report.recommendations ?? []).join("\n"),
+    "{{additionalNotes}}":    safe(context.additionalNotes),
     "{{signedBy}}":           safe(context.signedBy,         "-"),
     "{{signedAt}}":           safe(context.signedAt,         "-"),
     "{{worksheetSummary}}":   safe(context.worksheetSummary, "-"),
@@ -202,7 +205,8 @@ export function renderReportTemplate(
   context: ReportTemplateContext,
   branding?: ReportBrandingSettings | null,
 ): RenderedTemplateDocument {
-  const fallback = reportToText(context.report);
+  const notes = safe(context.additionalNotes);
+  const fallback = reportToText(context.report) + (notes ? `\n\nADDITIONAL NOTES:\n${notes}` : "");
 
   if (!template || !template.isActive) {
     return {
@@ -231,6 +235,10 @@ export function renderReportTemplate(
       };
     }
 
+    const content = sections.map((section) => section.content).join("\n");
+    const recommendations = (context.report.recommendations ?? []).filter((line) => !content.includes(line));
+    if (recommendations.length) sections.push({ title: "Recommendations", content: recommendations.join("\n") });
+    if (notes && !content.includes(notes)) sections.push({ title: "Additional notes", content: notes });
     const plainText = sections.map((s) => `${s.title}\n${s.content}`).join("\n\n");
     return {
       templateId:   template.id,

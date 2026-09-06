@@ -299,6 +299,8 @@ export function generateReport(data: WorksheetData, sectionsOrder?: string[]): R
 }
 
 export function generateThyroidReport(data: ThyroidData): ReportSections {
+  const hasMeasurements = [...Object.values(data.rightLobe), ...Object.values(data.leftLobe), data.isthmus].some((value) => value.trim());
+  if (!hasMeasurements && !data.nodules.length && data.parenchyma === "Homogeneous" && data.vascularity === "Normal" && data.cervicalNodes === "None suspicious") return { findings: [], impression: [], recommendations: [] };
   const findings: string[] = [];
   const impression: string[] = [];
   const recommendations: string[] = [];
@@ -319,7 +321,7 @@ export function generateThyroidReport(data: ThyroidData): ReportSections {
     );
   } else {
     findings.push(
-      `Thyroid gland: Normal in size bilaterally with ${data.parenchyma.toLowerCase()} echotexture and ${data.vascularity.toLowerCase()} vascularity.`,
+      `Thyroid gland: Dimensions not documented. ${data.parenchyma} echotexture with ${data.vascularity.toLowerCase()} vascularity.`,
     );
   }
 
@@ -370,6 +372,7 @@ export function generateThyroidReport(data: ThyroidData): ReportSections {
 }
 
 export function generateObReport(data: ObData): ReportSections {
+  if (![data.gestationalAge, data.fetalHeartRate, data.biometryNotes, data.impression].some((value) => value.trim())) return { findings: [], impression: [] };
   const findings = [
     `OB ultrasound: Gestational age is ${data.gestationalAge || "not specified"}.`,
     `Fetal heart rate is ${data.fetalHeartRate || "not documented"} bpm.`,
@@ -383,11 +386,12 @@ export function generateObReport(data: ObData): ReportSections {
 
   return {
     findings,
-    impression: [data.impression.trim() || "Single live intrauterine pregnancy. Clinical correlation recommended."],
+    impression: [data.impression.trim() || "Clinical impression not entered. Clinician review required."],
   };
 }
 
 export function generateVascularReport(data: VascularData): ReportSections {
+  if (![data.vesselExamined, data.stenosisFindings, data.waveformNotes, data.impression].some((value) => value.trim())) return { findings: [], impression: [] };
   const vessel = data.vesselExamined.trim() || "specified vessel";
   const findings = [
     `Vascular ultrasound: ${vessel} examined (${data.laterality.toLowerCase()}).`,
@@ -404,7 +408,7 @@ export function generateVascularReport(data: VascularData): ReportSections {
 
   return {
     findings,
-    impression: [data.impression.trim() || "No acute vascular abnormality documented."],
+    impression: [data.impression.trim() || "Clinical impression not entered. Clinician review required."],
   };
 }
 

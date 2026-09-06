@@ -223,11 +223,26 @@ export function validateVascular(data: VascularData): ValidationIssue[] {
 }
 
 export function validateWorksheet(type: string, data: any): ValidationIssue[] {
+  const numericKeys = new Set(["size", "wallThickness", "cbd", "rightLength", "leftLength", "ductMm", "portalVeinMm", "aortaMaxApCm", "length", "width", "depth", "isthmus", "fetalHeartRate"]);
+  const malformed: ValidationIssue[] = [];
+  const visit = (value: unknown, path = "") => {
+    if (!value || typeof value !== "object") return;
+    for (const [key, entry] of Object.entries(value)) {
+      const field = path ? `${path}.${key}` : key;
+      if (entry && typeof entry === "object") visit(entry, field);
+      else if (numericKeys.has(key) && entry !== null && entry !== undefined && String(entry).trim() && !Number.isFinite(Number(entry))) {
+        malformed.push({ field, level: "error", message: `Enter a valid number for ${field}.` });
+      }
+    }
+  };
+  visit(data, type === "Thyroid" ? "thyroid" : type === "OB" ? "ob" : "");
+  let issues: ValidationIssue[];
   switch (type) {
-    case "Abdomen": return validateAbdomen(data as WorksheetData);
-    case "Thyroid": return validateThyroid(data as ThyroidData);
-    case "OB": return validateOb(data as ObData);
-    case "Vascular": return validateVascular(data as VascularData);
-    default: return [];
+    case "Abdomen": issues = validateAbdomen(data as WorksheetData); break;
+    case "Thyroid": issues = validateThyroid(data as ThyroidData); break;
+    case "OB": issues = validateOb(data as ObData); break;
+    case "Vascular": issues = validateVascular(data as VascularData); break;
+    default: issues = [];
   }
+  return [...malformed, ...issues];
 }
