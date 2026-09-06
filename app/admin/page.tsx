@@ -176,6 +176,27 @@ export default function AdminDashboard() {
       .maybeSingle();
     const orgId = adminProfile?.organization_id ?? null;
     setOrganizationId(orgId);
+
+    // An administrator without clinic membership must not get an unscoped
+    // dashboard. Global/unscoped data is reserved for the explicit super-admin
+    // view below.
+    if (!orgId && !globalView) {
+      setStaff([]);
+      setOrganizations([]);
+      setHl7Rows([]);
+      setTotalPatients(0);
+      setTotalStudies(0);
+      setDraftWorksheets(0);
+      setSignedReports(0);
+      setTransmittedReports(0);
+      setFailedHl7(0);
+      setHl7SuccessRate(0);
+      setSignedReportsList([]);
+      setOrgTier("individual");
+      setTierLimits(TIER_CONFIG.individual);
+      setLoading(false);
+      return;
+    }
     
     // Fetch Tier
     const tier = await getCurrentUserOrganizationTier();
@@ -200,28 +221,28 @@ export default function AdminDashboard() {
       signedReportsRes,
     ] = await Promise.all([
       (scopeByOrg
-        ? untypedSupabase.from("patients").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`)
+        ? untypedSupabase.from("patients").select("id", { count: "exact", head: true }).eq("organization_id", orgId)
         : untypedSupabase.from("patients").select("id", { count: "exact", head: true })),
       (scopeByOrg
-        ? untypedSupabase.from("studies").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`)
+        ? untypedSupabase.from("studies").select("id", { count: "exact", head: true }).eq("organization_id", orgId)
         : untypedSupabase.from("studies").select("id", { count: "exact", head: true })),
       (scopeByOrg
-        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`).eq("status", "draft")
+        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "draft")
         : untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).eq("status", "draft")),
       (scopeByOrg
-        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`).in("status", ["signed", "transmitted"])
+        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).eq("organization_id", orgId).in("status", ["signed", "transmitted"])
         : untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).in("status", ["signed", "transmitted"])),
       (scopeByOrg
-        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`).eq("status", "transmitted")
+        ? untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "transmitted")
         : untypedSupabase.from("worksheets").select("id", { count: "exact", head: true }).eq("status", "transmitted")),
       (scopeByOrg
-        ? untypedSupabase.from("hl7_messages").select("id", { count: "exact", head: true }).or(`organization_id.eq.${orgId},organization_id.is.null`).eq("status", "failed")
+        ? untypedSupabase.from("hl7_messages").select("id", { count: "exact", head: true }).eq("organization_id", orgId).eq("status", "failed")
         : untypedSupabase.from("hl7_messages").select("id", { count: "exact", head: true }).eq("status", "failed")),
       (scopeByOrg
-        ? untypedSupabase.from("hl7_messages").select("status").or(`organization_id.eq.${orgId},organization_id.is.null`)
+        ? untypedSupabase.from("hl7_messages").select("status").eq("organization_id", orgId)
         : untypedSupabase.from("hl7_messages").select("status")),
       (scopeByOrg
-        ? untypedSupabase.from("profiles").select("*").or(`organization_id.eq.${orgId},organization_id.is.null`).order("created_at", { ascending: false })
+        ? untypedSupabase.from("profiles").select("*").eq("organization_id", orgId).order("created_at", { ascending: false })
         : untypedSupabase.from("profiles").select("*").order("created_at", { ascending: false })),
       untypedSupabase
         .from("hl7_messages")
@@ -263,7 +284,7 @@ export default function AdminDashboard() {
           .in("status", ["signed", "transmitted"])
           .order("signed_at", { ascending: false })
           .limit(50);
-        if (scopeByOrg) q.or(`organization_id.eq.${orgId},organization_id.is.null`);
+        if (scopeByOrg) q.eq("organization_id", orgId);
         return q;
       })(),
     ]);
@@ -301,21 +322,6 @@ export default function AdminDashboard() {
       role: roleMap[person.id] ?? person.role ?? "unknown",
     }));
     setStaff(mergedStaff);
-
-    // Background: backfill orphaned profiles (null org_id) to this admin's org
-    if (orgId) {
-      const orphans = loadedStaff.filter((p) => !(p as any).organization_id);
-      if (orphans.length > 0) {
-        untypedSupabase
-          .from("profiles")
-          .update({ organization_id: orgId })
-          .in("id", orphans.map((p) => p.id))
-          .then(({ error }: { error: any }) => {
-            if (error) console.warn("[admin] backfill orphaned profiles failed:", error.message);
-            else console.info("[admin] backfilled", orphans.length, "orphaned profile(s) to org", orgId);
-          });
-      }
-    }
 
     const activityMap: Record<string, string> = {};
     for (const row of (wsActivityRes.data ?? []) as Array<{ sonographer_id?: string; updated_at?: string }>) {
@@ -386,7 +392,13 @@ export default function AdminDashboard() {
 
   // Realtime subscription for global updates
   useEffect(() => {
-    loadAll();
+    if (authLoading || role !== "admin") return;
+    loadAll().catch((error) => {
+      setLoading(false);
+      toast.error("Admin dashboard load failed", {
+        description: error instanceof Error ? error.message : "Unexpected error",
+      });
+    });
     // Check if super admin
     (async () => {
       const { data: { session } } = await (supabase as any).auth.getSession();
@@ -401,8 +413,7 @@ export default function AdminDashboard() {
         setIsSuperAdmin(false);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalView]);
+  }, [authLoading, globalView, loadAll, role]);
 
   useEffect(() => {
     const channel = supabase
@@ -427,18 +438,6 @@ export default function AdminDashboard() {
       supabase.removeChannel(channel);
     };
   }, [loadAll]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (role !== "admin") return;
-
-    loadAll().catch((error) => {
-      setLoading(false);
-      toast.error("Admin dashboard load failed", {
-        description: error instanceof Error ? error.message : "Unexpected error",
-      });
-    });
-  }, [authLoading, loadAll, role]);
 
   const filteredStaff = useMemo(() => {
     if (staffRoleFilter === "all") return staff;
