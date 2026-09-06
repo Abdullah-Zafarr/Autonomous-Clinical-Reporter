@@ -11,6 +11,8 @@ import { getCurrentUserOrganizationId } from "@/lib/org-scope";
 import { mockPatients } from "@/lib/sonoflow-types";
 import { useAuth } from "@/lib/auth-context";
 
+const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
+
 interface Props {
   selectedId: string;
   onSelect: (p: Patient) => void;
@@ -68,6 +70,10 @@ function patientRowToPatient(p: any, role: string | null, userId?: string): Pati
 // that are assigned — regardless of what status they ended up in.
 // ----------------------------------------------------------------
 async function fetchDoctorWorklist(userId: string): Promise<{ patients: Patient[]; debugInfo: string }> {
+  const organizationId = await getCurrentUserOrganizationId();
+  if (!organizationId) {
+    return { patients: [], debugInfo: "No organization context; worklist is hidden until clinic membership is assigned." };
+  }
   // Step 1: query all studies assigned to this doctor (no status filter — we want
   // to see everything the sonographer sent, even if status didn't get updated).
   const { data, error } = await (supabase as any)
@@ -77,6 +83,7 @@ async function fetchDoctorWorklist(userId: string): Promise<{ patients: Patient[
         "patients:patient_id(id, mrn, first_name, last_name, dob)"
     )
     .eq("assigned_to", userId)
+    .eq("organization_id", organizationId)
     .order("study_date", { ascending: false })
     .limit(100);
 
@@ -102,36 +109,21 @@ async function fetchDoctorWorklist(userId: string): Promise<{ patients: Patient[
 async function fetchSonographerWorklist(role: string | null, userId?: string): Promise<Patient[]> {
   const organizationId = await getCurrentUserOrganizationId();
 
+  // A missing organisation is an authentication/data-integrity problem. Do
+  // not fall back to a shared or unscoped worklist that could expose another
+  // clinic's patients.
+  if (!organizationId) return [];
+
   let query = (supabase as any)
     .from("patients")
     .select(
       "id, mrn, first_name, last_name, dob, studies(id, accession_number, assigned_to, description, exam_type, status)"
     )
+    .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (organizationId) {
-    query = query.or(`organization_id.eq.${organizationId},organization_id.is.null`);
-  }
-
-  let { data, error } = await query;
-
-  // Backwards-compat: retry without org filter if column is missing
-  if (
-    error &&
-    (error.code === "42703" || error.code === "PGRST204") &&
-    `${error?.message ?? ""} ${error?.details ?? ""}`.toLowerCase().includes("organization_id")
-  ) {
-    const retry = await (supabase as any)
-      .from("patients")
-      .select(
-        "id, mrn, first_name, last_name, dob, studies(id, accession_number, assigned_to, description, exam_type, status)"
-      )
-      .order("created_at", { ascending: false })
-      .limit(50);
-    data = retry.data;
-    error = retry.error;
-  }
+  const { data, error } = await query;
 
   if (error) throw error;
   if (!data || data.length === 0) return [];
@@ -164,7 +156,7 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
         console.info("[PatientWorklist] doctor fetch:", result.debugInfo);
       } else {
         const mapped = await fetchSonographerWorklist(role, user.id);
-        if (mapped.length === 0 && process.env.NODE_ENV === "development") {
+        if (mapped.length === 0 && demoDataEnabled) {
           setPatients(mockPatients);
         } else {
           setPatients(mapped);
@@ -176,7 +168,7 @@ export function PatientWorklist({ selectedId, onSelect, refreshKey = 0 }: Props)
       console.error("[PatientWorklist] load error:", msg, debug);
       setFetchError(msg);
       if (debug) setDebugInfo(debug);
-      if (!isDoctor && process.env.NODE_ENV === "development") {
+      if (!isDoctor && demoDataEnabled) {
         setPatients(mockPatients);
       }
     } finally {
