@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,7 +89,9 @@ export function BrandingSettingsManager() {
 
       {form.logoUrl && (
         <div className="mt-3 rounded-md border p-2">
-          <Image src={form.logoUrl} alt="Branding logo preview" width={180} height={60} className="h-14 w-auto object-contain" unoptimized />
+          {/* Logo URLs are tenant-configured and may use any clinic domain. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={form.logoUrl} alt="Branding logo preview" width={180} height={60} className="h-14 w-auto object-contain" />
         </div>
       )}
 
