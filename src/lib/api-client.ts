@@ -28,14 +28,14 @@ export async function fetchWithTimeout(url: string, options: ApiRequestOptions =
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(url, {
         ...requestOptions,
-        signal: controller.signal,
+        signal: requestOptions.signal ? AbortSignal.any([requestOptions.signal, controller.signal]) : controller.signal,
       });
-      window.clearTimeout(timeout);
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const body = await response.text();
@@ -48,8 +48,10 @@ export async function fetchWithTimeout(url: string, options: ApiRequestOptions =
 
       return response;
     } catch (error) {
-      window.clearTimeout(timeout);
+      clearTimeout(timeout);
       lastError = error;
+      if (requestOptions.signal?.aborted) throw error;
+      if (error instanceof ApiError && error.status && !RETRYABLE_STATUS.has(error.status)) throw error;
       if (attempt < retries) {
         await wait(retryDelayMs * (attempt + 1));
         continue;
