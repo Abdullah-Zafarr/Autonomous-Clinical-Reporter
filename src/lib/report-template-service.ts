@@ -82,11 +82,13 @@ function setLocalCustomTemplates(items: ReportTemplate[]) {
 async function getDbTemplates(): Promise<ReportTemplate[]> {
   try {
     const organizationId = await getCurrentUserOrganizationId();
+    if (!organizationId) return [];
     const db = supabase as any;
-    let query = db.from("report_templates").select("*").order("updated_at", { ascending: false });
-    if (organizationId) {
-      query = query.eq("organization_id", organizationId);
-    }
+    const query = db
+      .from("report_templates")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("updated_at", { ascending: false });
     const { data, error } = await query;
     if (error || !data) return [];
     return (data as Record<string, unknown>[]).map(normalizeTemplate);
@@ -127,6 +129,8 @@ export async function createTemplate(template: Omit<ReportTemplate, "id" | "crea
   };
 
   try {
+    const organizationId = await getCurrentUserOrganizationId();
+    if (!organizationId) throw new Error("Organization context not found");
     const db = supabase as any;
     const { error } = await db.from("report_templates").insert({
       id: created.id,                  // ← pass our generated ID to prevent duplicates
@@ -142,7 +146,7 @@ export async function createTemplate(template: Omit<ReportTemplate, "id" | "crea
       sections: created.sections,
       is_active: created.isActive,
       created_by: created.createdBy,
-      organization_id: await getCurrentUserOrganizationId(),
+      organization_id: organizationId,
     });
     if (!error) return created;
   } catch {
@@ -157,6 +161,8 @@ export async function createTemplate(template: Omit<ReportTemplate, "id" | "crea
 export async function updateTemplate(templateId: string, updates: Partial<ReportTemplate>) {
   const now = new Date().toISOString();
   try {
+    const organizationId = await getCurrentUserOrganizationId();
+    if (!organizationId) throw new Error("Organization context not found");
     const db = supabase as any;
     const { error } = await db
       .from("report_templates")
@@ -173,7 +179,8 @@ export async function updateTemplate(templateId: string, updates: Partial<Report
         is_active: updates.isActive,
         updated_at: now,
       })
-      .eq("id", templateId);
+      .eq("id", templateId)
+      .eq("organization_id", organizationId);
     if (!error) return true;
   } catch {
     // fall through to local
