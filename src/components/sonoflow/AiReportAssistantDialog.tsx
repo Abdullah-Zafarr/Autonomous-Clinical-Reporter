@@ -101,6 +101,14 @@ export function AiReportAssistantDialog({
     }
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      recognitionRef.current?.abort();
+      setIsListening(false);
+    }
+    return () => { recognitionRef.current?.abort(); };
+  }, [open]);
+
   const toggleListening = () => {
     if (!recognitionRef.current) {
       toast.info("Microphone dictation not supported in this browser", {
@@ -273,6 +281,7 @@ export function AiReportAssistantDialog({
             </div>
             <Textarea
               rows={4}
+              maxLength={12000}
               placeholder="e.g. Liver 14.5cm homogeneous, Gallbladder wall 2.8mm clear, CBD 4mm, Pancreas unremarkable, Kidneys normal bilaterally, no focal masses, no hydronephrosis..."
               value={dictation}
               onChange={(e) => setDictation(e.target.value)}
@@ -316,6 +325,7 @@ export function AiReportAssistantDialog({
               </div>
               <Textarea
                 rows={10}
+                maxLength={24000}
                 value={generatedText}
                 onChange={(e) => setGeneratedText(e.target.value)}
                 className="font-mono text-xs leading-relaxed bg-white border-blue-200 resize-y"
