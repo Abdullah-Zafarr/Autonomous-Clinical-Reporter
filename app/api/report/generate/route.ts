@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { reportSectionsSchema } from "@/lib/report-schema";
 import { createClient as createServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const devBypass =
-    process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+    false;
 
   if (!user && !devBypass) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,6 +39,8 @@ export async function POST(req: Request) {
 
   const isGroq = Boolean(process.env.GROQ_API_KEY);
   const aiClient = new OpenAI({
+    timeout: 12000,
+    maxRetries: 0,
     apiKey,
     baseURL: isGroq ? "https://api.groq.com/openai/v1" : undefined,
   });
@@ -56,6 +59,10 @@ export async function POST(req: Request) {
   }
 
   const { exam, localReport, worksheet, thyroid, ob, vascular, additionalNotes } = body;
+  const validatedReport = reportSectionsSchema.safeParse(localReport);
+  if (!validatedReport.success || JSON.stringify(body).length > 60000) return NextResponse.json({ error: "Invalid or oversized report" }, { status: 400 });
+  const allowedExams = new Set(["Abdomen", "Thyroid", "OB", "Vascular"]);
+  const examLabel = allowedExams.has(exam) ? exam : "Abdomen";
 
   const systemPrompt = `
 You are an expert Radiologist. Your task is to take a draft ultrasound report and its structured findings, and polish it into a professional, clear, and highly accurate clinical report.
@@ -70,13 +77,6 @@ You are an expert Radiologist. Your task is to take a draft ultrasound report an
 40. **Scope (CRITICAL)**: Only report on the anatomy and sections provided in the Input Data. If a section or organ is not explicitly mentioned or has null data, do not include it in your output. Do not assume 'normal' for unmentioned anatomy.
 41. **No Placeholders**: Do not include phrases like "as described above" or "see below".
 
-### INPUT DATA:
-- **Exam Type**: ${exam}
-- **Local Findings**: ${JSON.stringify(localReport?.findings ?? [])}
-- **Local Impression**: ${JSON.stringify(localReport?.impression ?? [])}
-- **Worksheet Data**: ${JSON.stringify({ worksheet, thyroid, ob, vascular })}
-- **Additional Notes**: ${additionalNotes ?? ""}
-
 ### OUTPUT FORMAT:
 Return ONLY a JSON object with the following structure:
 {
@@ -87,12 +87,24 @@ Return ONLY a JSON object with the following structure:
   }
 }
 `;
+  const userPrompt = JSON.stringify({
+    exam: examLabel,
+    localReport: validatedReport.data,
+    worksheet,
+    thyroid,
+    ob,
+    vascular,
+    additionalNotes: typeof additionalNotes === "string" ? additionalNotes : "",
+  });
 
-  for (const model of candidateModels) {
+  for (const model of [...new Set(candidateModels)].slice(0, 2)) {
     try {
       const response = await aiClient.chat.completions.create({
         model,
-        messages: [{ role: "system", content: systemPrompt }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
         response_format: { type: "json_object" },
         temperature: 0.2,
         max_tokens: 1000,
@@ -101,8 +113,9 @@ Return ONLY a JSON object with the following structure:
       const raw = response.choices[0].message.content || "{}";
       const result = JSON.parse(raw);
 
-      if (result?.report?.findings && result?.report?.impression) {
-        return NextResponse.json(result);
+      const validated = reportSectionsSchema.safeParse(result?.report);
+      if (validated.success && response.choices[0]?.finish_reason === "stop") {
+        return NextResponse.json({ report: validated.data });
       }
     } catch (modelErr: any) {
       console.warn(`[report-generate] model ${model} failed, trying fallback:`, modelErr?.message || modelErr);
@@ -112,7 +125,7 @@ Return ONLY a JSON object with the following structure:
   // Graceful fallback to local report rather than crashing clinical workflow
   console.info("[report-generate] Falling back to local structured clinical report");
   return NextResponse.json({
-    report: localReport ?? { findings: [], impression: [] },
+    report: validatedReport.data,
     warning: "AI polish unavailable; structured clinical findings preserved.",
   });
 }
