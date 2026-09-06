@@ -141,7 +141,7 @@ export function evaluateConditionalBlocks(
 ): string {
   // Pattern: {% if field operator value %}content{% endif %}
   return content.replace(
-    /\{%\s*if\s+(\w+)\s*(>|<|>=|<=|==|!=)\s*([^\s%]+)\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g,
+    /\{%\s*if\s+(\w+)\s*(>=|<=|==|!=|>|<)\s*([^\s%]+)\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g,
     (_match, field, operator, value, thenContent) => {
       const rule: ConditionalRule = {
         id: "inline",
