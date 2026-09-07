@@ -1,6 +1,100 @@
 # Sonolynx Change Log
 
-This file records the major features and reliability improvements implemented in the current Sonolynx project.
+## Final product review
+
+This log records the changes made during the final product review and demo-readiness pass.
+
+### Doctor workspace and visual polish
+
+- Refined the doctor review panel with clearer `Clinical report` language and more deliberate spacing and typography.
+- Added explicit `UNSAVED`, `DRAFT`, and `SIGNED` report states.
+- Added Save draft, Retry delivery, and state-aware sign controls.
+- Added busy-state guards so save, send, sign, and retry actions cannot be triggered repeatedly.
+- Prevented signed reports from being overwritten; signing a changed report creates a new draft revision.
+- Made the corrections panel collapsible to reduce visual clutter.
+- Made History and Images optional panels instead of forcing them into the default doctor layout.
+- Adjusted the report panel split so the clinical report receives the primary workspace area.
+- Improved mobile sizing and prevented horizontal overflow.
+- Kept key images visible below the report content, including after report edits.
+
+### Clinical workflow safety
+
+- Added worksheet loading, retry, and error states.
+- Prevented sending incomplete worksheets, empty findings, or reports without a selected study.
+- Added guards against editing or signing while a worksheet is loading or being saved.
+- Pinned the active worksheet after draft creation.
+- Preserved sonographer and author fields when a doctor edits an existing draft.
+- Added optimistic unsigned-row guards to review and signing updates.
+- Updated patient status to completed after a study is completed.
+- Added stale-request protection to authentication role loading so an older request cannot overwrite newer auth state.
+
+### Worksheet coverage
+
+- Added obstetric fields for presentation, placenta, amniotic fluid, biometry notes, and FHR validation.
+- Added vascular fields for laterality, flow patency, thrombus, stenosis findings, and waveform notes.
+- Added accessible labels and appropriate disabled states to worksheet controls.
+- Restricted the HL7 action to the doctor workflow where it belongs.
+
+### Validation and report generation
+
+- Added recursive malformed-number detection for numeric worksheet values.
+- Prevented empty OB and vascular worksheets from generating invented findings or impressions.
+- Prevented empty thyroid worksheets from generating normal findings or recommendations.
+- Changed undocumented dimension wording to `Dimensions not documented`.
+- Updated OB and vascular defaults to require clinician review when no impression is entered.
+- Preserved recommendations and additional notes through template rendering.
+- Added `{{recommendations}}` and `{{additionalNotes}}` template tokens.
+- Included signed identity, signing time, and notes in report-generation context.
+
+### Report preview and export
+
+- Improved the report preview header, status treatment, and empty-state messaging.
+- Added an accessible report editor with busy-state handling.
+- Preserved edited text in raw and A4 preview modes.
+- Verified Copy Text output.
+- Verified PDF download and inspected the generated A4 PDF visually.
+- Improved the structured-report dialog for small screens with responsive sizing and scrolling.
+
+### DICOM workflow
+
+- Tested multi-file DICOM upload.
+- Tested multi-frame navigation.
+- Tested zoom, reset view, and key-image capture.
+- Tested key-image captions and confirmed captured images appear in the report.
+- Added/verified image limits and the loaded-series state.
+
+### Patient worklist and accessibility
+
+- Expanded search to patient name, MRN, accession number, and exam name.
+- Added clearer no-results messaging.
+- Improved exact study selection behavior.
+- Added keyboard activation and ARIA labels to worklist, search, refresh, and report controls.
+- Added accessible labels to worksheet and dialog controls.
+
+### Admin and product copy
+
+- Replaced the misleading `HIPAA · Production` development badge with `Development workspace`.
+- Updated login copy to describe ultrasound reporting and clinical review.
+- Masked the admin new-user password field and added appropriate autocomplete behavior.
+
+### Infrastructure and tests
+
+- Updated the resizable-panel wrapper to the current `react-resizable-panels` API.
+- Added the `test` and `test:review` npm scripts.
+- Added `scripts/product-review.test.ts` with coverage for empty worksheets, OB and vascular data, malformed numerics, HL7 escaping, template notes, conditional blocks, corrections, API retry/cancel behavior, authorship, and signing guards.
+
+## Verification completed
+
+- Product-review test suite: 26 tests passed.
+- Randomized clinical rule validation: 5,000 cases checked with zero failures.
+- TypeScript typecheck passed.
+- Production build passed and generated all application routes.
+- Desktop doctor workspace reviewed in the browser.
+- Mobile viewport reviewed at 390×844 with no horizontal overflow.
+- DICOM upload, frame navigation, zoom, reset, and key-image capture tested.
+- Raw report preview, A4 preview, copy, and PDF download tested.
+- PDF inspected as a one-page A4 document.
+- Backend read-only data and unauthenticated API authorization boundaries checked.
 
 ## 2026-09-06 — Admin Login Routing Fix
 
