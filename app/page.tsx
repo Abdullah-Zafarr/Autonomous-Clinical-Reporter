@@ -155,6 +155,7 @@ export default function SonolynxApp() {
   const draftVersion = useRef(0);
   const [isDirty, setIsDirty] = useState(false);
   const isInitialMount = useRef(true);
+  const initialCaseLoadedForUser = useRef<string | null>(null);
   const [worklistRefresh, setWorklistRefresh] = useState(0);
   const [editedReportText, setEditedReportText] = useState<string | null>(null);
   const [additionalNotes, setAdditionalNotes] = useState("");
@@ -198,6 +199,8 @@ export default function SonolynxApp() {
   // Automatically load the first active real patient and study on login
   useEffect(() => {
     if (!user?.id || loading) return;
+    if (initialCaseLoadedForUser.current === user.id) return;
+    initialCaseLoadedForUser.current = user.id;
     let active = true;
 
     const loadInitialActiveCase = async () => {
@@ -1037,7 +1040,7 @@ export default function SonolynxApp() {
     }
   };
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />

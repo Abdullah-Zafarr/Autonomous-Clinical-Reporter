@@ -101,10 +101,19 @@ export function WorkflowProgress({
       }
     }
     void load();
+    let lastLoaded = Date.now();
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible") {
+        lastLoaded = Date.now();
+        void load();
+      }
     }, 30000);
-    const onFocus = () => void load();
+    const onFocus = () => {
+      if (Date.now() - lastLoaded > 15000) {
+        lastLoaded = Date.now();
+        void load();
+      }
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       active = false;

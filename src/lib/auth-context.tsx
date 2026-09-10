@@ -37,6 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [signedOutExplicitly, setSignedOutExplicitly] = useState(false);
   const roleRequest = useRef(0);
+  const currentUserIdRef = useRef<string | null>(null);
+  const initialResolvedRef = useRef(false);
 
   const loadUserData = async (uid: string) => {
     const request = ++roleRequest.current;
@@ -56,48 +58,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // 1. Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+    let mounted = true;
+
+    const handleAuthChange = async (event: string, sess: Session | null) => {
+      if (!mounted) return;
+
+      const newUser = sess?.user ?? null;
       setSession(sess);
-      setUser(sess?.user ?? null);
-      if (sess?.user) {
-        setLoading(true);
-        setSignedOutExplicitly(false);
-        // defer to avoid deadlock
-        setTimeout(() => {
-          loadUserData(sess.user.id).finally(() => setLoading(false));
-        }, 0);
-      } else {
+      setUser(newUser);
+
+      // 1. Logged out or no session
+      if (!newUser) {
+        currentUserIdRef.current = null;
         roleRequest.current += 1;
         setProfile(null);
         setRole(null);
         setLoading(false);
+        initialResolvedRef.current = true;
+        return;
       }
+
+      // 2. Token refreshed in background (e.g. window focus, tab switch, periodic refresh)
+      // Do not reset loading to true or refetch profile.
+      if (event === "TOKEN_REFRESHED") {
+        return;
+      }
+
+      const isSameUser = currentUserIdRef.current === newUser.id;
+      currentUserIdRef.current = newUser.id;
+
+      // 3. Same user is already authenticated & resolved
+      // Tab switches and window focus events often emit SIGNED_IN or storage sync for the same user.
+      if (isSameUser && initialResolvedRef.current) {
+        return;
+      }
+
+      // 4. Initial session resolution or new user signed in
+      setSignedOutExplicitly(false);
+      try {
+        await loadUserData(newUser.id);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          initialResolvedRef.current = true;
+        }
+      }
+    };
+
+    // 1. Set up listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+      void handleAuthChange(event, sess);
     });
 
-    // 2. Then check current session
+    // 2. Check current session if onAuthStateChange hasn't already resolved it
     supabase.auth
       .getSession()
       .then(({ data: { session: sess } }) => {
-        setSession(sess);
-        setUser(sess?.user ?? null);
-        if (sess?.user) {
-          setLoading(true);
-          setSignedOutExplicitly(false);
-          loadUserData(sess.user.id).finally(() => setLoading(false));
-        } else {
-          setLoading(false);
+        if (!initialResolvedRef.current) {
+          void handleAuthChange("INITIAL_SESSION", sess);
         }
       })
       .catch(() => {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setRole(null);
-        setLoading(false);
+        if (!initialResolvedRef.current) {
+          void handleAuthChange("SIGNED_OUT", null);
+        }
       });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -116,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     roleRequest.current += 1;
+    currentUserIdRef.current = null;
     setSignedOutExplicitly(true);
     try {
       await supabase.auth.signOut();
@@ -126,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setRole(null);
+    setLoading(false);
   };
 
   // Dev-only convenience: allow bypassing Supabase auth ONLY when explicitly enabled and not signed out.
