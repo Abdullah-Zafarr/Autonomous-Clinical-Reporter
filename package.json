@@ -12,6 +12,7 @@
     "test:report-ai": "node --import tsx --test scripts/report-ai-safety.test.ts",
     "test:workflow": "node --import tsx --test scripts/workflow-progress.test.ts",
     "test": "node --import tsx --test scripts/*.test.ts",
+    "test:suite": "node --import tsx --test tests/*.test.ts scripts/*.test.ts",
     "test:review": "node --import tsx --test scripts/product-review.test.ts",
     "lint": "eslint .",
     "format": "prettier --write --ignore-path .gitignore ."
