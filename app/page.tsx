@@ -171,7 +171,7 @@ export default function SonolynxApp() {
   const [ob, setOb] = useState<ObData>(defaultOb);
   const [vascular, setVascular] = useState<VascularData>(defaultVascular);
   const [exam, setExam] = useState<ExamType>("Abdomen");
-  const [showDicom, setShowDicom] = useState(false);
+  const [showDicom, setShowDicom] = useState(true);
   const [showWorklist, setShowWorklist] = useState(false);
   const [hl7Open, setHl7Open] = useState(false);
   const [structuredReportOpen, setStructuredReportOpen] = useState(false);
