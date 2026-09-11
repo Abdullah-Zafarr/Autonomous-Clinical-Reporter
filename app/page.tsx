@@ -171,7 +171,15 @@ export default function SonolynxApp() {
   const [ob, setOb] = useState<ObData>(defaultOb);
   const [vascular, setVascular] = useState<VascularData>(defaultVascular);
   const [exam, setExam] = useState<ExamType>("Abdomen");
-  const [showDicom, setShowDicom] = useState(true);
+  const userToggledDicom = useRef(false);
+  const [showDicom, setShowDicom] = useState(false);
+
+  useEffect(() => {
+    if (!role || userToggledDicom.current) return;
+    const isDoc = role === "doctor" || role === "radiologist" || role === "admin";
+    setShowDicom(isDoc);
+  }, [role]);
+
   const [showWorklist, setShowWorklist] = useState(false);
   const [hl7Open, setHl7Open] = useState(false);
   const [structuredReportOpen, setStructuredReportOpen] = useState(false);
@@ -1180,7 +1188,15 @@ export default function SonolynxApp() {
           <div className="ml-auto flex items-center gap-2">
             {canInspectHl7 && <Button variant="ghost" size="sm" className="h-7" onClick={() => setHl7Open(true)}>HL7</Button>}
             {canSeeReportHistory && <Button variant={showHistory ? "secondary" : "ghost"} size="sm" className="h-7" onClick={() => setShowHistory((value) => !value)}>History{reportHistory.length > 0 ? ` (${reportHistory.length})` : ""}</Button>}
-            <Button variant={showDicom ? "default" : "outline"} size="sm" onClick={() => setShowDicom((v) => !v)} className="h-7">
+            <Button
+              variant={showDicom ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                userToggledDicom.current = true;
+                setShowDicom((v) => !v);
+              }}
+              className="h-7"
+            >
               <Monitor className="mr-1.5 h-3.5 w-3.5" />
               {showDicom ? "Hide images" : "Images"}
               {keyImages.length > 0 && (
@@ -1215,7 +1231,10 @@ export default function SonolynxApp() {
             <Button
               size="sm"
               variant={showDicom ? "secondary" : "outline"}
-              onClick={() => setShowDicom((v) => !v)}
+              onClick={() => {
+                userToggledDicom.current = true;
+                setShowDicom((v) => !v);
+              }}
               className="h-8 text-xs gap-1.5"
               title="Attach ultrasound images or DICOM frames to send with report"
             >
