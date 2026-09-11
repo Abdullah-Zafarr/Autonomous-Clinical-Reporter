@@ -64,6 +64,8 @@ import {
   saveDraftWorksheet,
   updateWorksheetStatus,
   updateWorksheetReview,
+  getCachedWorksheet,
+  cacheWorksheet,
   type WorksheetPayload,
   type WorksheetRecord,
 } from "@/lib/worksheet-service";
@@ -74,7 +76,7 @@ import {
 } from "@/lib/clinical-workflow-types";
 import { transmitHl7 } from "@/lib/hl7-service";
 import { writeAuditLog } from "@/lib/audit-service";
-import { Monitor, Loader2, PanelLeft, Activity } from "lucide-react";
+import { Monitor, Loader2, PanelLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportTemplate, ReportTemplateExamType, ReportBrandingSettings } from "@/lib/report-template-types";
 import { getTemplatesByExamType } from "@/lib/report-template-service";
@@ -126,7 +128,43 @@ export default function SonolynxApp() {
   }, [loading, user, router]);
 
   const initialMockCase = mockPatientCases[0];
-  const [patient, setPatient] = useState<Patient>(demoDataEnabled ? (initialMockCase?.patient ?? mockPatients[0]) : emptyPatient);
+  const [patient, setPatient] = useState<Patient>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("sonolynx_active_patient");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.id) return parsed;
+        }
+      } catch {}
+    }
+    return initialMockCase?.patient ?? mockPatients[0] ?? emptyPatient;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && patient?.id) {
+      try {
+        localStorage.setItem("sonolynx_active_patient", JSON.stringify(patient));
+        if (user?.id) {
+          localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(patient));
+        }
+      } catch {}
+    }
+  }, [patient, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.id) return;
+    try {
+      const userCached = localStorage.getItem(`sonolynx_active_patient_${user.id}`);
+      if (userCached) {
+        const parsed = JSON.parse(userCached);
+        if (parsed?.id) {
+          setPatient(parsed);
+          setExam(examFromLabel(parsed.exam));
+        }
+      }
+    } catch {}
+  }, [user?.id]);
   const [worksheet, setWorksheet] = useState<WorksheetData>(defaultWorksheet);
   const [thyroid, setThyroid] = useState<ThyroidData>(defaultThyroid);
   const [ob, setOb] = useState<ObData>(defaultOb);
@@ -173,6 +211,7 @@ export default function SonolynxApp() {
   const [returningForCorrection, setReturningForCorrection] = useState(false);
   const [, forceTick] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [initialCaseChecked, setInitialCaseChecked] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -240,6 +279,12 @@ export default function SonolynxApp() {
             };
             setPatient(loadedPatient);
             setExam(examFromLabel(loadedPatient.exam));
+            if (typeof window !== "undefined") {
+              try {
+                localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(loadedPatient));
+                localStorage.setItem("sonolynx_active_patient", JSON.stringify(loadedPatient));
+              } catch {}
+            }
             return;
           }
         }
@@ -271,9 +316,19 @@ export default function SonolynxApp() {
           };
           setPatient(loadedPatient);
           setExam(examFromLabel(loadedPatient.exam));
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(loadedPatient));
+              localStorage.setItem("sonolynx_active_patient", JSON.stringify(loadedPatient));
+            } catch {}
+          }
         }
       } catch (err) {
         console.warn("[app] Initial active patient auto-load notice:", err);
+      } finally {
+        if (active) {
+          setInitialCaseChecked(true);
+        }
       }
     };
 
@@ -405,6 +460,27 @@ export default function SonolynxApp() {
         setLoadingWorksheet(false);
         return;
       }
+
+      // Optimistically hydrate from local cache so UI is populated instantly
+      const cached = getCachedWorksheet(patient.studyId);
+      if (cached && active) {
+        isInitialMount.current = true;
+        setCurrentWorksheet(cached);
+        if (cached.worksheet_type) {
+          setExam(cached.worksheet_type as ExamType);
+        }
+        const cachedPayload = cached.data as Partial<WorksheetPayload>;
+        setWorksheet(hasPersistedSection(cachedPayload.abdomen) ? (cachedPayload.abdomen as unknown as WorksheetData) : defaultWorksheet);
+        if (cachedPayload.abdomenOrder) setAbdomenOrder(cachedPayload.abdomenOrder);
+        setThyroid(hasPersistedSection(cachedPayload.thyroid) ? (cachedPayload.thyroid as unknown as ThyroidData) : defaultThyroid);
+        setOb(hasPersistedSection(cachedPayload.ob) ? (cachedPayload.ob as unknown as ObData) : defaultOb);
+        setVascular(hasPersistedSection(cachedPayload.vascular) ? (cachedPayload.vascular as unknown as VascularData) : defaultVascular);
+        if (typeof cachedPayload.additionalNotes === "string") setAdditionalNotes(cachedPayload.additionalNotes);
+        setKeyImages(Array.isArray(cachedPayload.keyImages) ? cachedPayload.keyImages : []);
+        setCorrections(Array.isArray(cachedPayload.corrections) ? cachedPayload.corrections : []);
+        setLastSaved(cached.updated_at ? new Date(cached.updated_at) : new Date());
+      }
+
       try {
         // For doctors: first read the pinned active_worksheet_id from the study
         // so we load exactly what the sonographer submitted — not just "most recent".
@@ -1108,7 +1184,7 @@ export default function SonolynxApp() {
             worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
             revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
             patientLabel={`${patient.lastName}, ${patient.firstName}`}
-            busy={savingDraft || sendingToDoctor || sendingReport}
+            busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
             compact
           />
         </div>
@@ -1121,11 +1197,11 @@ export default function SonolynxApp() {
           worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
           revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
           patientLabel={`${patient.lastName}, ${patient.firstName}`}
-          busy={savingDraft || sendingToDoctor || sendingReport}
+          busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
         />
       )}
 
-      {!patient.id ? (
+      {!patient.id && initialCaseChecked ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <PanelLeft className="h-8 w-8 text-primary" />
           <h1 className="text-lg font-semibold">Select a case to begin</h1>
@@ -1137,10 +1213,6 @@ export default function SonolynxApp() {
           <h2 className="font-semibold">This worksheet could not be loaded</h2>
           <p className="text-sm text-muted-foreground">Reopen the case from the worklist or reload the workspace before editing.</p>
           <Button onClick={() => window.location.reload()}>Reload workspace</Button>
-        </div>
-      ) : !mounted || loadingWorksheet ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Activity className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
         <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} className="flex-1 min-h-0">
@@ -1182,7 +1254,11 @@ export default function SonolynxApp() {
                     setDialogKeyImages(keyImages);
                     setStructuredReportOpen(true);
                   }}
-                  lastSavedLabel={`${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`}
+                  lastSavedLabel={
+                    loadingWorksheet
+                      ? "Syncing case…"
+                      : `${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`
+                  }
                   additionalNotes={additionalNotes}
                   onAdditionalNotesChange={setAdditionalNotes}
                   canSignAndSend={canSignAndSend}

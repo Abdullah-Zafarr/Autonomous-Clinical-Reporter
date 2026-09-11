@@ -30,6 +30,20 @@ async function provisionOrgViaApi(): Promise<string | null> {
   }
 }
 
+let cachedOrgId: string | null = null;
+let cachedTier: OrganizationTier | null = null;
+
+export function clearOrgScopeCache() {
+  cachedOrgId = null;
+  cachedTier = null;
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.removeItem("sonolynx_cached_org_id");
+      sessionStorage.removeItem("sonolynx_cached_org_tier");
+    } catch {}
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -39,6 +53,17 @@ async function provisionOrgViaApi(): Promise<string | null> {
  * Never returns null for authenticated users under normal conditions.
  */
 export async function getCurrentUserOrganizationId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = sessionStorage.getItem("sonolynx_cached_org_id");
+      if (stored) {
+        cachedOrgId = stored;
+        return stored;
+      }
+    } catch {}
+  }
+
   const { db, user } = await getAuthedUser();
   if (!user?.id) return null;
 
@@ -52,13 +77,31 @@ export async function getCurrentUserOrganizationId(): Promise<string | null> {
     console.error("[org-scope] Error fetching organization ID:", error);
   }
 
-  if (data?.organization_id) return data.organization_id as string;
+  if (data?.organization_id) {
+    const orgId = data.organization_id as string;
+    cachedOrgId = orgId;
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("sonolynx_cached_org_id", orgId);
+      } catch {}
+    }
+    return orgId;
+  }
 
   // Do not fall back to a shared/default organisation. That would make a
   // missing membership look valid and could expose another clinic's data.
   // Provisioning is restricted to administrator accounts by the server route.
   console.info("[org-scope] No organization linked — requesting administrator provisioning");
-  return provisionOrgViaApi();
+  const provisioned = await provisionOrgViaApi();
+  if (provisioned) {
+    cachedOrgId = provisioned;
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("sonolynx_cached_org_id", provisioned);
+      } catch {}
+    }
+  }
+  return provisioned;
 }
 
 /** Alias kept for backward-compat with all existing call-sites. */
@@ -117,22 +160,26 @@ export const TIER_CONFIG: Record<OrganizationTier, TierCapabilities> = {
 };
 
 export async function getCurrentUserOrganizationTier(): Promise<OrganizationTier> {
+  if (cachedTier) return cachedTier;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = sessionStorage.getItem("sonolynx_cached_org_tier");
+      if (stored) {
+        cachedTier = stored as OrganizationTier;
+        return cachedTier;
+      }
+    } catch {}
+  }
+
   try {
-    const { db, user } = await getAuthedUser();
-    if (!user?.id) return "individual";
+    const orgId = await getCurrentUserOrganizationId();
+    if (!orgId) return "individual";
 
-    const { data: profile } = await db
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile?.organization_id) return "individual";
-
+    const { db } = await getAuthedUser();
     const { data: org, error } = await db
       .from("organizations")
       .select("tier")
-      .eq("id", profile.organization_id)
+      .eq("id", orgId)
       .maybeSingle();
 
     if (error) {
@@ -143,7 +190,14 @@ export async function getCurrentUserOrganizationTier(): Promise<OrganizationTier
       return "individual";
     }
 
-    return (org?.tier as OrganizationTier) ?? "individual";
+    const tier = (org?.tier as OrganizationTier) ?? "individual";
+    cachedTier = tier;
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem("sonolynx_cached_org_tier", tier);
+      } catch {}
+    }
+    return tier;
   } catch (err) {
     console.warn("[org-scope] Unexpected error reading tier, defaulting to individual:", err);
     return "individual";

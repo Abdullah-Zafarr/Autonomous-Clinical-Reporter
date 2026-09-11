@@ -182,6 +182,21 @@ async function runWorksheetMutationWithSchemaFallback<T extends Record<string, u
 
   return mutate(payload);
 }
+export function getCachedWorksheet(studyId: string): WorksheetRecord | null {
+  if (typeof window === "undefined" || !studyId) return null;
+  try {
+    const raw = localStorage.getItem(`sonolynx_ws_${studyId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+export function cacheWorksheet(record: WorksheetRecord | null) {
+  if (typeof window === "undefined" || !record?.study_id) return;
+  try {
+    localStorage.setItem(`sonolynx_ws_${record.study_id}`, JSON.stringify(record));
+  } catch {}
+}
 
 export async function loadWorksheet(
   studyId: string,
@@ -205,7 +220,9 @@ export async function loadWorksheet(
     // If the column or row doesn't exist, fall through to the study-based path
     if (!pinnedError && pinned) {
       console.info("[loadWorksheet] Loaded pinned active_worksheet_id:", activeWorksheetId);
-      return normalizeWorksheetRecord(pinned);
+      const record = normalizeWorksheetRecord(pinned);
+      if (record) cacheWorksheet(record);
+      return record;
     }
     if (pinnedError) {
       console.warn("[loadWorksheet] Could not load by active_worksheet_id, falling back:", pinnedError.message);
@@ -234,7 +251,9 @@ export async function loadWorksheet(
   }
 
   if (error) throw error;
-  return normalizeWorksheetRecord(data);
+  const record = normalizeWorksheetRecord(data);
+  if (record) cacheWorksheet(record);
+  return record;
 }
 
 export async function saveDraftWorksheet(params: {
@@ -303,7 +322,9 @@ export async function saveDraftWorksheet(params: {
   );
 
   if (error) throw error;
-  return normalizeWorksheetRecord(data) as WorksheetRecord;
+  const record = normalizeWorksheetRecord(data) as WorksheetRecord;
+  if (record) cacheWorksheet(record);
+  return record;
 }
 
 export async function markWorksheetSigned(params: {
@@ -344,7 +365,9 @@ export async function markWorksheetSigned(params: {
   );
 
   if (error) throw error;
-  return normalizeWorksheetRecord(data) as WorksheetRecord;
+  const record = normalizeWorksheetRecord(data) as WorksheetRecord;
+  if (record) cacheWorksheet(record);
+  return record;
 }
 
 export async function updateWorksheetStatus(worksheetId: string, status: WorksheetStatus) {
