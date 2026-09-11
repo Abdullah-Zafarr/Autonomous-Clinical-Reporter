@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       deletedPatientId: patientId,
-      name: `${patient.last_name}, ${patient.first_name}`,
+      name: [patient.first_name, patient.last_name].map((s) => s?.trim()).filter(Boolean).join(" "),
       mrn: patient.mrn,
     });
   } catch (error: any) {

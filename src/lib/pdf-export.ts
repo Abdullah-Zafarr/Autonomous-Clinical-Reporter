@@ -1,4 +1,5 @@
 import type { Patient } from "@/lib/sonoflow-types";
+import { formatPatientName } from "@/lib/utils";
 import { escapeHtml } from "@/lib/html-utils";
 import type { KeyReportImage } from "@/lib/clinical-workflow-types";
 
@@ -60,7 +61,7 @@ export async function downloadReportTextAsPdf(params: {
   pdf.text("Sonolynx Radiology", margin, y);
   y += 7;
   pdf.setFontSize(10);
-  pdf.text(`Patient: ${params.patient.lastName}, ${params.patient.firstName}`, margin, y);
+  pdf.text(`Patient: ${formatPatientName(params.patient, "")}`, margin, y);
   y += lineHeight;
   pdf.text(`MRN: ${params.patient.mrn}   Accession: ${params.accession}`, margin, y);
   y += lineHeight;
@@ -151,7 +152,7 @@ export function exportReportToPdf(params: {
         <h1>Sonolynx Radiology</h1>
         <div>Signed Ultrasound Report</div>
         <div class="meta">
-          <div><strong>Patient:</strong> ${escapeHtml(params.patient.lastName)}, ${escapeHtml(params.patient.firstName)}</div>
+          <div><strong>Patient:</strong> ${escapeHtml(formatPatientName(params.patient, ""))}</div>
           <div><strong>MRN:</strong> ${escapeHtml(params.patient.mrn)}</div>
           <div><strong>DOB:</strong> ${escapeHtml(params.patient.dob)}</div>
           <div><strong>Exam:</strong> ${escapeHtml(params.exam)}</div>

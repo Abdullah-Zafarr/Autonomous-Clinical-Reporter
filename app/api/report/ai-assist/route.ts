@@ -104,7 +104,7 @@ Your duty is to assist the interpreting physician by transforming their raw dict
 
     const userPrompt = `
 Exam Type: ${examType}
-Patient: ${patientInfo.lastName || "Patient"}, ${patientInfo.firstName || ""} (MRN: ${patientInfo.mrn || "N/A"})
+Patient: ${[patientInfo.firstName, patientInfo.lastName].map((s) => s?.trim()).filter(Boolean).join(" ") || "Patient"} (MRN: ${patientInfo.mrn || "N/A"})
 Existing Draft Context (if any):
 ${existingReportText ? existingReportText.slice(0, 500) : "None"}
 

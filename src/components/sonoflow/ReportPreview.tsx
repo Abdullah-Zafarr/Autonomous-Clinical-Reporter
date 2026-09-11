@@ -79,40 +79,42 @@ export function ReportPreview({
   return (
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-card lg:border-l">
       <header className="shrink-0 border-b px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <FileText className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold tracking-tight">{isDoctorMode ? "Clinical report" : "Report Preview"}</h2>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {onPrint && <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={onPrint}>Preview / Export</Button>}
-            <Badge variant="outline" className="text-[10px]">{dirty ? "UNSAVED" : isSigned ? "SIGNED" : "DRAFT"}</Badge>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <FileText className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">{isDoctorMode ? "Clinical report" : "Report Preview"}</h2>
+            <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wider">{dirty ? "UNSAVED" : isSigned ? "SIGNED" : "DRAFT"}</Badge>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             {isDoctorMode && (
               <>
                 {showAiTools && <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[10px] font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1 transition-all shadow-xs"
+                  className="h-7 px-2.5 text-xs font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1.5 transition-all shadow-xs"
                   onClick={() => setAiAssistantOpen(true)}
                   disabled={busy}
                   title="Draft or enhance report with AI Clinical Assistant"
                 >
-                  <Sparkles className="h-3 w-3 text-blue-600" />
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                   AI Drafter
                 </Button>}
                 <Button
                   variant={isEditing ? "default" : "outline"}
                   size="sm"
-                  className="h-6 px-2.5 text-[10px] font-semibold tracking-wide"
+                  className="h-7 px-2.5 text-xs font-medium tracking-wide gap-1.5"
                   onClick={() => setIsEditing(!isEditing)}
                   disabled={busy}
                 >
                   {isEditing ? (
-                    <><Check className="mr-1.5 h-3 w-3" /> Done</>
+                    <><Check className="h-3.5 w-3.5" /> Done</>
                   ) : (
-                    <><Edit3 className="mr-1.5 h-3 w-3" /> Edit</>
+                    <><Edit3 className="h-3.5 w-3.5" /> Edit</>
                   )}
                 </Button>
               </>
             )}
+            {onPrint && <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={onPrint}>Preview / Export</Button>}
           </div>
         </div>
 
@@ -148,15 +150,19 @@ export function ReportPreview({
           </div>
         )}
 
-        <div className="mt-3 rounded-md bg-muted/50 p-3 text-xs">
-          <div className="font-semibold text-foreground">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md bg-muted/40 px-3.5 py-2 text-xs">
+          <span className="font-semibold text-foreground">
             {formatPatientName(patient)}
-          </div>
-          <div className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted-foreground">
-            <span>MRN: {patient.mrn}</span>
-            <span>DOB: {patient.dob}</span>
-            <span className="col-span-2">Accession: {accession}</span>
-          </div>
+          </span>
+          <span className="text-muted-foreground">
+            MRN: <strong className="font-medium text-foreground">{patient.mrn}</strong>
+          </span>
+          <span className="text-muted-foreground">
+            DOB: <strong className="font-medium text-foreground">{patient.dob}</strong>
+          </span>
+          <span className="text-muted-foreground">
+            Accession: <strong className="font-medium text-foreground">{accession}</strong>
+          </span>
         </div>
       </header>
 
@@ -183,6 +189,7 @@ export function ReportPreview({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+        <div className="max-w-4xl">
         {isDoctorMode && isEditing ? (
           <textarea
             aria-label="Clinical report text"
@@ -279,27 +286,43 @@ export function ReportPreview({
                 </div>
               </section>
             )}
-
+        </div>
       </div>
 
       {isDoctorMode ? (
         <footer className="shrink-0 border-t px-4 py-3 sm:px-5 bg-card">
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-              <span>{dirty ? "Unsaved changes" : "Clinician review"}</span>
-              <span>{isSigned ? dirty ? "Changes will create a new revision" : "Signed report saved" : "Awaiting signature"}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2.5 text-xs">
+              <span className="font-medium text-foreground">{dirty ? "Unsaved changes" : "Clinician review"}</span>
+              <span className="hidden text-muted-foreground sm:inline">•</span>
+              <span className="text-[11px] text-muted-foreground">
+                {isSigned ? (dirty ? "Changes will create a new revision" : "Signed report saved") : "Awaiting signature"}
+              </span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {onSaveDraft && <Button
-                type="button"
-                variant="outline"
-                disabled={busy || !dirty}
-                onClick={onSaveDraft}
+            <div className="flex items-center gap-2">
+              {onSaveDraft && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || !dirty}
+                  onClick={onSaveDraft}
+                >
+                  Save draft
+                </Button>
+              )}
+              {onRetryDelivery && (
+                <Button variant="outline" size="sm" disabled={busy || dirty} onClick={onRetryDelivery}>
+                  Retry delivery
+                </Button>
+              )}
+              <Button
+                disabled={busy || !canSign || (isSigned && !dirty)}
+                size="sm"
+                variant="default"
+                className="font-semibold shadow-xs"
+                onClick={onSign}
               >
-                Save draft
-              </Button>}
-              {onRetryDelivery && <Button variant="outline" disabled={busy || dirty} onClick={onRetryDelivery}>Retry delivery</Button>}
-              <Button disabled={busy || !canSign || (isSigned && !dirty)} variant="default" className="ml-auto font-semibold" onClick={onSign}>
                 {busy ? "Saving…" : isSigned && dirty ? "Sign new revision" : isSigned ? "Report signed" : "Sign & finalize"}
               </Button>
             </div>

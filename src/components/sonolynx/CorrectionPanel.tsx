@@ -70,7 +70,7 @@ export function CorrectionPanel({
   if (!isDoctorMode && corrections.length === 0) return null;
 
   return (
-    <details open={corrections.length > 0 || undefined} className="mx-4 mt-3 shrink-0 rounded-lg border bg-muted/20 p-3 sm:mx-5">
+    <details open={corrections.length > 0 || undefined} className="mx-4 mt-3 shrink-0 rounded-lg border bg-muted/20 p-3 sm:mx-5 max-w-4xl">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-muted-foreground">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
         <h3 className="text-xs font-medium">Worksheet corrections</h3>

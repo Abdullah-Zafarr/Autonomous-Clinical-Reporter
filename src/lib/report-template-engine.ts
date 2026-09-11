@@ -1,4 +1,5 @@
 import type { ExamType, Patient } from "@/lib/sonoflow-types";
+import { formatPatientName } from "@/lib/utils";
 import type { ReportSections } from "@/lib/report-engine";
 import { reportToText } from "@/lib/report-engine";
 import type {
@@ -70,7 +71,7 @@ export function buildTemplateContext(
     "{{hospitalEmail}}":      safe(branding.hospitalEmail),
     "{{hospitalWebsite}}":    safe(branding.hospitalWebsite),
     "{{hospitalLogo}}":       safe(branding.logoUrl),
-    "{{patientName}}":        `${context.patient.lastName}, ${context.patient.firstName}`,
+    "{{patientName}}":        formatPatientName(context.patient, "-"),
     "{{patientAge}}":         safe(context.patientAge,       "-"),
     "{{patientGender}}":      safe(context.patientGender,    "-"),
     "{{mrn}}":                safe(context.patient.mrn,      "-"),

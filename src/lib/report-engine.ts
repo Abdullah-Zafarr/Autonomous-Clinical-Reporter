@@ -488,7 +488,7 @@ export function buildStructuredClinicalReport(params: {
   lines.push("ULTRASOUND REPORT");
   lines.push("");
   lines.push("PATIENT DETAILS");
-  lines.push(`Name: ${patient.lastName}, ${patient.firstName}`);
+  lines.push(`Name: ${[patient.firstName, patient.lastName].filter(Boolean).join(" ") || "-"}`);
   lines.push(`MRN: ${patient.mrn}`);
   lines.push(`DOB: ${patient.dob}`);
   lines.push(`Accession: ${accession}`);

@@ -52,39 +52,42 @@ export function ReportCopilot({ reportText, worksheetId, signed, patientLabel, o
   return (
     <>
       <section
-        className="border-b bg-gradient-to-r from-primary/5 to-transparent p-4"
+        className="border-b bg-gradient-to-r from-primary/5 via-background to-transparent px-4 py-3 sm:px-5"
         aria-label="AI report tools"
       >
-        <div className="mb-3 flex items-center gap-2 text-xs font-semibold">
-          <Sparkles className="h-4 w-4 text-blue-600" /> AI Report Tools{" "}
-          <span className="ml-auto text-[10px] text-muted-foreground">Clinician reviewed</span>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+            <span>AI Report Tools</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground">Clinician reviewed</span>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
-            className="h-auto justify-start gap-2 whitespace-normal bg-background px-3 py-3 text-left"
+            className="h-auto max-w-sm justify-start gap-2.5 whitespace-normal bg-background px-3 py-2 text-left hover:bg-blue-50/60 hover:border-blue-200 transition-all border-border shadow-xs"
             onClick={() => setMode("edit")}
           >
-            <MessageSquareText className="h-5 w-5 shrink-0 text-blue-600" />
-            <span>
-              <span className="block text-xs font-semibold">Edit Report with AI</span>
-              <span className="block text-[10px] font-normal text-muted-foreground">
+            <MessageSquareText className="h-4 w-4 shrink-0 text-blue-600" />
+            <div>
+              <span className="block text-xs font-semibold text-foreground leading-tight">Edit Report with AI</span>
+              <span className="block text-[10px] font-normal text-muted-foreground leading-tight">
                 Ask for changes · Preview before applying
               </span>
-            </span>
+            </div>
           </Button>
           <Button
             variant="outline"
-            className="h-auto justify-start gap-2 whitespace-normal bg-background px-3 py-3 text-left"
+            className="h-auto max-w-sm justify-start gap-2.5 whitespace-normal bg-background px-3 py-2 text-left hover:bg-primary/5 hover:border-primary/30 transition-all border-border shadow-xs"
             onClick={() => setMode("explain")}
           >
-            <Languages className="h-5 w-5 shrink-0 text-primary" />
-            <span>
-              <span className="block text-xs font-semibold">Patient-friendly Explanation</span>
-              <span className="block text-[10px] font-normal text-muted-foreground">
+            <Languages className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="block text-xs font-semibold text-foreground leading-tight">Patient-friendly Explanation</span>
+              <span className="block text-[10px] font-normal text-muted-foreground leading-tight">
                 English · Urdu · More languages
               </span>
-            </span>
+            </div>
           </Button>
         </div>
       </section>
