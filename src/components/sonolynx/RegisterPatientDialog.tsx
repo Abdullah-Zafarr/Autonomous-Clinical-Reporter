@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { getEffectiveOrganizationId } from "@/lib/org-scope";
+import { isSchemaCacheError } from "@/lib/supabase-schema-helpers";
 
 interface Props {
   open: boolean;
@@ -164,7 +165,7 @@ export function RegisterPatientDialog({ open, onOpenChange, onRegistered }: Prop
         return;
       }
 
-      const { data: patient, error: patientError } = await (supabase as any)
+      let patientInsert = await (supabase as any)
         .from("patients")
         .insert({
           organization_id: organizationId,
@@ -178,10 +179,28 @@ export function RegisterPatientDialog({ open, onOpenChange, onRegistered }: Prop
         .select()
         .single();
 
-      if (patientError) throw patientError;
+      if (patientInsert.error && isSchemaCacheError(patientInsert.error)) {
+        console.warn(
+          "[RegisterPatientDialog] Schema cache missing new patient columns (gender/medicare_number). Retrying with base columns."
+        );
+        patientInsert = await (supabase as any)
+          .from("patients")
+          .insert({
+            organization_id: organizationId,
+            first_name: cleanFirst,
+            last_name: cleanLast,
+            dob: format(dob!, "yyyy-MM-dd"),
+            mrn: finalMrn,
+          })
+          .select()
+          .single();
+      }
+
+      if (patientInsert.error) throw patientInsert.error;
+      const patient = patientInsert.data;
 
       const accession = `ACC-${finalMrn.replace(/\D/g, "").slice(-6)}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const { error: studyError } = await (supabase as any).from("studies").insert({
+      let studyInsert = await (supabase as any).from("studies").insert({
         organization_id: organizationId,
         patient_id: patient.id,
         modality: modalityCode[modality],
@@ -194,9 +213,24 @@ export function RegisterPatientDialog({ open, onOpenChange, onRegistered }: Prop
         clinical_indication: cleanIndication,
       });
 
-      if (studyError) {
+      if (studyInsert.error && isSchemaCacheError(studyInsert.error)) {
+        console.warn(
+          "[RegisterPatientDialog] Schema cache missing new study columns (referring_physician/provider_number/clinical_indication). Retrying with base columns."
+        );
+        studyInsert = await (supabase as any).from("studies").insert({
+          organization_id: organizationId,
+          patient_id: patient.id,
+          modality: modalityCode[modality],
+          accession_number: accession,
+          description: examType,
+          exam_type: examType === "Complete Abdomen" ? "Abdomen" : examType,
+          status: "scheduled",
+        });
+      }
+
+      if (studyInsert.error) {
         await supabase.from("patients").delete().eq("id", patient.id);
-        throw studyError;
+        throw studyInsert.error;
       }
 
       toast.success("Patient Registered Successfully", {
