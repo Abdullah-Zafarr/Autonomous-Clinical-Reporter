@@ -62,29 +62,29 @@ export function ReportCopilot({ reportText, worksheetId, signed, patientLabel, o
           </div>
           <span className="text-[10px] text-muted-foreground">Clinician reviewed</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-5 sm:gap-6">
           <Button
             variant="outline"
-            className="h-auto max-w-sm justify-start gap-2.5 whitespace-normal bg-background px-3 py-2 text-left hover:bg-blue-50/60 hover:border-blue-200 transition-all border-border shadow-xs"
+            className="h-auto flex-1 min-w-[240px] sm:max-w-md justify-start gap-3 whitespace-normal bg-background px-4 py-3 text-left hover:bg-blue-50/60 hover:border-blue-200 transition-all border-border shadow-xs"
             onClick={() => setMode("edit")}
           >
-            <MessageSquareText className="h-4 w-4 shrink-0 text-blue-600" />
+            <MessageSquareText className="h-5 w-5 shrink-0 text-blue-600" />
             <div>
-              <span className="block text-xs font-semibold text-foreground leading-tight">Edit Report with AI</span>
-              <span className="block text-[10px] font-normal text-muted-foreground leading-tight">
+              <span className="block text-sm font-semibold text-foreground leading-tight">Edit Report with AI</span>
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground leading-tight">
                 Ask for changes · Preview before applying
               </span>
             </div>
           </Button>
           <Button
             variant="outline"
-            className="h-auto max-w-sm justify-start gap-2.5 whitespace-normal bg-background px-3 py-2 text-left hover:bg-primary/5 hover:border-primary/30 transition-all border-border shadow-xs"
+            className="h-auto flex-1 min-w-[240px] sm:max-w-md justify-start gap-3 whitespace-normal bg-background px-4 py-3 text-left hover:bg-primary/5 hover:border-primary/30 transition-all border-border shadow-xs"
             onClick={() => setMode("explain")}
           >
-            <Languages className="h-4 w-4 shrink-0 text-primary" />
+            <Languages className="h-5 w-5 shrink-0 text-primary" />
             <div>
-              <span className="block text-xs font-semibold text-foreground leading-tight">Patient-friendly Explanation</span>
-              <span className="block text-[10px] font-normal text-muted-foreground leading-tight">
+              <span className="block text-sm font-semibold text-foreground leading-tight">Patient-friendly Explanation</span>
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground leading-tight">
                 English · Urdu · More languages
               </span>
             </div>

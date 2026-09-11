@@ -136,7 +136,7 @@ export function WorkflowProgress({
       <div
         className={cn(
           "flex items-center gap-2 text-xs",
-          compact ? "mb-1.5 xl:mb-0 xl:shrink-0" : "mb-2.5 max-w-4xl",
+          compact ? "mb-1.5 xl:mb-0 xl:shrink-0" : "mb-2.5 w-full",
         )}
       >
         <span className="font-semibold shrink-0 whitespace-nowrap">Case Progress</span>
@@ -166,14 +166,14 @@ export function WorkflowProgress({
         </Button>
       </div>
       {error && (
-        <p role="alert" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground max-w-4xl">
+        <p role="alert" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground w-full">
           <AlertCircle className="h-3.5 w-3.5" />
           Could not refresh progress.{" "}
           {snapshot ? "Last recorded status is shown below." : "Use refresh to try again."}
         </p>
       )}
       <ol
-        className={cn("grid grid-cols-4 gap-2", compact ? "xl:flex-1" : "max-w-4xl")}
+        className={cn("grid grid-cols-4 gap-2 w-full", compact && "xl:flex-1")}
         aria-label="Report workflow stages"
       >
         {(
