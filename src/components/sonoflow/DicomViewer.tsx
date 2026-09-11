@@ -12,6 +12,27 @@ import { toast } from "sonner";
 
 let csInitialized = false;
 
+function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / (img.naturalWidth || maxWidth));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round((img.naturalWidth || 800) * scale));
+      canvas.height = Math.max(1, Math.round((img.naturalHeight || 600) * scale));
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 interface DicomViewerProps {
   accession?: string;
   keyImages?: KeyReportImage[];
@@ -23,6 +44,7 @@ interface DicomViewerProps {
 export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, currentUserId = "", canSelectKeyImages = false }: DicomViewerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const csRef = useRef<any>(null);
   const csToolsRef = useRef<any>(null);
   const csLoaderRef = useRef<any>(null);
@@ -113,12 +135,79 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
     return () => { active = false; };
   }, [imageIds, currentIndex, hasImages]);
 
+  const handleImageFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (keyImages.length >= 6) {
+      toast.info("Key image limit reached", { description: "Remove an image before adding another (maximum 6)." });
+      return;
+    }
+    const fileList = Array.from(files);
+    if (fileList.length === 1 && canSelectKeyImages) {
+      const file = fileList[0];
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const rawUrl = e.target?.result as string;
+        if (rawUrl) {
+          const compressed = await compressImageToJpeg(rawUrl);
+          setSnapshot({ dataUrl: compressed, frameNumber: currentFrame || 1 });
+          setCaption(file.name.replace(/\.[^/.]+$/, ""));
+          setAnnotationOpen(true);
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const remaining = 6 - keyImages.length;
+      const toAdd = fileList.slice(0, remaining);
+      const newItems: KeyReportImage[] = [];
+      for (let i = 0; i < toAdd.length; i++) {
+        const file = toAdd[i];
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve((e.target?.result as string) || "");
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(file);
+        });
+        if (dataUrl) {
+          const compressed = await compressImageToJpeg(dataUrl);
+          newItems.push({
+            id: crypto.randomUUID(),
+            dataUrl: compressed,
+            caption: file.name.replace(/\.[^/.]+$/, ""),
+            frameNumber: (currentFrame || 1) + i,
+            createdAt: new Date().toISOString(),
+            createdBy: currentUserId,
+          });
+        }
+      }
+      if (newItems.length > 0) {
+        onKeyImagesChange?.([...keyImages, ...newItems]);
+        toast.success(`${newItems.length} key image(s) attached`, {
+          description: "Images will be sent with the report to the doctor.",
+        });
+      }
+    }
+  };
+
   const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0 || !csLoaderRef.current) return;
-    const ids = Array.from(files).map((file) => csLoaderRef.current.wadouri.fileManager.add(file));
-    setImageIds(ids);
-    setCurrentIndex(0);
-    setStatus(`${ids.length} image(s) loaded`);
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    const dicomFiles = fileList.filter(
+      (f) => f.name.toLowerCase().endsWith(".dcm") || f.type === "application/dicom" || (!f.type.startsWith("image/") && !/\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
+    );
+    const standardImages = fileList.filter(
+      (f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
+    );
+
+    if (dicomFiles.length > 0 && csLoaderRef.current) {
+      const ids = dicomFiles.map((file) => csLoaderRef.current.wadouri.fileManager.add(file));
+      setImageIds(ids);
+      setCurrentIndex(0);
+      setStatus(`${ids.length} DICOM image(s) loaded`);
+    }
+
+    if (standardImages.length > 0) {
+      void handleImageFiles(files);
+    }
   };
 
   const fetchFromDicomWeb = async () => {
@@ -339,16 +428,31 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
           <input
             ref={fileInputRef}
             type="file"
-            accept=".dcm,application/dicom"
+            accept=".dcm,application/dicom,image/png,image/jpeg,image/webp"
             multiple
             className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              void handleImageFiles(e.target.files);
+              e.target.value = "";
+            }}
           />
           <Button
             size="sm"
             variant="secondary"
             className="h-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={() => fileInputRef.current?.click()}
+            title="Upload DICOM (.dcm) or ultrasound images (.png, .jpg)"
           >
             <Upload className="mr-1.5 h-3.5 w-3.5" />
             Upload
@@ -357,12 +461,26 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
           {canSelectKeyImages && (
             <Button
               size="sm"
+              variant="secondary"
+              className="h-8 bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700/80"
+              onClick={() => imageInputRef.current?.click()}
+              title="Attach ultrasound photo or screenshot directly to report"
+            >
+              <ImagePlus className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
+              Attach Image
+            </Button>
+          )}
+
+          {canSelectKeyImages && (
+            <Button
+              size="sm"
               className="h-8 bg-blue-600 text-white hover:bg-blue-500"
               onClick={beginKeyImage}
               disabled={!hasImages}
+              title="Capture and annotate current DICOM frame"
             >
               <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-              Add key image
+              Capture Frame
             </Button>
           )}
           <Button
@@ -444,7 +562,7 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
               <Crosshair className="h-12 w-12 text-emerald-400/80" strokeWidth={1.2} />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-100">Upload DICOM files to begin</p>
+              <p className="text-sm font-medium text-slate-100">Upload DICOM files or attach images</p>
               <p className="text-xs text-slate-400">{status}</p>
               {lastFetchFailed && <p className="text-xs text-amber-400">Use Fetch Server again to retry.</p>}
             </div>
@@ -454,7 +572,11 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
 
       <footer className="border-t border-slate-800 px-4 py-2 text-[10px] text-slate-400">
         {keyImages.length > 0 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
+          <div className="mb-2 space-y-1">
+            <div className="flex items-center justify-between font-medium text-slate-300">
+              <span>Attached to report ({keyImages.length}/6)</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
             {keyImages.map((image) => (
               <div key={image.id} className="group relative w-20 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -472,6 +594,7 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
                 <p className="mt-1 truncate" title={image.caption}>{image.caption}</p>
               </div>
             ))}
+            </div>
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">

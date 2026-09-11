@@ -19,6 +19,7 @@ import { WorkflowProgress } from "@/components/sonolynx/WorkflowProgress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatPatientName } from "@/lib/utils";
 
 const ResizablePanelGroup = dynamic(
   () => import("@/components/ui/resizable").then((mod) => mod.ResizablePanelGroup),
@@ -76,7 +77,7 @@ import {
 } from "@/lib/clinical-workflow-types";
 import { transmitHl7 } from "@/lib/hl7-service";
 import { writeAuditLog } from "@/lib/audit-service";
-import { Monitor, Loader2, PanelLeft } from "lucide-react";
+import { Monitor, Loader2, PanelLeft, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportTemplate, ReportTemplateExamType, ReportBrandingSettings } from "@/lib/report-template-types";
 import { getTemplatesByExamType } from "@/lib/report-template-service";
@@ -822,7 +823,7 @@ export default function SonolynxApp() {
         status: "success",
         metadata: { worksheetType: exam },
       });
-      if (!silent) toast.success("Draft saved", { description: `Worksheet for ${patient.lastName}, ${patient.firstName} persisted.` });
+      if (!silent) toast.success("Draft saved", { description: `Worksheet for ${formatPatientName(patient, "Patient")} persisted.` });
       return saved;
     } catch (error: any) {
       const description = error?.message || (typeof error === 'string' ? error : "Unable to save draft");
@@ -1182,6 +1183,11 @@ export default function SonolynxApp() {
             <Button variant={showDicom ? "default" : "outline"} size="sm" onClick={() => setShowDicom((v) => !v)} className="h-7">
               <Monitor className="mr-1.5 h-3.5 w-3.5" />
               {showDicom ? "Hide images" : "Images"}
+              {keyImages.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  {keyImages.length}
+                </span>
+              )}
             </Button>
           </div>
       </div>
@@ -1206,13 +1212,23 @@ export default function SonolynxApp() {
             <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || savingDraft || loadingWorksheet || worksheetLoadError || hasCriticalErrors || !patient.studyId || !selectedDoctorId}>
               {sendingToDoctor ? "Sending..." : "Send to Doctor"}
             </Button>
+            <Button
+              size="sm"
+              variant={showDicom ? "secondary" : "outline"}
+              onClick={() => setShowDicom((v) => !v)}
+              className="h-8 text-xs gap-1.5"
+              title="Attach ultrasound images or DICOM frames to send with report"
+            >
+              <Camera className="h-3.5 w-3.5 text-blue-500" />
+              {keyImages.length > 0 ? `${keyImages.length} image(s) attached` : "Attach image"}
+            </Button>
           </div>
           <WorkflowProgress
             key={patient.studyId ?? patient.id}
             studyId={patient.studyId}
             worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
             revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
-            patientLabel={`${patient.lastName}, ${patient.firstName}`}
+            patientLabel={formatPatientName(patient, "")}
             busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
             compact
           />
@@ -1225,7 +1241,7 @@ export default function SonolynxApp() {
           studyId={patient.studyId}
           worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
           revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
-          patientLabel={`${patient.lastName}, ${patient.firstName}`}
+          patientLabel={formatPatientName(patient, "")}
           busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
         />
       )}
@@ -1316,7 +1332,7 @@ export default function SonolynxApp() {
               onPrint={() => {
                 setDialogExactText(editedReportText !== null);
                 setDialogKeyImages(keyImages);
-                setDialogReportText(editedReportText !== null ? `Patient: ${patient.lastName}, ${patient.firstName}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
+                setDialogReportText(editedReportText !== null ? `Patient: ${formatPatientName(patient, "Patient")}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
                 setStructuredReportOpen(true);
               }}
               isDoctorMode={isDoctorView}
@@ -1355,7 +1371,7 @@ export default function SonolynxApp() {
                   keyImages={keyImages}
                   onKeyImagesChange={setKeyImages}
                   currentUserId={user?.id}
-                  canSelectKeyImages={isDoctorView}
+                  canSelectKeyImages={true}
                 />
               </div>
             </ResizablePanel>

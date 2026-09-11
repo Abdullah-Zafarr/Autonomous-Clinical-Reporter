@@ -6,7 +6,7 @@ import type { Patient } from "@/lib/sonoflow-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn, formatPatientName } from "@/lib/utils";
 import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
 import { ReportCopilot } from "./ReportCopilot";
 import { CorrectionPanel } from "@/components/sonolynx/CorrectionPanel";
@@ -150,7 +150,7 @@ export function ReportPreview({
 
         <div className="mt-3 rounded-md bg-muted/50 p-3 text-xs">
           <div className="font-semibold text-foreground">
-            {patient.lastName}, {patient.firstName}
+            {formatPatientName(patient)}
           </div>
           <div className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted-foreground">
             <span>MRN: {patient.mrn}</span>
@@ -165,7 +165,7 @@ export function ReportPreview({
         reportText={editableText || ""}
         worksheetId={worksheetId}
         signed={isSigned}
-        patientLabel={`${patient.lastName}, ${patient.firstName} · ${accession}`}
+        patientLabel={`${formatPatientName(patient, "")} · ${accession}`}
         onApply={(text) => { onEditableTextChange?.(text); setIsEditing(true); }}
       />}
 

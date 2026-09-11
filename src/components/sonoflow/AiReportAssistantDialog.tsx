@@ -24,7 +24,7 @@ import {
   Stethoscope,
   ArrowRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatPatientName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -214,7 +214,7 @@ export function AiReportAssistantDialog({
             <div className="flex items-center gap-2">
               <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-semibold text-foreground">
-                {patient.lastName}, {patient.firstName}
+                {formatPatientName(patient)}
               </span>
               <span className="text-muted-foreground">· MRN: {patient.mrn}</span>
             </div>

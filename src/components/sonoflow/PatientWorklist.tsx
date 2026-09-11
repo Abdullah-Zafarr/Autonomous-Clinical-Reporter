@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { type Patient } from "@/lib/sonoflow-types";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatPatientName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserOrganizationId } from "@/lib/org-scope";
 import { mockPatients } from "@/lib/sonoflow-types";
@@ -183,7 +183,7 @@ export function PatientWorklist({ selectedId, selectedStudyId, onSelect, onDelet
       }
 
       toast.success("Patient deleted", {
-        description: `${target.lastName || ""}, ${target.firstName || ""} (MRN: ${target.mrn})`,
+        description: `${formatPatientName(target)} (MRN: ${target.mrn})`,
       });
 
       setPatients((prev) => prev.filter((p) => p.id !== target.id));
@@ -390,7 +390,7 @@ export function PatientWorklist({ selectedId, selectedStudyId, onSelect, onDelet
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-foreground">
-                      {p.lastName || "—"}, {p.firstName || "—"}
+                      {formatPatientName(p)}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       DOB {p.dob} · {p.mrn}
@@ -439,7 +439,7 @@ export function PatientWorklist({ selectedId, selectedStudyId, onSelect, onDelet
                 <p>
                   Are you sure you want to delete{" "}
                   <span className="font-semibold text-foreground">
-                    {patientToDelete?.lastName}, {patientToDelete?.firstName}
+                    {formatPatientName(patientToDelete)}
                   </span>{" "}
                   (MRN: <span className="font-mono">{patientToDelete?.mrn}</span>)?
                 </p>

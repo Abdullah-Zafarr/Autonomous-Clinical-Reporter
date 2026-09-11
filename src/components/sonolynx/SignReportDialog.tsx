@@ -1,5 +1,6 @@
 import type { ValidationIssue } from "@/lib/report-engine";
 import type { Patient } from "@/lib/sonoflow-types";
+import { formatPatientName } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,7 +49,7 @@ export function SignReportDialog({
         <div className="space-y-3 text-sm">
           <div className="rounded-md border bg-muted/40 p-3">
             <div className="font-semibold">
-              {patient.lastName}, {patient.firstName}
+              {formatPatientName(patient)}
             </div>
             <div className="mt-1 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
               <span>MRN: {patient.mrn}</span>
