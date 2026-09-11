@@ -13,6 +13,9 @@ import { toast } from "sonner";
 let csInitialized = false;
 
 function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+    return Promise.resolve("");
+  }
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -28,9 +31,23 @@ function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): 
         resolve(dataUrl);
       }
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => resolve("");
     img.src = dataUrl;
   });
+}
+
+function isDicomFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".dcm") || file.type === "application/dicom") {
+    return true;
+  }
+  if (file.type.startsWith("image/")) {
+    return false;
+  }
+  if (/\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)) {
+    return false;
+  }
+  return true;
 }
 
 interface DicomViewerProps {
@@ -63,49 +80,48 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
   const hasImages = imageIds.length > 0;
   const currentFrame = useMemo(() => (hasImages ? currentIndex + 1 : 0), [hasImages, currentIndex]);
 
+  const ensureCornerstone = async () => {
+    if (csRef.current && csLoaderRef.current && csInitialized) {
+      return { cs: csRef.current, loader: csLoaderRef.current, tools: csToolsRef.current };
+    }
+    const cornerstone = (await import("cornerstone-core")).default;
+    const cornerstoneMath = (await import("cornerstone-math")).default;
+    const cornerstoneTools = (await import("cornerstone-tools")).default;
+    const cornerstoneWADOImageLoader = (await import("cornerstone-wado-image-loader")).default;
+    const Hammer = (await import("hammerjs")).default;
+    const dicomParser = (await import("dicom-parser")).default;
+
+    if (!csInitialized) {
+      cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+      cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+      cornerstoneTools.external.cornerstone = cornerstone;
+      cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
+      cornerstoneTools.external.Hammer = Hammer;
+      cornerstoneTools.init({ showSVGCursors: true });
+      cornerstoneWADOImageLoader.configure({
+        beforeSend: function (_xhr: XMLHttpRequest) {}
+      });
+      csInitialized = true;
+    }
+    csRef.current = cornerstone;
+    csToolsRef.current = cornerstoneTools;
+    csLoaderRef.current = cornerstoneWADOImageLoader;
+    return { cs: cornerstone, loader: cornerstoneWADOImageLoader, tools: cornerstoneTools };
+  };
+
   useEffect(() => {
     let mounted = true;
     const element = viewportRef.current;
     (async () => {
-      const cornerstone = (await import("cornerstone-core")).default;
-      const cornerstoneMath = (await import("cornerstone-math")).default;
-      const cornerstoneTools = (await import("cornerstone-tools")).default;
-      const cornerstoneWADOImageLoader = (await import("cornerstone-wado-image-loader")).default;
-      const Hammer = (await import("hammerjs")).default;
-      const dicomParser = (await import("dicom-parser")).default;
-
-      if (!mounted) return;
-      csRef.current = cornerstone;
-      csToolsRef.current = cornerstoneTools;
-      csLoaderRef.current = cornerstoneWADOImageLoader;
-
-      if (!csInitialized) {
-        cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-        cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-        cornerstoneTools.external.cornerstone = cornerstone;
-        cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
-        cornerstoneTools.external.Hammer = Hammer;
-        cornerstoneTools.init({ showSVGCursors: true });
-        
-        // Configure WADO Image Loader for DICOMweb
-        cornerstoneWADOImageLoader.configure({
-          beforeSend: function(xhr: XMLHttpRequest) {
-            // Add custom headers if needed (e.g. Auth)
-          }
-        });
-
-        csInitialized = true;
-      }
-
-
-      if (!element) return;
-      cornerstone.enable(element);
-      cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
-      cornerstoneTools.addTool(cornerstoneTools.PanTool);
-      cornerstoneTools.addTool(cornerstoneTools.ZoomTool, { configuration: { invert: false } });
-      cornerstoneTools.setToolActive("Wwwc", { mouseButtonMask: 1 });
-      cornerstoneTools.setToolActive("Pan", { mouseButtonMask: 4 });
-      cornerstoneTools.setToolActive("Zoom", { mouseButtonMask: 2 });
+      const { cs, tools } = await ensureCornerstone();
+      if (!mounted || !element) return;
+      cs.enable(element);
+      tools.addTool(tools.WwwcTool);
+      tools.addTool(tools.PanTool);
+      tools.addTool(tools.ZoomTool, { configuration: { invert: false } });
+      tools.setToolActive("Wwwc", { mouseButtonMask: 1 });
+      tools.setToolActive("Pan", { mouseButtonMask: 4 });
+      tools.setToolActive("Zoom", { mouseButtonMask: 2 });
       setStatus("Viewer ready");
     })().catch(() => { if (mounted) setStatus("Viewer initialization failed. Reload to try again."); });
 
@@ -135,8 +151,24 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
     return () => { active = false; };
   }, [imageIds, currentIndex, hasImages]);
 
-  const handleImageFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const renderDicomFileToDataUrl = async (file: File): Promise<string | null> => {
+    try {
+      const { cs, loader } = await ensureCornerstone();
+      const imageId = loader.wadouri.fileManager.add(file);
+      const image = await cs.loadAndCacheImage(imageId);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width || image.columns || 800;
+      canvas.height = image.height || image.rows || 600;
+      cs.renderToCanvas(canvas, image);
+      return canvas.toDataURL("image/jpeg", 0.88);
+    } catch (e) {
+      console.warn("renderDicomFileToDataUrl error:", e);
+      return null;
+    }
+  };
+
+  const handleImageFiles = async (files: FileList | File[] | null) => {
+    if (!files || (files as any).length === 0) return;
     if (keyImages.length >= 6) {
       toast.info("Key image limit reached", { description: "Remove an image before adding another (maximum 6)." });
       return;
@@ -144,34 +176,64 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
     const fileList = Array.from(files);
     if (fileList.length === 1 && canSelectKeyImages) {
       const file = fileList[0];
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const rawUrl = e.target?.result as string;
-        if (rawUrl) {
-          const compressed = await compressImageToJpeg(rawUrl);
-          setSnapshot({ dataUrl: compressed, frameNumber: currentFrame || 1 });
-          setCaption(file.name.replace(/\.[^/.]+$/, ""));
-          setAnnotationOpen(true);
-        }
-      };
-      reader.readAsDataURL(file);
+      let dataUrl: string | null = null;
+      if (isDicomFile(file)) {
+        dataUrl = await renderDicomFileToDataUrl(file);
+      }
+
+      if (!dataUrl) {
+        dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const rawUrl = (e.target?.result as string) || "";
+            if (rawUrl && rawUrl.startsWith("data:image/")) {
+              const compressed = await compressImageToJpeg(rawUrl);
+              resolve(compressed);
+            } else {
+              resolve("");
+            }
+          };
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (dataUrl && dataUrl.startsWith("data:image/")) {
+        setSnapshot({ dataUrl, frameNumber: currentFrame || 1 });
+        setCaption(file.name.replace(/\.[^/.]+$/, ""));
+        setAnnotationOpen(true);
+      } else {
+        toast.error("Could not load image", { description: "Unable to parse or preview the selected DICOM or image file." });
+      }
     } else {
       const remaining = 6 - keyImages.length;
       const toAdd = fileList.slice(0, remaining);
       const newItems: KeyReportImage[] = [];
       for (let i = 0; i < toAdd.length; i++) {
         const file = toAdd[i];
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve((e.target?.result as string) || "");
-          reader.onerror = () => resolve("");
-          reader.readAsDataURL(file);
-        });
-        if (dataUrl) {
-          const compressed = await compressImageToJpeg(dataUrl);
+        let dataUrl: string | null = null;
+        if (isDicomFile(file)) {
+          dataUrl = await renderDicomFileToDataUrl(file);
+        }
+
+        if (!dataUrl) {
+          dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve((e.target?.result as string) || "");
+            reader.onerror = () => resolve("");
+            reader.readAsDataURL(file);
+          });
+          if (dataUrl && dataUrl.startsWith("data:image/")) {
+            dataUrl = await compressImageToJpeg(dataUrl);
+          } else {
+            dataUrl = null;
+          }
+        }
+
+        if (dataUrl && dataUrl.startsWith("data:image/")) {
           newItems.push({
             id: crypto.randomUUID(),
-            dataUrl: compressed,
+            dataUrl,
             caption: file.name.replace(/\.[^/.]+$/, ""),
             frameNumber: (currentFrame || 1) + i,
             createdAt: new Date().toISOString(),
@@ -188,25 +250,22 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
     }
   };
 
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const fileList = Array.from(files);
-    const dicomFiles = fileList.filter(
-      (f) => f.name.toLowerCase().endsWith(".dcm") || f.type === "application/dicom" || (!f.type.startsWith("image/") && !/\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
-    );
-    const standardImages = fileList.filter(
-      (f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
-    );
+    const dicomFiles = fileList.filter(isDicomFile);
+    const standardImages = fileList.filter((f) => !isDicomFile(f));
 
-    if (dicomFiles.length > 0 && csLoaderRef.current) {
-      const ids = dicomFiles.map((file) => csLoaderRef.current.wadouri.fileManager.add(file));
+    if (dicomFiles.length > 0) {
+      const { loader } = await ensureCornerstone();
+      const ids = dicomFiles.map((file) => loader.wadouri.fileManager.add(file));
       setImageIds(ids);
       setCurrentIndex(0);
       setStatus(`${ids.length} DICOM image(s) loaded`);
     }
 
     if (standardImages.length > 0) {
-      void handleImageFiles(files);
+      void handleImageFiles(standardImages);
     }
   };
 
@@ -321,17 +380,46 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
   };
 
   const beginKeyImage = () => {
-    const sourceCanvas = viewportRef.current?.querySelector("canvas");
-    if (!sourceCanvas || sourceCanvas.width === 0 || sourceCanvas.height === 0) {
-      toast.error("Key image unavailable", { description: "Render a DICOM frame before selecting it." });
+    const el = viewportRef.current;
+    if (!el) {
+      toast.error("Viewer unavailable");
       return;
     }
     if (keyImages.length >= 6) {
       toast.info("Key image limit reached", { description: "Remove an image before adding another (maximum 6)." });
       return;
     }
-    setSnapshot({ dataUrl: sourceCanvas.toDataURL("image/jpeg", 0.86), frameNumber: currentFrame });
-    setCaption("");
+
+    let dataUrl = "";
+    if (csRef.current) {
+      try {
+        const enabledElement = csRef.current.getEnabledElement(el);
+        if (enabledElement?.image) {
+          const offscreenCanvas = document.createElement("canvas");
+          offscreenCanvas.width = enabledElement.image.width || enabledElement.image.columns || 800;
+          offscreenCanvas.height = enabledElement.image.height || enabledElement.image.rows || 600;
+          csRef.current.renderToCanvas(offscreenCanvas, enabledElement.image, enabledElement.viewport);
+          dataUrl = offscreenCanvas.toDataURL("image/jpeg", 0.9);
+        }
+      } catch (err) {
+        console.warn("Cornerstone offscreen canvas export fallback:", err);
+      }
+    }
+
+    if (!dataUrl) {
+      const sourceCanvas = (el.querySelector("canvas.cornerstone-canvas") as HTMLCanvasElement) || el.querySelector("canvas");
+      if (sourceCanvas && sourceCanvas.width > 0 && sourceCanvas.height > 0) {
+        dataUrl = sourceCanvas.toDataURL("image/jpeg", 0.88);
+      }
+    }
+
+    if (!dataUrl) {
+      toast.error("Key image unavailable", { description: "Render a DICOM frame before selecting it." });
+      return;
+    }
+
+    setSnapshot({ dataUrl, frameNumber: currentFrame || 1 });
+    setCaption(`Frame ${currentFrame || 1}`);
     setAnnotationOpen(true);
   };
 
@@ -432,14 +520,14 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             multiple
             className="hidden"
             onChange={(e) => {
-              handleFiles(e.target.files);
+              void handleFiles(e.target.files);
               e.target.value = "";
             }}
           />
           <input
             ref={imageInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept=".dcm,application/dicom,image/png,image/jpeg,image/webp"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -615,18 +703,26 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
       </footer>
 
       <Dialog open={annotationOpen} onOpenChange={setAnnotationOpen}>
-        <DialogContent className="max-w-4xl bg-slate-950 text-slate-100">
+        <DialogContent className="max-w-4xl border-slate-800 bg-slate-950 text-slate-100">
           <DialogHeader>
-            <DialogTitle>Annotate key image</DialogTitle>
+            <DialogTitle className="text-slate-100">Annotate key image</DialogTitle>
             <DialogDescription className="text-slate-400">
               Draw over the image to mark the finding, then add a clinical caption.
             </DialogDescription>
           </DialogHeader>
           {snapshot && (
-            <div className="mx-auto max-h-[60vh] max-w-full overflow-auto rounded border border-slate-700 bg-black">
+            <div className="mx-auto flex max-h-[60vh] max-w-full items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-black/80 p-2">
               <div className="relative inline-block touch-none">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={snapshot.dataUrl} alt="Selected DICOM frame" className="block max-h-[55vh] max-w-full" onLoad={(event) => prepareAnnotationCanvas(event.currentTarget)} />
+                <img
+                  src={snapshot.dataUrl}
+                  alt="Selected DICOM frame"
+                  className="block max-h-[55vh] max-w-full rounded object-contain"
+                  onLoad={(event) => prepareAnnotationCanvas(event.currentTarget)}
+                  onError={() => {
+                    toast.error("Failed to render preview", { description: "The image data could not be displayed." });
+                  }}
+                />
                 <canvas
                   ref={annotationCanvasRef}
                   className="absolute inset-0 h-full w-full cursor-crosshair"
@@ -639,14 +735,37 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Input value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Caption, e.g. Gallstone with posterior acoustic shadowing" className="border-slate-700 bg-slate-900" />
-            <Button type="button" variant="secondary" onClick={clearAnnotation}>
+            <Input
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              placeholder="Caption, e.g. Gallstone with posterior acoustic shadowing"
+              className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={clearAnnotation}
+              className="shrink-0 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
+            >
               <Undo2 className="mr-1.5 h-4 w-4" /> Clear ink
             </Button>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAnnotationOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={saveKeyImage}>Add to report</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAnnotationOpen(false)}
+              className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={saveKeyImage}
+              className="bg-blue-600 text-white hover:bg-blue-500"
+            >
+              Add to report
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
