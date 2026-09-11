@@ -129,19 +129,23 @@ export function WorkflowProgress({
       className={cn(
         "shrink-0 bg-card px-3 sm:px-4",
         compact
-          ? "min-w-0 flex-1 border-t py-2 xl:border-t-0 2xl:flex 2xl:items-center 2xl:gap-3"
+          ? "min-w-0 flex-1 border-t py-2 xl:border-t-0 xl:flex xl:items-center xl:gap-3"
           : "border-b py-3",
       )}
     >
       <div
         className={cn(
           "flex items-center gap-2 text-xs",
-          compact ? "mb-1.5 2xl:mb-0 2xl:min-w-0 2xl:flex-[0_1_300px]" : "mb-3",
+          compact ? "mb-1.5 xl:mb-0 xl:shrink-0" : "mb-3",
         )}
       >
-        <span className="font-semibold">Case Progress</span>
-        <span className="truncate text-muted-foreground">{patientLabel}</span>
-        <span role="status" className="ml-auto shrink-0 font-medium text-primary">
+        <span className="font-semibold shrink-0 whitespace-nowrap">Case Progress</span>
+        {patientLabel && (
+          <span className="font-medium text-foreground whitespace-nowrap shrink-0">
+            {patientLabel}
+          </span>
+        )}
+        <span role="status" className="ml-auto shrink-0 whitespace-nowrap font-medium text-primary">
           {!studyId
             ? "Select a study"
             : error
@@ -169,7 +173,7 @@ export function WorkflowProgress({
         </p>
       )}
       <ol
-        className={cn("grid grid-cols-4 gap-2", compact && "2xl:flex-1")}
+        className={cn("grid grid-cols-4 gap-2", compact && "xl:flex-1")}
         aria-label="Report workflow stages"
       >
         {(
