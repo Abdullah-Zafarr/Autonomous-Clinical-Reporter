@@ -436,6 +436,12 @@ export function ClinicalWorksheet({
     setSttMode(null);
   };
 
+  const handleDictationTextChange = (value: string) => {
+    setDictationText(value);
+    baseTextRef.current = value ? value.replace(/\s+$/, "") + " " : "";
+    partialTextRef.current = "";
+  };
+
   useEffect(() => {
     return () => {
       stopAudioSession();
@@ -738,7 +744,7 @@ export function ClinicalWorksheet({
         }
       }
       
-      setDictationText("");
+      handleDictationTextChange("");
       if (updates.warning) toast.warning("Dictation saved as notes", { description: updates.warning });
       else toast.success("Findings extracted");
     } catch (e) {
@@ -1050,7 +1056,7 @@ export function ClinicalWorksheet({
             </div>
             <Textarea
               value={dictationText}
-              onChange={(e) => setDictationText(e.target.value)}
+              onChange={(e) => handleDictationTextChange(e.target.value)}
               placeholder="e.g. 'Fatty liver. Normal gallbladder...'"
               className="min-h-[80px] bg-background font-mono text-[13px]"
             />

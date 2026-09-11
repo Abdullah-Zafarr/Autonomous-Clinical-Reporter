@@ -310,6 +310,13 @@ export function useSpeechToText(options?: UseSpeechToTextOptions) {
     startBrowserStt(baseTextRef.current);
   }, [isListening, startBrowserStt, stopAudioSession]);
 
+  const syncTranscript = useCallback((newText: string) => {
+    baseTextRef.current = newText ? newText.replace(/\s+$/, "") + " " : "";
+    partialTextRef.current = "";
+    setTranscript(newText);
+    setInterimText("");
+  }, []);
+
   return {
     isListening,
     sttMode,
@@ -318,5 +325,6 @@ export function useSpeechToText(options?: UseSpeechToTextOptions) {
     startListening,
     stopListening,
     setTranscript,
+    syncTranscript,
   };
 }

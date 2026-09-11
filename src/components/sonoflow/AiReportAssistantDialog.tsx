@@ -70,9 +70,15 @@ export function AiReportAssistantDialog({
     sttMode,
     startListening,
     stopListening,
+    syncTranscript,
   } = useSpeechToText({
     onTranscriptChange: (text) => setDictation(text),
   });
+
+  const handleDictationChange = (val: string) => {
+    setDictation(val);
+    syncTranscript(val);
+  };
 
   useEffect(() => {
     if (!open && isListening) {
@@ -190,7 +196,7 @@ export function AiReportAssistantDialog({
                 variant="ghost"
                 size="sm"
                 className="h-5 text-[10px] text-muted-foreground hover:text-foreground"
-                onClick={() => setDictation("")}
+                onClick={() => handleDictationChange("")}
               >
                 Clear Input
               </Button>
@@ -200,7 +206,7 @@ export function AiReportAssistantDialog({
                 <button
                   key={name}
                   type="button"
-                  onClick={() => setDictation(text)}
+                  onClick={() => handleDictationChange(text)}
                   className="rounded-md border border-slate-200 bg-slate-50/70 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 transition-colors"
                 >
                   + {name}
@@ -241,7 +247,7 @@ export function AiReportAssistantDialog({
               maxLength={12000}
               placeholder="e.g. Liver 14.5cm homogeneous, Gallbladder wall 2.8mm clear, CBD 4mm, Pancreas unremarkable, Kidneys normal bilaterally, no focal masses, no hydronephrosis..."
               value={dictation}
-              onChange={(e) => setDictation(e.target.value)}
+              onChange={(e) => handleDictationChange(e.target.value)}
               className="resize-none font-mono text-xs leading-relaxed"
             />
           </div>

@@ -60,6 +60,8 @@ This document provides a comprehensive log of all bugs, glitches, and reliabilit
    * Replaced fragile single-engine listeners with unified `useSpeechToText` featuring real-time interim streaming and active engine indicator (`Listening (Deepgram AI)...` / `Browser`).
 5. **Resilient Browser Speech Fallback**:
    * Fixed interim result loops and prevented infinite crash loops on network drops.
+6. **Two-Way Textarea & STT Baseline Synchronization**:
+   * Added `handleDictationTextChange` in `ClinicalWorksheet.tsx` and `syncTranscript` in `useSpeechToText.ts` so that when a clinician backspaces, deletes, or types manual edits into the dictation textarea while listening, the internal speech baseline (`baseTextRef`) and interim buffer (`partialTextRef`) immediately synchronize with the edited text, preventing deleted words from reappearing upon the next spoken word.
 
 ---
 
