@@ -1,8 +1,19 @@
-import { Search, User, Loader2, Stethoscope, AlertTriangle, RefreshCw } from "lucide-react";
+import { Search, User, Loader2, Stethoscope, AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { type Patient } from "@/lib/sonoflow-types";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -17,7 +28,13 @@ interface Props {
   selectedId: string;
   selectedStudyId?: string;
   onSelect: (p: Patient) => void;
+  onDelete?: (deletedPatientId: string) => void;
   refreshKey?: number;
+}
+
+async function getAuthHeader(): Promise<string | null> {
+  const { data: { session } } = await (supabase as any).auth.getSession();
+  return session?.access_token ? `Bearer ${session.access_token}` : null;
 }
 
 // ----------------------------------------------------------------
@@ -134,15 +151,52 @@ async function fetchSonographerWorklist(role: string | null, userId?: string): P
 // ----------------------------------------------------------------
 // Component
 // ----------------------------------------------------------------
-export function PatientWorklist({ selectedId, selectedStudyId, onSelect, refreshKey = 0 }: Props) {
+export function PatientWorklist({ selectedId, selectedStudyId, onSelect, onDelete, refreshKey = 0 }: Props) {
   const { user, role } = useAuth();
   const [q, setQ] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isDoctor = role === "doctor" || role === "radiologist";
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const handleDeletePatient = async (target: Patient) => {
+    try {
+      setIsDeleting(true);
+      const authHeader = await getAuthHeader();
+      const res = await fetch("/api/patients/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+        body: JSON.stringify({ patientId: target.id }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to delete patient");
+      }
+
+      toast.success("Patient deleted", {
+        description: `${target.lastName || ""}, ${target.firstName || ""} (MRN: ${target.mrn})`,
+      });
+
+      setPatients((prev) => prev.filter((p) => p.id !== target.id));
+      onDelete?.(target.id);
+      setPatientToDelete(null);
+      await load();
+    } catch (err: any) {
+      console.error("[PatientWorklist] delete error:", err);
+      toast.error("Deletion failed", { description: err?.message || String(err) });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user?.id) return;
@@ -318,47 +372,105 @@ export function PatientWorklist({ selectedId, selectedStudyId, onSelect, refresh
               aria-pressed={isActive}
               onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(p); } }}
               className={cn(
-                "cursor-pointer p-3 transition-all hover:shadow-sm",
+                "group relative cursor-pointer p-3 transition-all hover:shadow-sm",
                 isActive
                   ? "border-2 border-primary bg-primary/5 shadow-sm"
-                  : "border border-border"
+                  : "border border-border hover:border-muted-foreground/30"
               )}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                    isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <User className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-foreground">
-                    {p.lastName || "—"}, {p.firstName || "—"}
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    DOB {p.dob} · {p.mrn}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge variant="secondary" className="text-[10px] font-medium">
-                      {p.exam}
-                    </Badge>
-                    {p.studyStatus && (
-                      <Badge
-                        variant={p.studyStatus === "review_pending" ? "default" : "outline"}
-                        className="text-[10px] font-medium"
-                      >
-                        {p.studyStatus.replace(/_/g, " ")}
-                      </Badge>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                      isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     )}
+                  >
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {p.lastName || "—"}, {p.firstName || "—"}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      DOB {p.dob} · {p.mrn}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant="secondary" className="text-[10px] font-medium">
+                        {p.exam}
+                      </Badge>
+                      {p.studyStatus && (
+                        <Badge
+                          variant={p.studyStatus === "review_pending" ? "default" : "outline"}
+                          className="text-[10px] font-medium"
+                        >
+                          {p.studyStatus.replace(/_/g, " ")}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground/40 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPatientToDelete(p);
+                  }}
+                  title={`Delete ${p.firstName || ""} ${p.lastName || ""}`.trim()}
+                  aria-label={`Delete ${p.firstName || ""} ${p.lastName || ""}`.trim()}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </Card>
           );
         })}
       </div>
+
+      <AlertDialog open={!!patientToDelete} onOpenChange={(open) => !open && !isDeleting && setPatientToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Patient Record</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-foreground">
+                    {patientToDelete?.lastName}, {patientToDelete?.firstName}
+                  </span>{" "}
+                  (MRN: <span className="font-mono">{patientToDelete?.mrn}</span>)?
+                </p>
+                <p className="text-xs text-destructive/90 bg-destructive/10 p-2 rounded border border-destructive/20">
+                  This will permanently remove the patient and all associated studies and worksheets from the clinic. This action cannot be undone.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                if (patientToDelete) handleDeletePatient(patientToDelete);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                "Delete Patient"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   );
 }

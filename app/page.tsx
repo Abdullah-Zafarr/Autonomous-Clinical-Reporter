@@ -755,6 +755,35 @@ export default function SonolynxApp() {
     setShowWorklist(false);
   };
 
+  const handlePatientDeleted = (deletedId: string) => {
+    setWorklistRefresh((prev) => prev + 1);
+    if (patient.id === deletedId) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("sonolynx_active_patient");
+          if (user?.id) localStorage.removeItem(`sonolynx_active_patient_${user.id}`);
+        } catch {}
+      }
+      isInitialMount.current = true;
+      setIsDirty(false);
+      setWorksheet(defaultWorksheet);
+      setThyroid(defaultThyroid);
+      setOb(defaultOb);
+      setVascular(defaultVascular);
+      setAdditionalNotes("");
+      setKeyImages([]);
+      setCorrections([]);
+      setAbdomenOrder([]);
+      setCurrentWorksheet(null);
+      setEditedReportText(null);
+      setLastSaved(null);
+      setWorksheetLoadError(false);
+      setLoadingWorksheet(false);
+      setPatient(mockPatients[0]);
+      setExam("Abdomen");
+    }
+  };
+
   const handleSaveDraft = async ({ silent = false }: { silent?: boolean } = {}) => {
     if (loadingWorksheet || worksheetLoadError || savingDraft || sendingReport || returningForCorrection) {
       if (!silent) toast.info("Wait for the case to finish loading or saving before making another save.");
@@ -1357,7 +1386,13 @@ export default function SonolynxApp() {
           <div className="flex h-full min-h-0 flex-col">
             <DoctorSummary />
             <div className="min-h-0 flex-1 overflow-hidden">
-              <PatientWorklist selectedId={patient.id} selectedStudyId={patient.studyId} onSelect={handleSelectPatient} refreshKey={worklistRefresh} />
+              <PatientWorklist
+                selectedId={patient.id}
+                selectedStudyId={patient.studyId}
+                onSelect={handleSelectPatient}
+                onDelete={handlePatientDeleted}
+                refreshKey={worklistRefresh}
+              />
             </div>
           </div>
         </SheetContent>
