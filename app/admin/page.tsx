@@ -119,6 +119,31 @@ const defaultSystemHealth: SystemHealth = {
   gladiaApiConfigured: false,
 };
 
+interface CachedAdminMetrics {
+  totalPatients: number;
+  totalStudies: number;
+  draftWorksheets: number;
+  signedReports: number;
+  transmittedReports: number;
+  failedHl7: number;
+  hl7SuccessRate: number;
+  staffCount: number;
+  adminCount: number;
+}
+
+const CACHED_ADMIN_METRICS_KEY = "sonolynx_admin_metrics";
+
+function getCachedAdminMetrics(): CachedAdminMetrics | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CACHED_ADMIN_METRICS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export default function AdminDashboard() {
   const { role, user, loading: authLoading, signOut } = useAuth();
   const untypedSupabase = supabase as any;
@@ -139,13 +164,17 @@ export default function AdminDashboard() {
   const [hl7Rows, setHl7Rows] = useState<HL7Row[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth>(defaultSystemHealth);
 
-  const [totalPatients, setTotalPatients] = useState<number | null>(null);
-  const [totalStudies, setTotalStudies] = useState<number | null>(null);
-  const [draftWorksheets, setDraftWorksheets] = useState<number | null>(null);
-  const [signedReports, setSignedReports] = useState<number | null>(null);
-  const [transmittedReports, setTransmittedReports] = useState<number | null>(null);
-  const [failedHl7, setFailedHl7] = useState<number | null>(null);
-  const [hl7SuccessRate, setHl7SuccessRate] = useState<number | null>(null);
+  const [cachedMetrics] = useState<CachedAdminMetrics | null>(() => getCachedAdminMetrics());
+
+  const [totalPatients, setTotalPatients] = useState<number>(() => cachedMetrics?.totalPatients ?? 0);
+  const [totalStudies, setTotalStudies] = useState<number>(() => cachedMetrics?.totalStudies ?? 0);
+  const [draftWorksheets, setDraftWorksheets] = useState<number>(() => cachedMetrics?.draftWorksheets ?? 0);
+  const [signedReports, setSignedReports] = useState<number>(() => cachedMetrics?.signedReports ?? 0);
+  const [transmittedReports, setTransmittedReports] = useState<number>(() => cachedMetrics?.transmittedReports ?? 0);
+  const [failedHl7, setFailedHl7] = useState<number>(() => cachedMetrics?.failedHl7 ?? 0);
+  const [hl7SuccessRate, setHl7SuccessRate] = useState<number>(() => cachedMetrics?.hl7SuccessRate ?? 100);
+  const [cachedStaffCount, setCachedStaffCount] = useState<number>(() => cachedMetrics?.staffCount ?? 0);
+  const [cachedAdminCount, setCachedAdminCount] = useState<number>(() => cachedMetrics?.adminCount ?? 0);
 
   const [lastActivityByUser, setLastActivityByUser] = useState<Record<string, string>>({});
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -205,21 +234,8 @@ export default function AdminDashboard() {
 
     const scopeByOrg = Boolean(orgId) && !globalView;
 
-    const [
-      patientsCount,
-      studiesCount,
-      draftsCount,
-      signedCount,
-      transmittedCount,
-      failedHl7Count,
-      allHl7Status,
-      profilesRes,
-      recentHl7Res,
-      wsActivityRes,
-      systemHealthRes,
-      organizationsRes,
-      signedReportsRes,
-    ] = await Promise.all([
+    // Fast metrics queries (~50ms) - updates metric cards immediately without waiting for heavy tables
+    const countsPromise = Promise.all([
       (scopeByOrg
         ? untypedSupabase.from("patients").select("id", { count: "exact", head: true }).eq("organization_id", orgId)
         : untypedSupabase.from("patients").select("id", { count: "exact", head: true })),
@@ -241,6 +257,48 @@ export default function AdminDashboard() {
       (scopeByOrg
         ? untypedSupabase.from("hl7_messages").select("status").eq("organization_id", orgId)
         : untypedSupabase.from("hl7_messages").select("status")),
+    ]).then(([patientsCount, studiesCount, draftsCount, signedCount, transmittedCount, failedHl7Count, allHl7Status]) => {
+      const pCount = patientsCount.count ?? 0;
+      const sCount = studiesCount.count ?? 0;
+      const dCount = draftsCount.count ?? 0;
+      const sgCount = signedCount.count ?? 0;
+      const trCount = transmittedCount.count ?? 0;
+      const fHl7 = failedHl7Count.count ?? 0;
+
+      const allStatuses = (allHl7Status.data ?? []) as Array<{ status?: string }>;
+      const success = allStatuses.filter((row: { status?: string }) => row.status === "transmitted" || row.status === "sent").length;
+      const rate = allStatuses.length > 0 ? Math.round((success / allStatuses.length) * 100) : 100;
+
+      setTotalPatients(pCount);
+      setTotalStudies(sCount);
+      setDraftWorksheets(dCount);
+      setSignedReports(sgCount);
+      setTransmittedReports(trCount);
+      setFailedHl7(fHl7);
+      setHl7SuccessRate(rate);
+
+      try {
+        const existing = getCachedAdminMetrics() || {
+          staffCount: 0,
+          adminCount: 0,
+        };
+        localStorage.setItem(
+          CACHED_ADMIN_METRICS_KEY,
+          JSON.stringify({
+            ...existing,
+            totalPatients: pCount,
+            totalStudies: sCount,
+            draftWorksheets: dCount,
+            signedReports: sgCount,
+            transmittedReports: trCount,
+            failedHl7: fHl7,
+            hl7SuccessRate: rate,
+          })
+        );
+      } catch {}
+    });
+
+    const tablesPromise = Promise.all([
       (scopeByOrg
         ? untypedSupabase.from("profiles").select("*").eq("organization_id", orgId).order("created_at", { ascending: false })
         : untypedSupabase.from("profiles").select("*").order("created_at", { ascending: false })),
@@ -289,16 +347,8 @@ export default function AdminDashboard() {
       })(),
     ]);
 
-    setTotalPatients(patientsCount.count ?? 0);
-    setTotalStudies(studiesCount.count ?? 0);
-    setDraftWorksheets(draftsCount.count ?? 0);
-    setSignedReports(signedCount.count ?? 0);
-    setTransmittedReports(transmittedCount.count ?? 0);
-    setFailedHl7(failedHl7Count.count ?? 0);
-
-    const allStatuses = (allHl7Status.data ?? []) as Array<{ status?: string }>;
-    const success = allStatuses.filter((row: { status?: string }) => row.status === "transmitted" || row.status === "sent").length;
-    setHl7SuccessRate(allStatuses.length > 0 ? Math.round((success / allStatuses.length) * 100) : 100);
+    const [, [profilesRes, recentHl7Res, wsActivityRes, systemHealthRes, organizationsRes, signedReportsRes]] =
+      await Promise.all([countsPromise, tablesPromise]);
 
     const loadedStaff = (profilesRes.data ?? []) as StaffRow[];
     const loadedOrgs = (organizationsRes.data ?? []) as OrganizationRow[];
@@ -322,6 +372,28 @@ export default function AdminDashboard() {
       role: roleMap[person.id] ?? person.role ?? "unknown",
     }));
     setStaff(mergedStaff);
+    const adminCount = mergedStaff.filter((person) => person.role === "admin").length;
+    setCachedStaffCount(mergedStaff.length);
+    setCachedAdminCount(adminCount);
+    try {
+      const existing = getCachedAdminMetrics() || {
+        totalPatients: 0,
+        totalStudies: 0,
+        draftWorksheets: 0,
+        signedReports: 0,
+        transmittedReports: 0,
+        failedHl7: 0,
+        hl7SuccessRate: 100,
+      };
+      localStorage.setItem(
+        CACHED_ADMIN_METRICS_KEY,
+        JSON.stringify({
+          ...existing,
+          staffCount: mergedStaff.length,
+          adminCount,
+        })
+      );
+    } catch {}
 
     const activityMap: Record<string, string> = {};
     for (const row of (wsActivityRes.data ?? []) as Array<{ sonographer_id?: string; updated_at?: string }>) {
@@ -647,10 +719,10 @@ export default function AdminDashboard() {
             
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Staff Usage ({staff.length} / {tierLimits.maxStaff === Infinity ? "∞" : tierLimits.maxStaff})</span>
-                <span className="font-medium">{Math.round((staff.length / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100)}%</span>
+                <span className="text-muted-foreground">Staff Usage ({staff.length > 0 ? staff.length : cachedStaffCount} / {tierLimits.maxStaff === Infinity ? "∞" : tierLimits.maxStaff})</span>
+                <span className="font-medium">{Math.round(((staff.length > 0 ? staff.length : cachedStaffCount) / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100)}%</span>
               </div>
-              <Progress value={(staff.length / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100} className="h-1.5" />
+              <Progress value={((staff.length > 0 ? staff.length : cachedStaffCount) / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100} className="h-1.5" />
               <p className="text-[11px] text-muted-foreground italic">
                 {orgTier === "individual" && "Upgrade to Clinic to add up to 15 staff members and unlock the Custom Template Architect."}
                 {orgTier === "professional" && "Upgrade to Enterprise for unlimited staff and hospital-wide deployment features."}
@@ -671,12 +743,12 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <MetricCard label="Total Patients" value={loading ? "..." : String(totalPatients ?? 0)} icon={<Users className="h-5 w-5" />} accent="primary" />
-          <MetricCard label="Total Studies" value={loading ? "..." : String(totalStudies ?? 0)} icon={<Activity className="h-5 w-5" />} accent="amber" />
-          <MetricCard label="Draft Worksheets" value={loading ? "..." : String(draftWorksheets ?? 0)} icon={<Activity className="h-5 w-5" />} accent="amber" />
-          <MetricCard label="Signed Reports" value={loading ? "..." : String(signedReports ?? 0)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
-          <MetricCard label="Transmitted Reports" value={loading ? "..." : String(transmittedReports ?? 0)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
-          <MetricCard label="Failed HL7 Messages" value={loading ? "..." : String(failedHl7 ?? 0)} icon={<AlertTriangle className="h-5 w-5" />} accent="rose" />
+          <MetricCard label="Total Patients" value={String(totalPatients)} icon={<Users className="h-5 w-5" />} accent="primary" />
+          <MetricCard label="Total Studies" value={String(totalStudies)} icon={<Activity className="h-5 w-5" />} accent="amber" />
+          <MetricCard label="Draft Worksheets" value={String(draftWorksheets)} icon={<Activity className="h-5 w-5" />} accent="amber" />
+          <MetricCard label="Signed Reports" value={String(signedReports)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
+          <MetricCard label="Transmitted Reports" value={String(transmittedReports)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
+          <MetricCard label="Failed HL7 Messages" value={String(failedHl7)} icon={<AlertTriangle className="h-5 w-5" />} accent="rose" />
         </div>
 
         <Tabs defaultValue="staff" className="space-y-4">
@@ -926,9 +998,9 @@ export default function AdminDashboard() {
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <MetricCard label="HL7 Success Rate" value={loading ? "..." : `${hl7SuccessRate ?? 0}%`} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
-              <MetricCard label="Staff Accounts" value={loading ? "..." : String(staff.length)} icon={<Users className="h-5 w-5" />} accent="primary" />
-              <MetricCard label="Admin Accounts" value={loading ? "..." : String(staff.filter((person) => person.role === "admin").length)} icon={<Users className="h-5 w-5" />} accent="primary" />
+              <MetricCard label="HL7 Success Rate" value={`${hl7SuccessRate}%`} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
+              <MetricCard label="Staff Accounts" value={String(staff.length > 0 ? staff.length : cachedStaffCount)} icon={<Users className="h-5 w-5" />} accent="primary" />
+              <MetricCard label="Admin Accounts" value={String(staff.length > 0 ? staff.filter((person) => person.role === "admin").length : cachedAdminCount)} icon={<Users className="h-5 w-5" />} accent="primary" />
             </div>
             <Card className="p-4">
               <h2 className="text-sm font-semibold">Operational Notes</h2>
