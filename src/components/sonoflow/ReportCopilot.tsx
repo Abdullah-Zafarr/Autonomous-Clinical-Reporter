@@ -41,9 +41,12 @@ interface Result {
 interface SpeechSession {
   start: () => void;
   abort: () => void;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  stop?: () => void;
+  continuous?: boolean;
+  interimResults?: boolean;
+  onresult: ((event: any) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event?: any) => void) | null;
   lang: string;
 }
 
@@ -223,15 +226,29 @@ function CopilotDialog({
     const session = new Speech();
     recognition.current = session;
     session.lang = "en-US";
-    session.onresult = (event) => {
-      setInstruction((text) => `${text} ${event.results[0][0].transcript}`.trim());
+    session.continuous = true;
+    session.interimResults = true;
+    let baseText = instruction ? instruction.replace(/\s+$/, "") + " " : "";
+
+    session.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        const text = item[0]?.transcript || "";
+        if (item.isFinal) {
+          baseText += text.trim() + " ";
+        } else {
+          interim += text;
+        }
+      }
+      setInstruction((baseText + interim).trimStart());
       setResult(null);
       setReviewed(false);
     };
     session.onend = () => setListening(false);
     session.onerror = () => {
       setListening(false);
-      setError("Voice input failed. Check microphone permission or type your instruction.");
+      setError("Voice input paused or interrupted. Click Dictate to resume or type below.");
     };
     try {
       session.start();

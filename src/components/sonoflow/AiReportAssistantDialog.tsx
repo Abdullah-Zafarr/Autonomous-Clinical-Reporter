@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn, formatPatientName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useSpeechToText } from "@/hooks/use-speech-to-text";
 
 interface Props {
   open: boolean;
@@ -63,71 +64,27 @@ export function AiReportAssistantDialog({
   const [dictation, setDictation] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedText, setGeneratedText] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
-  // Initialize Web Speech API for voice dictation
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-          let currentTranscript = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
-          }
-          if (event.results[event.results.length - 1].isFinal) {
-            setDictation((prev) => (prev ? `${prev} ${currentTranscript.trim()}` : currentTranscript.trim()));
-          }
-        };
-
-        recognition.onerror = (err: any) => {
-          console.warn("[speech] Dictation recognition notice:", err);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-  }, []);
+  const {
+    isListening,
+    sttMode,
+    startListening,
+    stopListening,
+  } = useSpeechToText({
+    onTranscriptChange: (text) => setDictation(text),
+  });
 
   useEffect(() => {
-    if (!open) {
-      recognitionRef.current?.abort();
-      setIsListening(false);
+    if (!open && isListening) {
+      stopListening();
     }
-    return () => { recognitionRef.current?.abort(); };
-  }, [open]);
+  }, [open, isListening, stopListening]);
 
   const toggleListening = () => {
-    if (!recognitionRef.current) {
-      toast.info("Microphone dictation not supported in this browser", {
-        description: "You can type or paste measurements directly into the box.",
-      });
-      return;
-    }
-
     if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
+      stopListening();
     } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast.info("Listening...", { description: "Speak measurements or clinical observations." });
-      } catch (e) {
-        setIsListening(false);
-      }
+      startListening(dictation);
     }
   };
 
@@ -270,7 +227,7 @@ export function AiReportAssistantDialog({
               >
                 {isListening ? (
                   <>
-                    <MicOff className="h-3.5 w-3.5" /> Stop Voice
+                    <MicOff className="h-3.5 w-3.5" /> Stop Voice ({sttMode === "deepgram" ? "Deepgram AI" : "Browser"})
                   </>
                 ) : (
                   <>

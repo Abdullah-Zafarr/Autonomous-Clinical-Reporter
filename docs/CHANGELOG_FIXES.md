@@ -41,27 +41,25 @@ This document provides a comprehensive log of all bugs, glitches, and reliabilit
 ## 2. Speech-to-Text (STT) Failure
 
 ### The Problem
-* **User Symptom**: The microphone/speech-to-text dictation feature failed to work or stream transcription.
+* **User Symptom**: Speech-to-text dictation failed to initialize or transcribe words across worksheets, doctor dialogs, and patient copilots.
 * **Root Causes**:
-  1. **Missing Service Credentials**: `ClinicalWorksheet.tsx` was hardcoded to query `/api/gladia/live`. However, no Gladia API key was configured in `.env` or `.env.local`.
-  2. **Active Deepgram Key Unutilized**: A valid, active Deepgram API key was present in `.env.local`, and Deepgram provides the specialized `nova-2-medical` model specifically built for ultrasound and clinical terminology.
-  3. **Absence of Fallback Mechanism**: If server-side WebSocket STT failed, the UI threw an error with no fallback to the browser's native Web Speech API.
+  1. **WebSocket Subprotocol Mismatch**: Deepgram WebSocket authentication in browser JavaScript requires subprotocol `["token", deepgramKey]`. Code was passing `["bearer", deepgramKey]`, triggering `HTTP 401 Unauthorized`.
+  2. **Token Route 503 / 403 Lockout**: `app/api/stt/deepgram/token/route.ts` invoked `client.auth.v1.tokens.grant()`, which is an Enterprise-only endpoint that threw `403 Forbidden` on standard project keys, leading to catch-all `503 Service Unavailable`.
+  3. **Missing Auth Header**: Client components requested the token route without forwarding the active Supabase session bearer token.
+  4. **Component Disconnect & Infinite Restarts**: The Doctor AI Assistant dialog (`AiReportAssistantDialog.tsx`) lacked Deepgram integration and lost interim results, while the worksheet browser speech listener could trigger looping restarts on network interruptions.
 
 ### How It Was Fixed
-1. **Multi-Engine Resilient Architecture** (`src/components/sonoflow/ClinicalWorksheet.tsx`):
-   * **Primary Provider: Deepgram Medical AI**:
-     - Connects directly to Deepgram's live streaming WebSocket API using `model=nova-2-medical`, `encoding=linear16`, `sample_rate=16000`, and `smart_format=true`.
-     - Added `floatTo16BitPCM` converter to transform Float32 audio buffers from `pcm-processor.js` into standard Linear16 PCM chunks sent in real time over the WebSocket.
-     - Streams interim words and finalized utterances directly into the dictation text area.
-   * **Secondary Provider: Gladia Live STT**:
-     - Maintained as automatic secondary option if configured.
-   * **Guaranteed Fallback: Browser Web Speech API**:
-     - Implemented native browser `SpeechRecognition` / `webkitSpeechRecognition` fallback with continuous recognition and interim results. If network or API token issues occur, dictation switches to browser recognition with an informative toast notification.
-2. **Authenticated Token Route** (`app/api/stt/deepgram/token/route.ts`):
-   * Protected with Supabase server session authentication.
-   * Generates scoped temporary tokens or returns the authorized key for active clinical sessions.
-3. **Clear Engine Indicator in UI**:
-   * Updated the recording badge to dynamically indicate active engine: `Listening (Deepgram Medical)...` or `Listening (Browser Speech)...`.
+1. **Token Route Fix** (`app/api/stt/deepgram/token/route.ts`):
+   * Authenticates sessions via Supabase cookie session, `Authorization: Bearer <token>`, or local dev mode.
+   * Returns `{ key: apiKey }` with `Cache-Control: no-store, private` for direct WebSocket authorization.
+2. **Correct Deepgram WebSocket Subprotocol**:
+   * Updated `new WebSocket(socketUrl, ["token", deepgramKey])` ensuring clean instant connection to Deepgram's live streaming WebSocket (`model=nova-2-medical`).
+3. **REST Transcription Route** (`app/api/stt/transcribe/route.ts`):
+   * Added REST audio buffer transcription via Deepgram's medical model as a server-side fallback.
+4. **Reusable Speech Hook & Doctor Dialog Upgrade** (`src/hooks/use-speech-to-text.ts` & `AiReportAssistantDialog.tsx`):
+   * Replaced fragile single-engine listeners with unified `useSpeechToText` featuring real-time interim streaming and active engine indicator (`Listening (Deepgram AI)...` / `Browser`).
+5. **Resilient Browser Speech Fallback**:
+   * Fixed interim result loops and prevented infinite crash loops on network drops.
 
 ---
 

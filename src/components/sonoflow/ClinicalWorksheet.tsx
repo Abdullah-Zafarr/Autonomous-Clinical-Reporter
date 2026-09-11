@@ -469,21 +469,26 @@ export function ClinicalWorksheet({
       recognition.onresult = (event: any) => {
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcript = event.results[i][0]?.transcript || "";
-          if (event.results[i].isFinal) {
+          const item = event.results[i];
+          const transcript = item[0]?.transcript || "";
+          if (item.isFinal) {
             baseTextRef.current += transcript.trim() + " ";
-            setDictationText(baseTextRef.current.trimStart());
           } else {
             interim += transcript;
-            setDictationText((baseTextRef.current + interim).trimStart());
           }
         }
+        setDictationText((baseTextRef.current + interim).trimStart());
       };
 
       recognition.onerror = (event: any) => {
         console.warn("[Browser STT] error:", event.error);
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           toast.error("Microphone access denied", { description: "Please enable microphone permissions in your browser." });
+          stopListening();
+        } else if (event.error === "network") {
+          toast.error("Speech recognition network error", { description: "Browser speech service could not connect." });
+          stopListening();
+        } else if (event.error === "aborted") {
           stopListening();
         }
       };
@@ -493,7 +498,9 @@ export function ClinicalWorksheet({
         if (browserSttRef.current) {
           try {
             recognition.start();
-          } catch {}
+          } catch {
+            stopListening();
+          }
         }
       };
 
@@ -517,26 +524,42 @@ export function ClinicalWorksheet({
 
     // 1. Try Deepgram Streaming (Medical Model)
     try {
-      const tokenRes = await fetch("/api/stt/deepgram/token");
+      let tokenRes: Response;
+      try {
+        const { createClient } = await import("@/lib/supabase-client");
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers["Authorization"] = `Bearer ${session.access_token}`;
+        }
+        tokenRes = await fetch("/api/stt/deepgram/token", { headers });
+      } catch {
+        tokenRes = await fetch("/api/stt/deepgram/token");
+      }
+
       if (tokenRes.ok) {
         const tokenData = await tokenRes.json();
         const deepgramKey = tokenData?.key;
 
         if (deepgramKey) {
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           });
-          const audioContext = new AudioContext({ sampleRate: 16000 });
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+          if (audioContext.state === "suspended") {
+            await audioContext.resume();
+          }
           await audioContext.audioWorklet.addModule("/worklets/pcm-processor.js");
 
           const source = audioContext.createMediaStreamSource(stream);
           const processor = new AudioWorkletNode(audioContext, "pcm-processor");
           const gainNode = audioContext.createGain();
-          gainNode.gain.value = 1.4;
+          gainNode.gain.value = 1.3;
 
           const socketUrl =
             "wss://api.deepgram.com/v1/listen?model=nova-2-medical&smart_format=true&encoding=linear16&sample_rate=16000";
-          const socket = new WebSocket(socketUrl, ["bearer", deepgramKey]);
+          const socket = new WebSocket(socketUrl, ["token", deepgramKey]);
 
           baseTextRef.current = dictationText ? dictationText.replace(/\s+$/, "") + " " : "";
 
