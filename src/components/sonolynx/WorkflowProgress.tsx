@@ -129,14 +129,14 @@ export function WorkflowProgress({
       className={cn(
         "shrink-0 bg-card px-3 sm:px-4",
         compact
-          ? "min-w-0 flex-1 border-t py-2 xl:border-t-0 xl:flex xl:items-center xl:gap-3"
+          ? "min-w-0 flex-1 border-t py-1 xl:border-t-0 xl:flex xl:items-center xl:gap-3"
           : "border-b py-3",
       )}
     >
       <div
         className={cn(
           "flex items-center gap-2 text-xs",
-          compact ? "mb-1.5 xl:mb-0 xl:shrink-0" : "mb-2.5 w-full",
+          compact ? "mb-1 xl:mb-0 xl:shrink-0" : "mb-2.5 w-full",
         )}
       >
         <span className="font-semibold shrink-0 whitespace-nowrap">Case Progress</span>
@@ -165,17 +165,18 @@ export function WorkflowProgress({
           <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         </Button>
       </div>
-      {error && (
+      {error && !compact && (
         <p role="alert" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground w-full">
           <AlertCircle className="h-3.5 w-3.5" />
           Could not refresh progress.{" "}
           {snapshot ? "Last recorded status is shown below." : "Use refresh to try again."}
         </p>
       )}
-      <ol
-        className={cn("grid grid-cols-4 gap-2 w-full", compact && "xl:flex-1")}
-        aria-label="Report workflow stages"
-      >
+      {!compact && (
+        <ol
+          className="grid grid-cols-4 gap-2 w-full"
+          aria-label="Report workflow stages"
+        >
         {(
           progress?.steps ??
           ["Worksheet", "Doctor Review", "Signed", "Sent"].map((label) => ({
@@ -194,7 +195,7 @@ export function WorkflowProgress({
               aria-current={current ? "step" : undefined}
               className={cn(
                 "min-w-0 rounded-md border px-2 sm:px-3",
-                compact ? "py-1.5" : "py-2",
+                compact ? "py-1" : "py-2",
                 current
                   ? "border-primary/40 bg-primary/5"
                   : step.complete
@@ -234,7 +235,8 @@ export function WorkflowProgress({
             </li>
           );
         })}
-      </ol>
+        </ol>
+      )}
     </section>
   );
 }

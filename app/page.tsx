@@ -1210,13 +1210,13 @@ export default function SonolynxApp() {
 
       {isSonographerView && (
         <div className="flex shrink-0 flex-col border-b bg-card xl:flex-row xl:items-center">
-          <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4 xl:shrink-0 xl:border-r">
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1 sm:px-4 xl:shrink-0 xl:border-r">
             <span className="text-xs font-medium text-muted-foreground">Send case to doctor:</span>
             <select
               value={selectedDoctorId}
               aria-label="Assign doctor"
               onChange={(event) => setSelectedDoctorId(event.target.value)}
-              className="h-8 w-full min-w-0 rounded-md border bg-background px-2 text-xs sm:w-auto sm:min-w-64"
+              className="h-7 w-full min-w-0 rounded-md border bg-background px-2 text-xs sm:w-auto sm:min-w-56"
             >
               <option value="">Select doctor email</option>
               {availableDoctors.map((doctor) => (
@@ -1225,7 +1225,7 @@ export default function SonolynxApp() {
                 </option>
               ))}
             </select>
-            <Button size="sm" onClick={handleSendToDoctor} disabled={sendingToDoctor || savingDraft || loadingWorksheet || worksheetLoadError || hasCriticalErrors || !patient.studyId || !selectedDoctorId}>
+            <Button size="sm" className="h-7 text-xs" onClick={handleSendToDoctor} disabled={sendingToDoctor || savingDraft || loadingWorksheet || worksheetLoadError || hasCriticalErrors || !patient.studyId || !selectedDoctorId}>
               {sendingToDoctor ? "Sending..." : "Send to Doctor"}
             </Button>
             <Button
@@ -1235,7 +1235,7 @@ export default function SonolynxApp() {
                 userToggledDicom.current = true;
                 setShowDicom((v) => !v);
               }}
-              className="h-8 text-xs gap-1.5"
+              className="h-7 text-xs gap-1.5"
               title="Attach ultrasound images or DICOM frames to send with report"
             >
               <Camera className="h-3.5 w-3.5 text-blue-500" />
