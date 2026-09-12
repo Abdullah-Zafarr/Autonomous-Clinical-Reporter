@@ -41,8 +41,8 @@ interface Props {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <div className="space-y-1">
+      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
       {children}
     </div>
   );
@@ -61,6 +61,7 @@ function LobeInputs({
         <Input
           inputMode="decimal"
           placeholder="4.5"
+          className="h-8 text-xs"
           value={value.length}
           onChange={(e) => onChange({ ...value, length: e.target.value })}
         />
@@ -69,6 +70,7 @@ function LobeInputs({
         <Input
           inputMode="decimal"
           placeholder="1.8"
+          className="h-8 text-xs"
           value={value.width}
           onChange={(e) => onChange({ ...value, width: e.target.value })}
         />
@@ -77,6 +79,7 @@ function LobeInputs({
         <Input
           inputMode="decimal"
           placeholder="1.5"
+          className="h-8 text-xs"
           value={value.depth}
           onChange={(e) => onChange({ ...value, depth: e.target.value })}
         />
@@ -124,19 +127,19 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
     <Accordion
       type="multiple"
       defaultValue={["dimensions", "gland-pattern", "nodes", "nodules"]}
-      className="space-y-3"
+      className="space-y-2"
     >
-      <AccordionItem value="dimensions" className="rounded-lg border bg-card px-4">
-        <AccordionTrigger className="text-sm font-semibold">Gland Dimensions</AccordionTrigger>
-        <AccordionContent className="space-y-4 pt-2">
-          <div className="space-y-2">
+      <AccordionItem value="dimensions" className="rounded-lg border bg-card px-3 sm:px-3.5">
+        <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Gland Dimensions</AccordionTrigger>
+        <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+          <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-foreground">Right Lobe</Label>
             <LobeInputs
               value={data.rightLobe}
               onChange={(v) => onChange({ ...data, rightLobe: v })}
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-foreground">Left Lobe</Label>
             <LobeInputs
               value={data.leftLobe}
@@ -147,7 +150,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
             <Input
               inputMode="decimal"
               placeholder="e.g. 3.2"
-              className="max-w-[160px]"
+              className="h-8 max-w-[160px] text-xs"
               value={data.isthmus}
               onChange={(e) => onChange({ ...data, isthmus: e.target.value })}
             />
@@ -155,15 +158,15 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="gland-pattern" className="rounded-lg border bg-card px-4">
-        <AccordionTrigger className="text-sm font-semibold">Parenchyma & Vascularity</AccordionTrigger>
-        <AccordionContent className="space-y-4 pt-2">
+      <AccordionItem value="gland-pattern" className="rounded-lg border bg-card px-3 sm:px-3.5">
+        <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Parenchyma & Vascularity</AccordionTrigger>
+        <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
           <Field label="Parenchyma">
             <Select
               value={data.parenchyma}
               onValueChange={(v) => onChange({ ...data, parenchyma: v as ThyroidParenchyma })}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Homogeneous">Homogeneous</SelectItem>
                 <SelectItem value="Mildly heterogeneous">Mildly heterogeneous</SelectItem>
@@ -176,7 +179,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
               value={data.vascularity}
               onValueChange={(v) => onChange({ ...data, vascularity: v as ThyroidVascularity })}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Normal">Normal</SelectItem>
                 <SelectItem value="Increased">Increased</SelectItem>
@@ -186,15 +189,15 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="nodes" className="rounded-lg border bg-card px-4">
-        <AccordionTrigger className="text-sm font-semibold">Cervical Lymph Nodes</AccordionTrigger>
-        <AccordionContent className="space-y-4 pt-2">
+      <AccordionItem value="nodes" className="rounded-lg border bg-card px-3 sm:px-3.5">
+        <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Cervical Lymph Nodes</AccordionTrigger>
+        <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
           <Field label="Suspicious Nodes">
             <Select
               value={data.cervicalNodes}
               onValueChange={(v) => onChange({ ...data, cervicalNodes: v as CervicalNode })}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="None suspicious">None suspicious</SelectItem>
                 <SelectItem value="Suspicious right">Suspicious right</SelectItem>
@@ -206,8 +209,8 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
         </AccordionContent>
       </AccordionItem>
 
-      <AccordionItem value="nodules" className="rounded-lg border bg-card px-4">
-        <AccordionTrigger className="text-sm font-semibold">
+      <AccordionItem value="nodules" className="rounded-lg border bg-card px-3 sm:px-3.5">
+        <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">
           <div className="flex items-center gap-2">
             <span>Nodules</span>
             {data.nodules.length > 0 && (
@@ -217,7 +220,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
             )}
           </div>
         </AccordionTrigger>
-        <AccordionContent className="space-y-3 pt-2">
+        <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
           {data.nodules.length === 0 && (
             <p className="rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
               No nodules added. Click below to track a finding.
@@ -254,7 +257,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.location}
                     onValueChange={(v) => updateNodule(n.id, { location: v as NoduleLocation })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Right">Right</SelectItem>
                       <SelectItem value="Left">Left</SelectItem>
@@ -266,7 +269,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                   <Input
                     inputMode="decimal"
                     placeholder="1.2"
-                    className="h-9"
+                    className="h-8 text-xs"
                     value={n.size}
                     onChange={(e) => updateNodule(n.id, { size: e.target.value })}
                   />
@@ -276,7 +279,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.composition}
                     onValueChange={(v) => updateNodule(n.id, { composition: v as NoduleComposition })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Solid">Solid</SelectItem>
                       <SelectItem value="Cystic">Cystic</SelectItem>
@@ -289,7 +292,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.echogenicity}
                     onValueChange={(v) => updateNodule(n.id, { echogenicity: v as NoduleEchogenicity })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Anechoic">Anechoic</SelectItem>
                       <SelectItem value="Hyperechoic/Isoechoic">Hyperechoic/Isoechoic</SelectItem>
@@ -303,7 +306,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.shape}
                     onValueChange={(v) => updateNodule(n.id, { shape: v as NoduleShape })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Wider-than-tall">Wider-than-tall</SelectItem>
                       <SelectItem value="Taller-than-wide">Taller-than-wide</SelectItem>
@@ -315,7 +318,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.margin}
                     onValueChange={(v) => updateNodule(n.id, { margin: v as NoduleMargin })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Smooth">Smooth</SelectItem>
                       <SelectItem value="Ill-defined">Ill-defined</SelectItem>
@@ -329,7 +332,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.echogenicFoci}
                     onValueChange={(v) => updateNodule(n.id, { echogenicFoci: v as NoduleEchogenicFoci })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="None">None</SelectItem>
                       <SelectItem value="Comet-tail artifacts">Comet-tail artifacts</SelectItem>
@@ -344,7 +347,7 @@ export function ThyroidWorksheet({ data, onChange, isDoctorMode = false }: Props
                     value={n.tirads}
                     onValueChange={(v) => updateNodule(n.id, { tirads: v as TiRads })}
                   >
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TR1">TR1 — Benign</SelectItem>
                       <SelectItem value="TR2">TR2 — Not suspicious</SelectItem>

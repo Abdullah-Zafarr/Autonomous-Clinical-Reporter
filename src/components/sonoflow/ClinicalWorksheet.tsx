@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Save, Send, Code2, CheckCircle2, Mic, MicOff, Sparkles, FileText, Loader2, 
   GripVertical, X, Activity, Droplet, Shield, Microscope, GitFork, Waves, 
-  Binary, Spline, Plus, Printer
+  Binary, Spline, Plus, Printer, ChevronUp, ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -170,15 +170,15 @@ function DraggableOrganButton({ id, meta, isActive, onAdd }: { id: string; meta:
       size="sm"
       onClick={onAdd}
       className={cn(
-        "h-8 shrink-0 gap-1.5 bg-card hover:border-primary/50 transition-all",
+        "h-7 text-xs shrink-0 gap-1 bg-card hover:border-primary/50 transition-all px-2.5",
         isActive && "border-primary/30 opacity-60",
         isDragging && "opacity-20 grayscale"
       )}
       {...attributes}
       {...listeners}
     >
-      <Icon className="h-3.5 w-3.5 text-primary/70" />
-      <span className="text-[13px]">{meta.label}</span>
+      <Icon className="h-3 w-3 text-primary/70" />
+      <span className="text-xs">{meta.label}</span>
     </Button>
   );
 }
@@ -241,7 +241,7 @@ function SortableOrganSection({ id, children, onRemove, isDoctorMode }: { id: st
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       {children}
     </div>
@@ -305,8 +305,8 @@ const ClinicalNotesSection = ({
   value: string; 
   onChange: (v: string) => void 
 }) => (
-  <div className="mt-8 border-t pt-6 pb-2">
-    <div className="flex items-center justify-between mb-3">
+  <div className="mt-4 border-t pt-3 pb-1">
+    <div className="flex items-center justify-between mb-2">
       <Label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
         <FileText className="h-3 w-3" /> Additional Clinical Notes
       </Label>
@@ -315,7 +315,7 @@ const ClinicalNotesSection = ({
           variant="ghost" 
           size="sm" 
           onClick={() => onChange("")}
-          className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
+          className="h-5 px-2 text-[10px] text-muted-foreground hover:text-destructive"
         >
           Clear
         </Button>
@@ -325,9 +325,9 @@ const ClinicalNotesSection = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Any additional observations, patient history, or clinical context..."
-      className="min-h-[80px] bg-muted/5 text-sm resize-none transition-all focus:ring-1 focus:ring-primary/20 border-dashed"
+      className="min-h-[60px] bg-muted/5 text-xs resize-none transition-all focus:ring-1 focus:ring-primary/20 border-dashed"
     />
-    <p className="mt-2 text-[10px] text-muted-foreground/60 italic">
+    <p className="mt-1 text-[10px] text-muted-foreground/60 italic">
       Findings entered here are automatically integrated into the final clinical report.
     </p>
   </div>
@@ -802,63 +802,69 @@ export function ClinicalWorksheet({
     switch (id) {
       case "liver":
         return (
-          <AccordionItem value="liver" key="liver" className={cn("rounded-lg border bg-card px-4", getFieldLevel("liver", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Liver</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Size (cm)">
-                <Input
-                  inputMode="decimal"
-                  placeholder="e.g. 14.2"
-                  value={data.liver.size}
-                  onChange={(e) => update("liver", { size: e.target.value })}
-                  className={cn(getFieldLevel("liver.size", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("liver.size", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="liver.size" issues={validationIssues} />
-              </Field>
-              <Field label="Echotexture">
-                <Select value={data.liver.echotexture} onValueChange={(v) => update("liver", { echotexture: v as LiverEcho })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Homogeneous">Homogeneous</SelectItem>
-                    <SelectItem value="Diffusely echogenic (fatty infiltration)">Diffusely echogenic (fatty infiltration)</SelectItem>
-                    <SelectItem value="Coarse">Coarse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Surface">
-                <RadioRow name="liver-surface" value={data.liver.surface} options={["Smooth", "Nodular"]} onChange={(v) => update("liver", { surface: v as LiverSurface })} />
-              </Field>
-              <Field label="Focal Lesions">
-                <RadioRow name="liver-focal" value={data.liver.focalLesions} options={["None", "Cyst", "Solid Mass"]} onChange={(v) => update("liver", { focalLesions: v as FocalLesion })} />
-              </Field>
+          <AccordionItem value="liver" key="liver" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("liver", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Liver</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Size (cm)">
+                  <Input
+                    inputMode="decimal"
+                    placeholder="e.g. 14.2"
+                    value={data.liver.size}
+                    onChange={(e) => update("liver", { size: e.target.value })}
+                    className={cn("h-8 text-xs", getFieldLevel("liver.size", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("liver.size", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="liver.size" issues={validationIssues} />
+                </Field>
+                <Field label="Echotexture">
+                  <Select value={data.liver.echotexture} onValueChange={(v) => update("liver", { echotexture: v as LiverEcho })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Homogeneous">Homogeneous</SelectItem>
+                      <SelectItem value="Diffusely echogenic (fatty infiltration)">Diffusely echogenic (fatty infiltration)</SelectItem>
+                      <SelectItem value="Coarse">Coarse</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Surface">
+                  <RadioRow name="liver-surface" value={data.liver.surface} options={["Smooth", "Nodular"]} onChange={(v) => update("liver", { surface: v as LiverSurface })} />
+                </Field>
+                <Field label="Focal Lesions">
+                  <RadioRow name="liver-focal" value={data.liver.focalLesions} options={["None", "Cyst", "Solid Mass"]} onChange={(v) => update("liver", { focalLesions: v as FocalLesion })} />
+                </Field>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
       case "gallbladder":
         return (
-          <AccordionItem value="gallbladder" key="gallbladder" className={cn("rounded-lg border bg-card px-4", getFieldLevel("gallbladder", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Gallbladder</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Wall Thickness (mm)">
-                <Input 
-                  inputMode="decimal" 
-                  placeholder="e.g. 2.5" 
-                  value={data.gallbladder.wallThickness} 
-                  onChange={(e) => update("gallbladder", { wallThickness: e.target.value })} 
-                  className={cn(getFieldLevel("gallbladder.wallThickness", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("gallbladder.wallThickness", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="gallbladder.wallThickness" issues={validationIssues} />
-              </Field>
-              <Field label="Content">
-                <Select value={data.gallbladder.content} onValueChange={(v) => update("gallbladder", { content: v as GbContent })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Clear">Clear</SelectItem>
-                    <SelectItem value="Sludge">Sludge</SelectItem>
-                    <SelectItem value="Gallstones">Gallstones</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
+          <AccordionItem value="gallbladder" key="gallbladder" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("gallbladder", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Gallbladder</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Wall Thickness (mm)">
+                  <Input 
+                    inputMode="decimal" 
+                    placeholder="e.g. 2.5" 
+                    value={data.gallbladder.wallThickness} 
+                    onChange={(e) => update("gallbladder", { wallThickness: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("gallbladder.wallThickness", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("gallbladder.wallThickness", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="gallbladder.wallThickness" issues={validationIssues} />
+                </Field>
+                <Field label="Content">
+                  <Select value={data.gallbladder.content} onValueChange={(v) => update("gallbladder", { content: v as GbContent })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Clear">Clear</SelectItem>
+                      <SelectItem value="Sludge">Sludge</SelectItem>
+                      <SelectItem value="Gallstones">Gallstones</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
               <Field label="Murphy's Sign">
                 <RadioRow name="gb-murphy" value={data.gallbladder.murphysSign} options={["Negative", "Positive"]} onChange={(v) => update("gallbladder", { murphysSign: v as MurphysSign })} />
               </Field>
@@ -867,37 +873,39 @@ export function ClinicalWorksheet({
         );
       case "biliary":
         return (
-          <AccordionItem value="biliary" key="biliary" className={cn("rounded-lg border bg-card px-4", getFieldLevel("biliary", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Biliary Tree</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Common Bile Duct / CBD (mm)">
-                <Input 
-                  inputMode="decimal" 
-                  placeholder="e.g. 4" 
-                  value={data.biliary.cbd} 
-                  onChange={(e) => update("biliary", { cbd: e.target.value })} 
-                  className={cn(getFieldLevel("biliary.cbd", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("biliary.cbd", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="biliary.cbd" issues={validationIssues} />
-              </Field>
-              <Field label="Intrahepatic Ducts">
-                <RadioRow name="biliary-ihd" value={data.biliary.intrahepatic} options={["Normal", "Dilated"]} onChange={(v) => update("biliary", { intrahepatic: v as DuctState })} />
-              </Field>
+          <AccordionItem value="biliary" key="biliary" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("biliary", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Biliary Tree</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Common Bile Duct / CBD (mm)">
+                  <Input 
+                    inputMode="decimal" 
+                    placeholder="e.g. 4" 
+                    value={data.biliary.cbd} 
+                    onChange={(e) => update("biliary", { cbd: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("biliary.cbd", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("biliary.cbd", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="biliary.cbd" issues={validationIssues} />
+                </Field>
+                <Field label="Intrahepatic Ducts">
+                  <RadioRow name="biliary-ihd" value={data.biliary.intrahepatic} options={["Normal", "Dilated"]} onChange={(v) => update("biliary", { intrahepatic: v as DuctState })} />
+                </Field>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
       case "kidneys":
         return (
-          <AccordionItem value="kidneys" key="kidneys" className={cn("rounded-lg border bg-card px-4", getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Kidneys</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
+          <AccordionItem value="kidneys" key="kidneys" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Kidneys</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Right (cm)">
                   <Input 
                     inputMode="decimal" 
                     value={data.kidneys.rightLength} 
                     onChange={(e) => update("kidneys", { rightLength: e.target.value })} 
-                    className={cn(getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("kidneys", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                    className={cn("h-8 text-xs", getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("kidneys", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
                   />
                 </Field>
                 <Field label="Left (cm)">
@@ -905,97 +913,105 @@ export function ClinicalWorksheet({
                     inputMode="decimal" 
                     value={data.kidneys.leftLength} 
                     onChange={(e) => update("kidneys", { leftLength: e.target.value })} 
-                    className={cn(getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("kidneys", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                    className={cn("h-8 text-xs", getFieldLevel("kidneys", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("kidneys", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
                   />
                 </Field>
               </div>
               <FieldError field="kidneys" issues={validationIssues} />
-              <Field label="Hydronephrosis">
-                <RadioRow name="kidney-hydro" value={data.kidneys.hydronephrosis} options={["None", "Mild", "Moderate", "Severe"]} onChange={(v) => update("kidneys", { hydronephrosis: v as Hydronephrosis })} />
-              </Field>
-              <Field label="Renal Stones">
-                <RadioRow name="kidney-stones" value={data.kidneys.stones} options={["None", "Right", "Left", "Bilateral"]} onChange={(v) => update("kidneys", { stones: v as RenalStone })} />
-              </Field>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Hydronephrosis">
+                  <RadioRow name="kidney-hydro" value={data.kidneys.hydronephrosis} options={["None", "Mild", "Moderate", "Severe"]} onChange={(v) => update("kidneys", { hydronephrosis: v as Hydronephrosis })} />
+                </Field>
+                <Field label="Renal Stones">
+                  <RadioRow name="kidney-stones" value={data.kidneys.stones} options={["None", "Right", "Left", "Bilateral"]} onChange={(v) => update("kidneys", { stones: v as RenalStone })} />
+                </Field>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
       case "spleen":
         return (
-          <AccordionItem value="spleen" key="spleen" className={cn("rounded-lg border bg-card px-4", getFieldLevel("spleen", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Spleen</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Size (cm)">
-                <Input 
-                  inputMode="decimal" 
-                  value={data.spleen.size} 
-                  onChange={(e) => update("spleen", { size: e.target.value })} 
-                  className={cn(getFieldLevel("spleen.size", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("spleen.size", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="spleen.size" issues={validationIssues} />
-              </Field>
-              <Field label="Echotexture"><RadioRow name="spleen-echo" value={data.spleen.echotexture} options={["Normal", "Heterogeneous"]} onChange={(v) => update("spleen", { echotexture: v as SpleenEcho })} /></Field>
+          <AccordionItem value="spleen" key="spleen" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("spleen", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Spleen</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Size (cm)">
+                  <Input 
+                    inputMode="decimal" 
+                    value={data.spleen.size} 
+                    onChange={(e) => update("spleen", { size: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("spleen.size", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("spleen.size", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="spleen.size" issues={validationIssues} />
+                </Field>
+                <Field label="Echotexture"><RadioRow name="spleen-echo" value={data.spleen.echotexture} options={["Normal", "Heterogeneous"]} onChange={(v) => update("spleen", { echotexture: v as SpleenEcho })} /></Field>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
       case "pancreas":
         return (
-          <AccordionItem value="pancreas" key="pancreas" className={cn("rounded-lg border bg-card px-4", getFieldLevel("pancreas", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Pancreas</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Visualization">
-                <Select value={data.pancreas.visualized} onValueChange={(v) => update("pancreas", { visualized: v as PancreasVisualized })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Fully visualized">Fully visualized</SelectItem>
-                    <SelectItem value="Partially visualized">Partially visualized</SelectItem>
-                    <SelectItem value="Obscured by bowel gas">Obscured by bowel gas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Main Duct (mm)">
-                <Input 
-                  inputMode="decimal" 
-                  value={data.pancreas.ductMm} 
-                  onChange={(e) => update("pancreas", { ductMm: e.target.value })} 
-                  className={cn(getFieldLevel("pancreas.ductMm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("pancreas.ductMm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="pancreas.ductMm" issues={validationIssues} />
-              </Field>
+          <AccordionItem value="pancreas" key="pancreas" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("pancreas", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Pancreas</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Visualization">
+                  <Select value={data.pancreas.visualized} onValueChange={(v) => update("pancreas", { visualized: v as PancreasVisualized })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Fully visualized">Fully visualized</SelectItem>
+                      <SelectItem value="Partially visualized">Partially visualized</SelectItem>
+                      <SelectItem value="Obscured by bowel gas">Obscured by bowel gas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Main Duct (mm)">
+                  <Input 
+                    inputMode="decimal" 
+                    value={data.pancreas.ductMm} 
+                    onChange={(e) => update("pancreas", { ductMm: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("pancreas.ductMm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("pancreas.ductMm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="pancreas.ductMm" issues={validationIssues} />
+                </Field>
+              </div>
             </AccordionContent>
           </AccordionItem>
         );
       case "vessels":
         return (
-          <AccordionItem value="vessels" key="vessels" className={cn("rounded-lg border bg-card px-4", getFieldLevel("vessels", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
-            <AccordionTrigger className="text-sm font-semibold">Vessels (Portal/Aorta/IVC)</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <Field label="Portal Vein (mm)">
-                <Input 
-                  inputMode="decimal" 
-                  value={data.vessels.portalVeinMm} 
-                  onChange={(e) => update("vessels", { portalVeinMm: e.target.value })} 
-                  className={cn(getFieldLevel("vessels.portalVeinMm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("vessels.portalVeinMm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="vessels.portalVeinMm" issues={validationIssues} />
-              </Field>
-              <Field label="Aorta AP (cm)">
-                <Input 
-                  inputMode="decimal" 
-                  value={data.vessels.aortaMaxApCm} 
-                  onChange={(e) => update("vessels", { aortaMaxApCm: e.target.value })} 
-                  className={cn(getFieldLevel("vessels.aortaMaxApCm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("vessels.aortaMaxApCm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
-                />
-                <FieldError field="vessels.aortaMaxApCm" issues={validationIssues} />
-              </Field>
+          <AccordionItem value="vessels" key="vessels" className={cn("rounded-lg border bg-card px-3.5 sm:px-4", getFieldLevel("vessels", validationIssues) === "error" && "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]")}>
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Vessels (Portal/Aorta/IVC)</AccordionTrigger>
+            <AccordionContent className="space-y-2.5 pt-1 pb-2.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Field label="Portal Vein (mm)">
+                  <Input 
+                    inputMode="decimal" 
+                    value={data.vessels.portalVeinMm} 
+                    onChange={(e) => update("vessels", { portalVeinMm: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("vessels.portalVeinMm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("vessels.portalVeinMm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="vessels.portalVeinMm" issues={validationIssues} />
+                </Field>
+                <Field label="Aorta AP (cm)">
+                  <Input 
+                    inputMode="decimal" 
+                    value={data.vessels.aortaMaxApCm} 
+                    onChange={(e) => update("vessels", { aortaMaxApCm: e.target.value })} 
+                    className={cn("h-8 text-xs", getFieldLevel("vessels.aortaMaxApCm", validationIssues) === "error" && "border-red-500 bg-red-50/50", getFieldLevel("vessels.aortaMaxApCm", validationIssues) === "warning" && "border-amber-500 bg-amber-50/50")}
+                  />
+                  <FieldError field="vessels.aortaMaxApCm" issues={validationIssues} />
+                </Field>
+              </div>
               <Field label="Aorta Appearance"><RadioRow name="aorta-state" value={data.vessels.aortaState} options={["Normal", "Ectatic", "Aneurysmal"]} onChange={(v) => update("vessels", { aortaState: v as AortaState })} /></Field>
             </AccordionContent>
           </AccordionItem>
         );
       case "ascites":
         return (
-          <AccordionItem value="ascites" key="ascites" className="rounded-lg border bg-card px-4">
-            <AccordionTrigger className="text-sm font-semibold">Ascites</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
+          <AccordionItem value="ascites" key="ascites" className="rounded-lg border bg-card px-3.5 sm:px-4">
+            <AccordionTrigger className="py-2.5 text-sm font-semibold hover:no-underline">Ascites</AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-1 pb-3">
               <Field label="Volume"><RadioRow name="ascites-volume" value={data.ascites.volume} options={["None", "Mild", "Moderate", "Large"]} onChange={(v) => update("ascites", { volume: v as Ascites })} /></Field>
             </AccordionContent>
           </AccordionItem>
@@ -1007,31 +1023,31 @@ export function ClinicalWorksheet({
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-      <header className="flex items-center justify-between border-b bg-card px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between border-b bg-card px-3 py-1.5 sm:px-4 shrink-0">
+        <div className="flex items-center gap-2.5">
           <Logo size="sm" className="opacity-90" />
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Clinical Worksheet</h2>
-            <p className="text-[10px] text-muted-foreground">Structured findings · Auto-generates report in real time</p>
+          <div className="leading-tight">
+            <h2 className="text-sm font-semibold text-foreground">Clinical Worksheet</h2>
+            <p className="text-[10px] text-muted-foreground hidden sm:block">Structured findings · Real-time sync</p>
           </div>
         </div>
-          <div className="flex items-center gap-2">
-            {!isDoctorMode && (
-              <span className={cn(
-                "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                isListening ? "bg-red-500/10 text-red-600 animate-pulse" : "bg-muted text-muted-foreground"
-              )}>
-                <div className={cn("h-1.5 w-1.5 rounded-full", isListening ? "bg-red-500" : "bg-muted-foreground")} />
-                {isListening
-                  ? sttMode === "deepgram"
-                    ? "Listening (Deepgram Medical)..."
-                    : sttMode === "browser"
-                      ? "Listening (Browser Speech)..."
-                      : "Listening..."
-                  : "Microphone Off"}
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          {!isDoctorMode && (
+            <span className={cn(
+              "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              isListening ? "bg-red-500/10 text-red-600 animate-pulse" : "bg-muted text-muted-foreground"
+            )}>
+              <div className={cn("h-1.5 w-1.5 rounded-full", isListening ? "bg-red-500" : "bg-muted-foreground")} />
+              {isListening
+                ? sttMode === "deepgram"
+                  ? "Listening (Deepgram Medical)..."
+                  : sttMode === "browser"
+                    ? "Listening (Browser Speech)..."
+                    : "Listening..."
+                : "Microphone Off"}
+            </span>
+          )}
+        </div>
       </header>
 
       {/* Smart Dictation */}
@@ -1065,12 +1081,12 @@ export function ClinicalWorksheet({
       )}
 
       <Tabs value={exam} onValueChange={(v) => onExamChange(v as ExamType)} className="flex min-h-0 flex-1 flex-col">
-        <div className="border-b bg-card px-4 pt-3 sm:px-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
-            <TabsTrigger value="Abdomen">Abdomen</TabsTrigger>
-            <TabsTrigger value="Thyroid">Thyroid</TabsTrigger>
-            <TabsTrigger value="OB">OB</TabsTrigger>
-            <TabsTrigger value="Vascular">Vascular</TabsTrigger>
+        <div className="border-b bg-card px-3 py-1.5 sm:px-4 shrink-0">
+          <TabsList className="grid h-8 w-full max-w-xl grid-cols-4">
+            <TabsTrigger value="Abdomen" className="h-7 text-xs">Abdomen</TabsTrigger>
+            <TabsTrigger value="Thyroid" className="h-7 text-xs">Thyroid</TabsTrigger>
+            <TabsTrigger value="OB" className="h-7 text-xs">OB</TabsTrigger>
+            <TabsTrigger value="Vascular" className="h-7 text-xs">Vascular</TabsTrigger>
           </TabsList>
         </div>
 
@@ -1089,9 +1105,9 @@ export function ClinicalWorksheet({
             >
               {/* Organ Palette (Navbar) */}
               {!isDoctorMode && (
-                <div className="bg-muted/30 px-4 py-2 sm:px-6 border-b mb-4 rounded-b-lg">
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-2 shrink-0">Add Organ:</span>
+                <div className="bg-muted/30 px-3 py-1.5 sm:px-4 border-b mb-2 rounded-b-lg">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1.5 shrink-0">Add Organ:</span>
                     {Object.entries(ORGAN_METADATA).map(([id, meta]) => (
                       <DraggableOrganButton 
                         key={id} 
@@ -1105,14 +1121,14 @@ export function ClinicalWorksheet({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
+              <div className="min-h-0 flex-1 px-3 py-2 sm:px-4">
                 <WorksheetDroppableArea>
                   <SortableContext items={abdomenOrder} strategy={verticalListSortingStrategy}>
                     <Accordion 
                       type="multiple" 
                       value={expandedItems} 
                       onValueChange={setExpandedItems}
-                      className="space-y-3"
+                      className="space-y-2"
                     >
                       {abdomenOrder.map((id) => (
                         <SortableOrganSection key={id} id={id} onRemove={() => removeOrgan(id)} isDoctorMode={isDoctorMode}>
@@ -1121,12 +1137,12 @@ export function ClinicalWorksheet({
                       ))}
                     </Accordion>
                     {abdomenOrder.length === 0 && (
-                      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 text-center h-[300px]">
-                        <div className="rounded-full bg-primary/5 p-4 mb-4">
-                          <Plus className="h-8 w-8 text-primary/40" />
+                      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center h-[220px]">
+                        <div className="rounded-full bg-primary/5 p-3 mb-3">
+                          <Plus className="h-6 w-6 text-primary/40" />
                         </div>
                         <p className="text-sm font-medium text-muted-foreground">Your report is empty.</p>
-                        <p className="text-xs text-muted-foreground">Drag organ icons from the top bar or click them to add.</p>
+                        <p className="text-xs text-muted-foreground">Click or drag organ icons from the top bar to add.</p>
                       </div>
                     )}
                   </SortableContext>
@@ -1166,37 +1182,37 @@ export function ClinicalWorksheet({
             </DndContext>
           </TabsContent>
 
-          <TabsContent value="Thyroid" className="mt-0 p-4 sm:p-6">
+          <TabsContent value="Thyroid" className="mt-0 p-3 sm:p-4">
             <ThyroidWorksheet data={thyroid} onChange={onThyroidChange} isDoctorMode={isDoctorMode} />
             <ClinicalNotesSection value={additionalNotes} onChange={onAdditionalNotesChange} />
           </TabsContent>
           
-          <TabsContent value="OB" className="mt-0 p-4 sm:p-6">
-             <div className="rounded-lg border bg-card p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                   <Field label="Gestational Age"><Input aria-label="Gestational age" placeholder="e.g. 20w 3d" value={ob.gestationalAge} onChange={(e) => updateOb({ gestationalAge: e.target.value })} /></Field>
-                   <Field label="Fetal Heart Rate (bpm)"><Input aria-label="Fetal heart rate (bpm)" inputMode="decimal" value={ob.fetalHeartRate} onChange={(e) => updateOb({ fetalHeartRate: e.target.value })} /><FieldError field="ob.fetalHeartRate" issues={validationIssues} /></Field>
-                   <Field label="Presentation"><select aria-label="Fetal presentation" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.presentation} onChange={(e) => updateOb({ presentation: e.target.value as ObData["presentation"] })}>{["Cephalic", "Breech", "Transverse", "Variable"].map((value) => <option key={value}>{value}</option>)}</select></Field>
-                   <Field label="Placenta location"><select aria-label="Placenta location" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.placentaLocation} onChange={(e) => updateOb({ placentaLocation: e.target.value as ObData["placentaLocation"] })}>{["Anterior", "Posterior", "Fundal", "Low-lying", "Previa"].map((value) => <option key={value}>{value}</option>)}</select></Field>
-                   <Field label="Amniotic fluid"><select aria-label="Amniotic fluid" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={ob.amnioticFluid} onChange={(e) => updateOb({ amnioticFluid: e.target.value as ObData["amnioticFluid"] })}>{["Normal", "Reduced", "Increased"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+          <TabsContent value="OB" className="mt-0 p-3 sm:p-4">
+             <div className="rounded-lg border bg-card p-3.5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                   <Field label="Gestational Age"><Input aria-label="Gestational age" placeholder="e.g. 20w 3d" className="h-8 text-xs" value={ob.gestationalAge} onChange={(e) => updateOb({ gestationalAge: e.target.value })} /></Field>
+                   <Field label="Fetal Heart Rate (bpm)"><Input aria-label="Fetal heart rate (bpm)" inputMode="decimal" className="h-8 text-xs" value={ob.fetalHeartRate} onChange={(e) => updateOb({ fetalHeartRate: e.target.value })} /><FieldError field="ob.fetalHeartRate" issues={validationIssues} /></Field>
+                   <Field label="Presentation"><select aria-label="Fetal presentation" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={ob.presentation} onChange={(e) => updateOb({ presentation: e.target.value as ObData["presentation"] })}>{["Cephalic", "Breech", "Transverse", "Variable"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Placenta location"><select aria-label="Placenta location" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={ob.placentaLocation} onChange={(e) => updateOb({ placentaLocation: e.target.value as ObData["placentaLocation"] })}>{["Anterior", "Posterior", "Fundal", "Low-lying", "Previa"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Amniotic fluid"><select aria-label="Amniotic fluid" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={ob.amnioticFluid} onChange={(e) => updateOb({ amnioticFluid: e.target.value as ObData["amnioticFluid"] })}>{["Normal", "Reduced", "Increased"].map((value) => <option key={value}>{value}</option>)}</select></Field>
                 </div>
-                <Field label="Biometry notes"><Textarea aria-label="Biometry notes" value={ob.biometryNotes} onChange={(e) => updateOb({ biometryNotes: e.target.value })} /></Field>
-                <Field label="Impression"><Textarea aria-label="Obstetric impression" value={ob.impression} onChange={(e) => updateOb({ impression: e.target.value })} /></Field>
+                <Field label="Biometry notes"><Textarea aria-label="Biometry notes" className="min-h-[50px] text-xs py-1.5" value={ob.biometryNotes} onChange={(e) => updateOb({ biometryNotes: e.target.value })} /></Field>
+                <Field label="Impression"><Textarea aria-label="Obstetric impression" className="min-h-[50px] text-xs py-1.5" value={ob.impression} onChange={(e) => updateOb({ impression: e.target.value })} /></Field>
              </div>
              <ClinicalNotesSection value={additionalNotes} onChange={onAdditionalNotesChange} />
           </TabsContent>
 
-          <TabsContent value="Vascular" className="mt-0 p-4 sm:p-6">
-             <div className="rounded-lg border bg-card p-4 space-y-4">
-                <Field label="Vessel Examined"><Input aria-label="Vessel examined" value={vascular.vesselExamined} onChange={(e) => updateVascular({ vesselExamined: e.target.value })} /></Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Laterality"><select aria-label="Vascular laterality" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.laterality} onChange={(e) => updateVascular({ laterality: e.target.value as VascularData["laterality"] })}>{["Right", "Left", "Bilateral", "Midline"].map((value) => <option key={value}>{value}</option>)}</select></Field>
-                  <Field label="Flow patency"><select aria-label="Flow patency" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.flowPatency} onChange={(e) => updateVascular({ flowPatency: e.target.value as VascularData["flowPatency"] })}>{["Patent", "Partially occluded", "Occluded"].map((value) => <option key={value}>{value}</option>)}</select></Field>
-                  <Field label="Thrombus"><select aria-label="Thrombus presence" className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={vascular.thrombusPresence} onChange={(e) => updateVascular({ thrombusPresence: e.target.value as VascularData["thrombusPresence"] })}>{["Absent", "Present", "Indeterminate"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+          <TabsContent value="Vascular" className="mt-0 p-3 sm:p-4">
+             <div className="rounded-lg border bg-card p-3.5 space-y-3">
+                <Field label="Vessel Examined"><Input aria-label="Vessel examined" className="h-8 text-xs" value={vascular.vesselExamined} onChange={(e) => updateVascular({ vesselExamined: e.target.value })} /></Field>
+                <div className="grid grid-cols-2 gap-3">
+                   <Field label="Laterality"><select aria-label="Vascular laterality" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={vascular.laterality} onChange={(e) => updateVascular({ laterality: e.target.value as VascularData["laterality"] })}>{["Right", "Left", "Bilateral", "Midline"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Flow patency"><select aria-label="Flow patency" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={vascular.flowPatency} onChange={(e) => updateVascular({ flowPatency: e.target.value as VascularData["flowPatency"] })}>{["Patent", "Partially occluded", "Occluded"].map((value) => <option key={value}>{value}</option>)}</select></Field>
+                   <Field label="Thrombus"><select aria-label="Thrombus presence" className="h-8 w-full rounded-md border bg-background px-2 text-xs" value={vascular.thrombusPresence} onChange={(e) => updateVascular({ thrombusPresence: e.target.value as VascularData["thrombusPresence"] })}>{["Absent", "Present", "Indeterminate"].map((value) => <option key={value}>{value}</option>)}</select></Field>
                 </div>
-                <Field label="Stenosis findings"><Textarea aria-label="Stenosis findings" value={vascular.stenosisFindings} onChange={(e) => updateVascular({ stenosisFindings: e.target.value })} /></Field>
-                <Field label="Waveform notes"><Textarea aria-label="Waveform notes" value={vascular.waveformNotes} onChange={(e) => updateVascular({ waveformNotes: e.target.value })} /></Field>
-                <Field label="Impression"><Textarea aria-label="Vascular impression" value={vascular.impression} onChange={(e) => updateVascular({ impression: e.target.value })} /></Field>
+                <Field label="Stenosis findings"><Textarea aria-label="Stenosis findings" className="min-h-[50px] text-xs py-1.5" value={vascular.stenosisFindings} onChange={(e) => updateVascular({ stenosisFindings: e.target.value })} /></Field>
+                <Field label="Waveform notes"><Textarea aria-label="Waveform notes" className="min-h-[50px] text-xs py-1.5" value={vascular.waveformNotes} onChange={(e) => updateVascular({ waveformNotes: e.target.value })} /></Field>
+                <Field label="Impression"><Textarea aria-label="Vascular impression" className="min-h-[50px] text-xs py-1.5" value={vascular.impression} onChange={(e) => updateVascular({ impression: e.target.value })} /></Field>
              </div>
              <ClinicalNotesSection value={additionalNotes} onChange={onAdditionalNotesChange} />
           </TabsContent>
@@ -1204,15 +1220,15 @@ export function ClinicalWorksheet({
 
       </Tabs>
 
-      <footer className="border-t bg-card px-3 py-2 pb-5 sm:px-6 sm:pb-6">
+      <footer className="border-t bg-card px-3 py-1.5 sm:px-4 sm:py-2 shrink-0">
         <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="flex items-center gap-1.5 shrink-0">
-            {isDoctorMode && <Button aria-label="Inspect HL7" variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
-              <Code2 className="h-4 w-4" /> 
+            {isDoctorMode && <Button aria-label="Inspect HL7" variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-7 sm:h-8 gap-1.5 px-2.5 text-xs", isCompact && "w-7 p-0")}>
+              <Code2 className="h-3.5 w-3.5" /> 
               {!isCompact && <span>Inspect HL7</span>}
             </Button>}
-            <Button aria-label="Generate report" variant="outline" size="sm" onClick={onGenerateReport} className={cn("h-8 sm:h-9 gap-2 px-3", isCompact && "w-8 p-0")}>
-              <FileText className="h-4 w-4" /> 
+            <Button aria-label="Generate report" variant="outline" size="sm" onClick={onGenerateReport} className={cn("h-7 sm:h-8 gap-1.5 px-2.5 text-xs", isCompact && "w-7 p-0")}>
+              <FileText className="h-3.5 w-3.5" /> 
               {!isCompact && <span>Generate</span>}
             </Button>
           </div>
@@ -1228,8 +1244,8 @@ export function ClinicalWorksheet({
               </div>
             )}
 
-            <Button aria-label="Save draft" variant="outline" size="sm" onClick={onSaveDraft} disabled={savingDraft || sendingToDoctor || sendingReport} className={cn("h-8 sm:h-9 gap-2 shrink-0 px-3", isCompact && "w-8 p-0")}>
-              {savingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} 
+            <Button aria-label="Save draft" variant="outline" size="sm" onClick={onSaveDraft} disabled={savingDraft || sendingToDoctor || sendingReport} className={cn("h-7 sm:h-8 gap-1.5 shrink-0 px-2.5 text-xs", isCompact && "w-7 p-0")}>
+              {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} 
               {!isCompact && <span>Draft</span>}
             </Button>
             
@@ -1240,18 +1256,18 @@ export function ClinicalWorksheet({
               aria-label={isDoctorMode ? "Finalize report" : "Send to Doctor"}
               disabled={!canSignAndSend || savingDraft || sendingReport || sendingToDoctor}
               className={cn(
-                "h-8 px-3 sm:h-9 gap-2 shrink-0", 
+                "h-7 sm:h-8 px-3 gap-1.5 shrink-0 text-xs", 
                 isDoctorMode && "bg-emerald-600 hover:bg-emerald-700 text-white",
                 !isDoctorMode && "bg-blue-600 hover:bg-blue-700 text-white",
                 isCompact && "px-1 min-w-0 flex-1 sm:flex-none"
               )}
             >
               {sendingReport || sendingToDoctor ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : isDoctorMode ? (
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="h-3.5 w-3.5" />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5" />
               )} 
               {!isCompact && <span>{isDoctorMode ? "Finalize" : "Send to Doctor"}</span>}
               {isCompact && <span className="text-[10px] font-bold uppercase">{isDoctorMode ? "OK" : ""}</span>}
