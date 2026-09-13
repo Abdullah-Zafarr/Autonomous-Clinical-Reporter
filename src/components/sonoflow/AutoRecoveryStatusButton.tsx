@@ -186,16 +186,12 @@ export function AutoRecoveryStatusButton({
         size="sm"
         onClick={() => setOpen(true)}
         className={cn(
-          "h-7 text-xs gap-1.5 border-emerald-500/40 bg-emerald-50/40 hover:bg-emerald-50/80 text-emerald-800 dark:border-emerald-600/40 dark:bg-emerald-950/25 dark:text-emerald-300 dark:hover:bg-emerald-950/40 font-medium transition-all shadow-2xs",
+          "h-7 text-xs gap-1.5 border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground font-medium transition-colors shadow-2xs",
           className
         )}
         title="Click to view Crash-Proof Auto-Recovery & Complete Activity Audit Trail"
       >
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-        </span>
-        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+        <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="hidden sm:inline">
           {isBackingUp ? "Backing up…" : `Auto-Saved · ${formatted.relative}`}
         </span>
@@ -207,13 +203,12 @@ export function AutoRecoveryStatusButton({
           <DialogHeader className="space-y-1.5 pb-2 border-b">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2 text-base font-bold">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                  <ShieldCheck className="h-4 w-4" />
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-foreground border border-border">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                 </span>
                 Crash-Proof Auto-Recovery & Activity Audit Trail
               </DialogTitle>
-              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Badge variant="outline" className="border-border bg-muted/40 text-muted-foreground text-[11px] font-medium">
                 Continuous & Tamper-Evident
               </Badge>
             </div>
@@ -225,11 +220,11 @@ export function AutoRecoveryStatusButton({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4 pt-1">
             <TabsList className="grid w-full grid-cols-2 h-9">
               <TabsTrigger value="recovery" className="text-xs gap-1.5 font-medium">
-                <HardDrive className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <HardDrive className="h-3.5 w-3.5 text-muted-foreground" />
                 Auto-Recovery & Backups
               </TabsTrigger>
               <TabsTrigger value="audit" className="text-xs gap-1.5 font-medium">
-                <History className="h-3.5 w-3.5 text-blue-500" />
+                <History className="h-3.5 w-3.5 text-muted-foreground" />
                 Activity Audit Trail ({auditLogs.length})
               </TabsTrigger>
             </TabsList>
@@ -237,15 +232,15 @@ export function AutoRecoveryStatusButton({
             {/* TAB 1: AUTO-RECOVERY */}
             <TabsContent value="recovery" className="space-y-3 mt-0 focus-visible:outline-none">
               {/* Primary Timestamp Hero Card */}
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 text-center space-y-1 shadow-2xs">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              <div className="rounded-xl border border-border bg-muted/30 p-4 text-center space-y-1 shadow-2xs">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
                   Last Backup Taken At
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-emerald-900 dark:text-emerald-200">
+                <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
                   {formatted.absolute}
                 </div>
-                <p className="text-xs font-medium text-emerald-700/80 dark:text-emerald-300/80">
+                <p className="text-xs font-medium text-muted-foreground">
                   {formatted.relative} {lastBackupTime ? `· ${new Date(lastBackupTime).toLocaleDateString()}` : ""}
                 </p>
               </div>
@@ -257,8 +252,8 @@ export function AutoRecoveryStatusButton({
                     <span className="flex items-center gap-1.5 font-medium">
                       <HardDrive className="h-3.5 w-3.5 text-blue-500" /> Local Crash Resilience:
                     </span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Protected
+                    <span className="font-semibold text-foreground flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-muted-foreground" /> Protected
                     </span>
                   </div>
 
@@ -287,19 +282,19 @@ export function AutoRecoveryStatusButton({
                   </span>
                   <ul className="space-y-1 text-foreground/90">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>Worksheet findings & measurements ({exam || "Ultrasound"})</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>Clinical report text & custom edits</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>Doctor additional notes</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span>Attached scan pictures & red highlights ({keyImagesCount} attached)</span>
                     </li>
                   </ul>
@@ -313,7 +308,7 @@ export function AutoRecoveryStatusButton({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2.5 text-xs">
                 <div>
                   <span className="font-semibold flex items-center gap-1.5 text-foreground">
-                    <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+                    <BadgeCheck className="h-3.5 w-3.5 text-muted-foreground" />
                     Complete Accountability & Legal Protection
                   </span>
                   <p className="text-[11px] text-muted-foreground">
@@ -445,8 +440,8 @@ export function AutoRecoveryStatusButton({
                               {entry.staffRole}
                             </Badge>
                           </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                            <BadgeCheck className="h-3 w-3" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                            <BadgeCheck className="h-3 w-3 text-muted-foreground" />
                             Audit Verified
                           </span>
                         </div>
@@ -483,7 +478,7 @@ export function AutoRecoveryStatusButton({
                   onManualBackup();
                   loadAuditHistory();
                 }}
-                className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-xs ml-auto"
+                className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs shadow-xs ml-auto"
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", isBackingUp && "animate-spin")} />
                 Back Up Now
