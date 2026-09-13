@@ -275,38 +275,43 @@ export function ReportPreview({
           </article>
         )}
             {keyImages.length > 0 && (
-              <section className="break-inside-avoid-page">
+              <section className="mt-4 pt-3 border-t break-inside-avoid-page">
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Key Images ({keyImages.length})</h3>
-                  <span className="text-[10px] text-muted-foreground">Click image to inspect in DICOM viewer</span>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Attached Key Images</h3>
+                    <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-semibold text-muted-foreground">
+                      {keyImages.length}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">Click to inspect in viewer</span>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-wrap gap-2.5">
                   {keyImages.map((image) => (
                     <figure
                       key={image.id}
                       onClick={() => onSelectKeyImage?.(image)}
                       className={cn(
-                        "group relative overflow-hidden rounded-md border bg-black transition-all",
-                        onSelectKeyImage && "cursor-pointer hover:border-primary hover:ring-2 hover:ring-primary/20 hover:shadow-md"
+                        "group relative w-28 sm:w-32 shrink-0 overflow-hidden rounded-md border bg-slate-950 transition-all",
+                        onSelectKeyImage && "cursor-pointer hover:border-primary hover:ring-1 hover:ring-primary/30 hover:shadow-xs"
                       )}
-                      title="Click to view in DICOM image viewer"
+                      title={`Click to view "${image.caption}" in DICOM viewer`}
                     >
-                      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+                      <div className="relative h-18 sm:h-20 w-full overflow-hidden bg-black flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={image.dataUrl}
                           alt={image.caption}
-                          className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                          <span className="flex items-center gap-1.5 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-medium text-white shadow-lg border border-slate-700">
-                            <Maximize2 className="h-3.5 w-3.5 text-emerald-400" /> View in Viewer
+                          <span className="rounded bg-slate-900/90 px-1.5 py-0.5 text-[10px] font-medium text-white shadow border border-slate-700 flex items-center gap-1">
+                            <Maximize2 className="h-2.5 w-2.5" /> View
                           </span>
                         </div>
                       </div>
-                      <figcaption className="flex items-center justify-between bg-card p-2 font-sans text-[11px] text-foreground border-t">
-                        <span className="font-medium truncate">{image.caption}</span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">Frame {image.frameNumber}</span>
+                      <figcaption className="flex items-center justify-between bg-card px-2 py-1 font-sans text-[10px] text-foreground border-t">
+                        <span className="font-medium truncate max-w-[75px]">{image.caption}</span>
+                        <span className="text-[9px] text-muted-foreground shrink-0">F{image.frameNumber}</span>
                       </figcaption>
                     </figure>
                   ))}

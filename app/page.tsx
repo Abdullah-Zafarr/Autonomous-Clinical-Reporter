@@ -1267,6 +1267,7 @@ export default function SonolynxApp() {
           revision={`${currentWorksheet?.updated_at ?? ""}-${worklistRefresh}`}
           patientLabel={formatPatientName(patient, "")}
           busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
+          compact
         />
       )}
 
@@ -1344,7 +1345,7 @@ export default function SonolynxApp() {
           </>
         )}
 
-        <ResizablePanel defaultSize={isDoctorView ? 60 : 50} minSize={25}>
+        <ResizablePanel defaultSize={isDoctorView && showDicom ? 45 : (isDoctorView ? 60 : 50)} minSize={25}>
           <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
             <ReportPreview
               key={`${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
@@ -1392,7 +1393,7 @@ export default function SonolynxApp() {
         {showDicom && (
           <>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={40} minSize={20}>
+            <ResizablePanel defaultSize={isDoctorView ? 55 : 40} minSize={25}>
               <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
                 <DicomViewer
                   key={patient.studyId ?? patient.id}

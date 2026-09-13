@@ -127,54 +127,22 @@ export function WorkflowProgress({
     <section
       aria-label="Case progress"
       className={cn(
-        "shrink-0 bg-card px-3 sm:px-4",
-        compact
-          ? "min-w-0 flex-1 border-t py-1 xl:border-t-0 xl:flex xl:items-center xl:gap-3"
-          : "border-b py-3",
+        "shrink-0 border-b bg-card px-3 sm:px-4 py-1",
+        compact && "min-w-0 flex-1 border-t py-1 xl:border-t-0 xl:flex xl:items-center xl:gap-3"
       )}
     >
-      <div
-        className={cn(
-          "flex items-center gap-2 text-xs",
-          compact ? "mb-1 xl:mb-0 xl:shrink-0" : "mb-2.5 w-full",
-        )}
-      >
-        <span className="font-semibold shrink-0 whitespace-nowrap">Case Progress</span>
-        {patientLabel && (
-          <span className="font-medium text-foreground whitespace-nowrap shrink-0">
-            {patientLabel}
-          </span>
-        )}
-        <span role="status" className="ml-auto shrink-0 whitespace-nowrap font-medium text-primary">
-          {!studyId
-            ? "Select a study"
-            : error
-              ? "Status unavailable"
-              : busy
-                ? "Updating…"
-                : (progress?.summary ?? "Loading progress…")}
-        </span>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 shrink-0"
-          aria-label="Refresh case progress"
-          disabled={!studyId || loading || busy}
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-        </Button>
-      </div>
-      {error && !compact && (
-        <p role="alert" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground w-full">
-          <AlertCircle className="h-3.5 w-3.5" />
-          Could not refresh progress.{" "}
-          {snapshot ? "Last recorded status is shown below." : "Use refresh to try again."}
-        </p>
-      )}
-      {!compact && (
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 w-full min-h-7">
+        <div className="flex items-center gap-1.5 shrink-0 text-xs">
+          <span className="font-semibold text-foreground whitespace-nowrap">Case Progress</span>
+          {patientLabel && (
+            <span className="font-normal text-muted-foreground whitespace-nowrap">
+              · {patientLabel}
+            </span>
+          )}
+        </div>
+
         <ol
-          className="grid grid-cols-4 gap-2 w-full"
+          className="flex flex-wrap items-center gap-1.5 py-0.5"
           aria-label="Report workflow stages"
         >
         {(
@@ -194,48 +162,61 @@ export function WorkflowProgress({
               key={step.label}
               aria-current={current ? "step" : undefined}
               className={cn(
-                "min-w-0 rounded-md border px-2 sm:px-3",
-                compact ? "py-1" : "py-2",
+                "flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium border transition-colors whitespace-nowrap",
                 current
-                  ? "border-primary/40 bg-primary/5"
+                  ? "border-primary/50 bg-primary/10 text-primary font-semibold shadow-xs"
                   : step.complete
-                    ? "border-primary/20 bg-primary/5"
-                    : "border-border bg-background",
+                    ? "border-primary/20 bg-primary/5 text-foreground"
+                    : "border-border/60 bg-muted/20 text-muted-foreground"
               )}
+              title={`${step.label}: ${step.detail}${validTime ? ` (${new Date(validTime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })})` : ""}`}
             >
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold sm:text-xs">
-                <Icon
-                  className={cn(
-                    "h-3.5 w-3.5 shrink-0",
-                    current || step.complete ? "text-primary" : "text-muted-foreground",
-                  )}
-                />
-                <span>{step.label}</span>
-                <span className="sr-only">
-                  {step.complete ? "Completed" : current ? "Current stage" : "Pending"}
-                </span>
-              </div>
-              <div className={cn("text-[10px] text-muted-foreground sm:text-[11px]", compact ? "mt-0.5" : "mt-1")}>
-                {step.detail}
-              </div>
-              {validTime && !compact && (
-                <time
-                  dateTime={validTime}
-                  className="mt-0.5 block text-[10px] text-muted-foreground"
-                  title={new Date(validTime).toLocaleString()}
-                >
-                  {new Date(validTime).toLocaleString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </time>
-              )}
+              <Icon
+                className={cn(
+                  "h-3 w-3 shrink-0",
+                  current || step.complete ? "text-primary" : "text-muted-foreground/60"
+                )}
+              />
+              <span>{step.label}</span>
+              <span className="sr-only">
+                {step.complete ? "Completed" : current ? "Current stage" : "Pending"}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-normal hidden sm:inline">
+                · {step.detail}
+              </span>
             </li>
           );
         })}
         </ol>
+
+        <div className="flex items-center gap-1.5 ml-auto shrink-0 text-xs">
+          <span role="status" className="whitespace-nowrap text-[11px] font-medium text-primary">
+            {!studyId
+              ? "Select a study"
+              : error
+                ? "Status unavailable"
+                : busy
+                  ? "Updating…"
+                  : (progress?.summary ?? "Loading…")}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Refresh case progress"
+            disabled={!studyId || loading || busy}
+            onClick={() => setRefresh((value) => value + 1)}
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+          </Button>
+        </div>
+      </div>
+      {error && (
+        <p role="alert" className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground w-full">
+          <AlertCircle className="h-3 w-3" />
+          Could not refresh progress.{" "}
+          {snapshot ? "Last recorded status is shown." : "Use refresh to try again."}
+        </p>
       )}
     </section>
   );

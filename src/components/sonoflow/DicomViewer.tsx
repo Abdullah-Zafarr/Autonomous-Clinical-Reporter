@@ -622,10 +622,10 @@ export function DicomViewer({
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-slate-950 text-slate-200 lg:border-l">
       <header className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+          <div className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-100">DICOM Viewer</h2>
         </div>
-        <Badge variant="outline" className={cn("text-[10px]", (activeKeyImage || hasImages) ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400")}>
+        <Badge variant="outline" className={cn("text-[10px]", (activeKeyImage || hasImages) ? "border-blue-500/40 bg-blue-950/30 text-blue-300" : "border-slate-700 text-slate-400")}>
           <Wifi className="mr-1 h-2.5 w-2.5" /> {activeKeyImage ? `ATTACHED IMAGE (${activeKeyImageIndex + 1}/${keyImages.length})` : (hasImages ? "DICOM LOADED" : "NO IMAGES")}
         </Badge>
       </header>
@@ -693,7 +693,7 @@ export function DicomViewer({
           <Button
             size="sm"
             variant="secondary"
-            className="h-8 bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50 border border-emerald-500/30"
+            className="h-8 bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700"
             onClick={fetchFromDicomWeb}
             disabled={loading}
           >
@@ -799,9 +799,9 @@ export function DicomViewer({
 
             {/* Floating top bar with caption and controls */}
             <div className="pointer-events-none absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 rounded-md bg-black/80 px-2.5 py-1 text-xs text-white backdrop-blur-md border border-slate-700/80 shadow-md">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="font-semibold text-emerald-400 truncate max-w-[200px]">{activeKeyImage.caption}</span>
+              <div className="flex items-center gap-2 rounded-md bg-black/85 px-2.5 py-1 text-xs text-white backdrop-blur-md border border-slate-700 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-blue-400" />
+                <span className="font-medium text-slate-100 truncate max-w-[200px]">{activeKeyImage.caption}</span>
                 <span className="text-slate-400 text-[11px] shrink-0">
                   · Image {activeKeyImageIndex + 1} of {keyImages.length}
                 </span>
@@ -846,8 +846,8 @@ export function DicomViewer({
           !hasImages && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
               <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-slate-700/60">
-                <div className="absolute inset-0 animate-ping rounded-full border border-emerald-500/20" />
-                <Crosshair className="h-12 w-12 text-emerald-400/80" strokeWidth={1.2} />
+                <div className="absolute inset-0 animate-ping rounded-full border border-blue-500/20" />
+                <Crosshair className="h-12 w-12 text-slate-500" strokeWidth={1.2} />
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-slate-100">Upload DICOM files or attach images</p>
@@ -865,9 +865,6 @@ export function DicomViewer({
             <div className="flex items-center justify-between font-medium text-slate-300">
               <span className="flex items-center gap-1.5">
                 <span>Attached to report ({keyImages.length}/6)</span>
-                {activeKeyImage && (
-                  <span className="text-[10px] font-normal text-emerald-400">• Viewing full size</span>
-                )}
               </span>
               <span className="text-[10px] text-slate-500">Click to view full size</span>
             </div>
@@ -880,8 +877,8 @@ export function DicomViewer({
                   className={cn(
                     "group relative w-20 shrink-0 cursor-pointer rounded transition-all",
                     isActive
-                      ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950 scale-105"
-                      : "opacity-80 hover:opacity-100 hover:scale-102"
+                      ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950 scale-102"
+                      : "opacity-75 hover:opacity-100"
                   )}
                   onClick={() => handleSelectKeyImage(image)}
                   title={`Click to view "${image.caption}" in full size`}
@@ -892,14 +889,9 @@ export function DicomViewer({
                     alt={image.caption}
                     className={cn(
                       "h-12 w-20 rounded border object-cover transition-colors",
-                      isActive ? "border-emerald-400 shadow-md shadow-emerald-950/50" : "border-slate-700"
+                      isActive ? "border-blue-400 shadow-md shadow-blue-950/60" : "border-slate-800"
                     )}
                   />
-                  {isActive && (
-                    <div className="absolute top-0.5 left-0.5 rounded bg-emerald-500 px-1 py-0.2 text-[8px] font-bold text-black uppercase tracking-wider shadow">
-                      Viewing
-                    </div>
-                  )}
                   {canSelectKeyImages && (
                     <button
                       type="button"
@@ -921,7 +913,7 @@ export function DicomViewer({
                       <Trash2 className="h-3 w-3" />
                     </button>
                   )}
-                  <p className={cn("mt-1 truncate text-center", isActive ? "font-semibold text-emerald-300" : "text-slate-400")} title={image.caption}>
+                  <p className={cn("mt-1 truncate text-center text-[10px]", isActive ? "font-medium text-white" : "text-slate-400")} title={image.caption}>
                     {image.caption}
                   </p>
                 </div>
@@ -1022,7 +1014,7 @@ export function DicomViewer({
           <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-slate-800 space-y-0">
             <div>
               <DialogTitle className="text-slate-100 flex items-center gap-2 text-base">
-                <span className="text-emerald-400">{activeKeyImage?.caption || "Attached Image"}</span>
+                <span className="text-white font-semibold">{activeKeyImage?.caption || "Attached Image"}</span>
                 {activeKeyImage && (
                   <span className="text-xs font-normal text-slate-400">
                     · Image {activeKeyImageIndex + 1} of {keyImages.length}
