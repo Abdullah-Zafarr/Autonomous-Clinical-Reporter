@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Wifi, Maximize2, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2 } from "lucide-react";
+import { Crosshair, Wifi, Maximize2, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 let csInitialized = false;
+
+const EYE_FADE_MASK =
+  "radial-gradient(circle closest-side at 50% 50%, #000 50%, rgba(0, 0, 0, 0.88) 64%, rgba(0, 0, 0, 0.45) 78%, rgba(0, 0, 0, 0.12) 88%, transparent 95%)";
 
 function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): Promise<string> {
   if (!dataUrl || !dataUrl.startsWith("data:image/")) {
@@ -95,6 +98,7 @@ export function DicomViewer({
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, startPanX: 0, startPanY: 0 });
   const [fullscreenModalOpen, setFullscreenModalOpen] = useState(false);
+  const [eyeFadeEnabled, setEyeFadeEnabled] = useState(true);
 
   const currentSelectedId = selectedKeyImageId !== undefined ? selectedKeyImageId : internalSelectedKeyImageId;
 
@@ -784,12 +788,8 @@ export function DicomViewer({
                 transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
                 cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
-                WebkitMaskImage: imageZoom === 1 
-                  ? "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)" 
-                  : undefined,
-                maskImage: imageZoom === 1 
-                  ? "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)" 
-                  : undefined,
+                WebkitMaskImage: (eyeFadeEnabled && imageZoom === 1) ? EYE_FADE_MASK : undefined,
+                maskImage: (eyeFadeEnabled && imageZoom === 1) ? EYE_FADE_MASK : undefined,
               }}
               onClick={() => {
                 if (imageZoom === 1) {
@@ -817,6 +817,21 @@ export function DicomViewer({
               </div>
 
               <div className="pointer-events-auto flex items-center gap-1.5">
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className={cn(
+                    "h-7 w-7 border transition-colors",
+                    eyeFadeEnabled
+                      ? "bg-blue-600/30 text-blue-300 border-blue-500/50 hover:bg-blue-600/40"
+                      : "bg-slate-900/90 text-slate-400 border-slate-700 hover:bg-slate-800"
+                  )}
+                  onClick={() => setEyeFadeEnabled(!eyeFadeEnabled)}
+                  title={eyeFadeEnabled ? "Soft eye vignette active (click for full rectangle)" : "Soft eye vignette disabled (click to enable)"}
+                  aria-label="Toggle eye vignette fade"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
                 {hasImages && (
                   <Button
                     size="sm"
@@ -890,8 +905,8 @@ export function DicomViewer({
                         alt={image.caption}
                         className="h-full w-full object-contain pointer-events-none"
                         style={{
-                          WebkitMaskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
-                          maskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
+                          WebkitMaskImage: EYE_FADE_MASK,
+                          maskImage: EYE_FADE_MASK,
                         }}
                       />
                       {canSelectKeyImages && (
@@ -1028,6 +1043,21 @@ export function DicomViewer({
               <Button
                 size="sm"
                 variant="outline"
+                className={cn(
+                  "h-8 border text-xs transition-colors",
+                  eyeFadeEnabled
+                    ? "bg-blue-600/20 text-blue-300 border-blue-500/40 hover:bg-blue-600/30"
+                    : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                )}
+                onClick={() => setEyeFadeEnabled(!eyeFadeEnabled)}
+                title="Toggle soft eye aperture fade"
+              >
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                {eyeFadeEnabled ? "Eye Fade On" : "Eye Fade Off"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 className="h-8 border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
                 onClick={prevFrame}
                 disabled={!canPrev}
@@ -1053,8 +1083,8 @@ export function DicomViewer({
                 alt={activeKeyImage.caption}
                 className="max-h-full max-w-full object-contain rounded select-none"
                 style={{
-                  WebkitMaskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
-                  maskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
+                  WebkitMaskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
+                  maskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
                 }}
               />
             )}
