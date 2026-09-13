@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, LogOut, Palette, ShieldCheck, UserPlus } from "lucide-react";
+import { LayoutDashboard, LogOut, Palette, Settings, ShieldCheck, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useClinicalDoodle } from "@/lib/clinical-doodles";
 import { ClinicalDoodlePickerModal } from "./ClinicalDoodlePickerModal";
+import { ClinicalSettingsDialog } from "./ClinicalSettingsDialog";
 import { Logo } from "./Logo";
 import { toast } from "sonner";
 import { RegisterPatientDialog } from "./RegisterPatientDialog";
@@ -30,6 +31,7 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
   const { profile, role, signOut } = useAuth();
   const { activeDoodleId, activeDoodle } = useClinicalDoodle();
   const [doodlePickerOpen, setDoodlePickerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
   const [registerOpen, setRegisterOpen] = useState(false);
 
@@ -80,15 +82,15 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
             </Button>
           )}
 
-          {/* Role badge with clickable doodle shortcut */}
+          {/* Role badge with clickable settings shortcut */}
           <button
             type="button"
-            onClick={() => setDoodlePickerOpen(true)}
+            onClick={() => setSettingsOpen(true)}
             className="group hidden items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 py-1 pl-2.5 pr-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-muted hover:text-foreground transition-all md:inline-flex"
-            title="Click to customize your clinical doodle avatar"
+            title="Click to open Settings and customize your clinical avatar & workspace"
           >
             <span className="font-medium">{roleLabel}</span>
-            <Palette className="h-3 w-3 text-muted-foreground/70 group-hover:text-primary transition-colors" />
+            <Settings className="h-3 w-3 text-muted-foreground/70 group-hover:text-primary transition-colors" />
           </button>
 
           <DropdownMenu>
@@ -126,13 +128,13 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              {/* Doodle customization item */}
-              <DropdownMenuItem onClick={() => setDoodlePickerOpen(true)} className="gap-2.5 py-2 cursor-pointer">
-                <Palette className="h-4 w-4 text-primary shrink-0" />
+              {/* Settings menu item (Avatar Doodles & Workspace Preferences) */}
+              <DropdownMenuItem onClick={() => setSettingsOpen(true)} className="gap-2.5 py-2 cursor-pointer">
+                <Settings className="h-4 w-4 text-primary shrink-0" />
                 <div className="flex flex-col text-left">
-                  <span className="font-medium text-xs">Choose Doodle Avatar</span>
+                  <span className="font-medium text-xs">Settings</span>
                   <span className="text-[10px] text-muted-foreground">
-                    {activeDoodle ? activeDoodle.name : "Pick role illustration"}
+                    Avatar doodles, reporting & safety
                   </span>
                 </div>
               </DropdownMenuItem>
@@ -169,11 +171,12 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
         )}
       </header>
 
-      {/* Clinical Doodle Selection Modal */}
-      <ClinicalDoodlePickerModal
-        open={doodlePickerOpen}
-        onOpenChange={setDoodlePickerOpen}
+      {/* Clinical Settings Dialog */}
+      <ClinicalSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
         staffName={fullName}
+        staffEmail={profile?.email || "doctor@gmail.com"}
         staffRole={roleLabel}
       />
     </>
