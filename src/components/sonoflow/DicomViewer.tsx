@@ -788,8 +788,8 @@ export function DicomViewer({
                 transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
                 cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
-                WebkitMaskImage: (eyeFadeEnabled && imageZoom === 1) ? EYE_FADE_MASK : undefined,
-                maskImage: (eyeFadeEnabled && imageZoom === 1) ? EYE_FADE_MASK : undefined,
+                WebkitMaskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
+                maskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
               }}
               onClick={() => {
                 if (imageZoom === 1) {
@@ -809,7 +809,7 @@ export function DicomViewer({
                 <span className="text-slate-400 text-[11px] shrink-0">
                   · Image {activeKeyImageIndex + 1} of {keyImages.length}
                 </span>
-                {imageZoom > 1 && (
+                {imageZoom !== 1 && (
                   <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-300 font-mono">
                     {Math.round(imageZoom * 100)}%
                   </span>
