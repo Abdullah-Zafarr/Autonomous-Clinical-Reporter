@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { AiDrafterIcon } from "./AiDrafterIcon";
 import {
-  BrainCircuit,
   Mic,
   MicOff,
   Loader2,
@@ -155,7 +155,7 @@ export function AiReportAssistantDialog({
         <DialogHeader className="space-y-1 pb-3 border-b">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
-              <BrainCircuit className="h-4 w-4" />
+              <AiDrafterIcon className="h-4 w-4" />
             </div>
             <div>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
@@ -267,7 +267,7 @@ export function AiReportAssistantDialog({
                 </>
               ) : (
                 <>
-                  <BrainCircuit className="h-3.5 w-3.5" />
+                  <AiDrafterIcon className="h-3.5 w-3.5" />
                   Generate Structured Report
                 </>
               )}

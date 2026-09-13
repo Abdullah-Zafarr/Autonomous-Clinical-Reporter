@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Activity, AlertCircle, Edit3, Check, BrainCircuit, Maximize2 } from "lucide-react";
+import { FileText, Activity, AlertCircle, Edit3, Check, Maximize2 } from "lucide-react";
 import type { ReportSections } from "@/lib/report-engine";
 import type { ValidationIssue } from "@/lib/clinical-validator";
 import type { Patient } from "@/lib/sonoflow-types";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatPatientName } from "@/lib/utils";
 import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
+import { AiDrafterIcon } from "./AiDrafterIcon";
 import { ReportCopilot } from "./ReportCopilot";
 import { CorrectionPanel } from "@/components/sonolynx/CorrectionPanel";
 import type { CorrectionFieldOption, KeyReportImage, WorksheetCorrection } from "@/lib/clinical-workflow-types";
@@ -98,7 +99,7 @@ export function ReportPreview({
                   disabled={busy}
                   title="Draft or enhance report with AI Clinical Assistant"
                 >
-                  <BrainCircuit className="h-3.5 w-3.5 text-blue-600" />
+                  <AiDrafterIcon className="h-3.5 w-3.5 text-blue-600" />
                   AI Drafter
                 </Button>}
                 <Button

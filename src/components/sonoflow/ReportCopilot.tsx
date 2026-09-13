@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Languages,
   MessageSquareText,
-  BrainCircuit,
   Loader2,
   CheckCheck,
   Copy,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { explanationLanguages } from "@/lib/report-ai-safety";
 import { toast } from "sonner";
+import { AiDrafterIcon } from "./AiDrafterIcon";
 
 type Mode = "edit" | "explain";
 interface Props {
@@ -60,7 +60,7 @@ export function ReportCopilot({ reportText, worksheetId, signed, patientLabel, o
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <BrainCircuit className="h-3.5 w-3.5 text-blue-600" />
+            <AiDrafterIcon className="h-3.5 w-3.5 text-blue-600" />
             <span>AI Report Tools</span>
           </div>
           <span className="text-[10px] text-muted-foreground">Clinician reviewed</span>
@@ -397,7 +397,7 @@ function CopilotDialog({
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <BrainCircuit className="mr-2 h-4 w-4" />
+              <AiDrafterIcon className="mr-2 h-4 w-4" />
             )}
             {busy ? "Working…" : editing ? "Preview AI Changes" : "Generate Patient Explanation"}
           </Button>
