@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Activity, CheckCircle2, ListPlus, FileText, Stethoscope } from "lucide-react";
+import { Activity, CheckCircle2, ListPlus, FileText, Stethoscope, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SectionItem {
@@ -17,7 +17,7 @@ interface SectionBlock {
 }
 
 const SECTION_HEADER_REGEX =
-  /^(FINDINGS|SONOGRAPHIC FINDINGS|ULTRASOUND FINDINGS|IMPRESSION|CLINICAL IMPRESSION|RECOMMENDATIONS|TECHNIQUE|CLINICAL INDICATION|INDICATION|COMPARISON|ADDITIONAL NOTES|NOTES):?$/i;
+  /^(FINDINGS|SONOGRAPHIC FINDINGS|ULTRASOUND FINDINGS|IMPRESSION|CLINICAL IMPRESSION|RECOMMENDATIONS|TECHNIQUE|CLINICAL INDICATION|INDICATION|COMPARISON|ADDITIONAL NOTES|NOTES)$/i;
 const ORGAN_PREFIX_REGEX = /^([A-Z][a-zA-Z\s\/\-]{1,25}):\s*(.*)$/;
 const NUMBERED_ITEM_REGEX = /^(\d+[\.\)])\s*(.*)$/;
 const BULLET_ITEM_REGEX = /^[\•\-\*]\s*(.*)$/;
@@ -40,12 +40,19 @@ export function parseClinicalReportText(text: string): SectionBlock[] {
       .filter(Boolean);
 
     for (const line of lines) {
-      if (SECTION_HEADER_REGEX.test(line)) {
+      // Normalize line: strip markdown bold/italic/header symbols, bullets, and trailing colons
+      // e.g. "*ADDITIONAL NOTES:**", "**ADDITIONAL NOTES:**", "### FINDINGS:", "• **RECOMMENDATIONS:**"
+      const normalizedHeaderCandidate = line
+        .replace(/^[\s\*\#\•\-\_]+|[\s\*\#\•\-\_]+$/g, "")
+        .replace(/:$/, "")
+        .trim();
+
+      if (SECTION_HEADER_REGEX.test(normalizedHeaderCandidate)) {
         if (currentSection.title || currentSection.items.length > 0) {
           sections.push(currentSection);
         }
         currentSection = {
-          title: line.replace(/:$/, "").toUpperCase(),
+          title: normalizedHeaderCandidate.toUpperCase(),
           items: [],
         };
         continue;
@@ -71,7 +78,7 @@ export function parseClinicalReportText(text: string): SectionBlock[] {
       }
 
       const organMatch = line.match(ORGAN_PREFIX_REGEX);
-      if (organMatch && !SECTION_HEADER_REGEX.test(organMatch[1] + ":")) {
+      if (organMatch && !SECTION_HEADER_REGEX.test(organMatch[1].trim())) {
         currentSection.items.push({
           type: "organ",
           organName: organMatch[1],
@@ -180,6 +187,7 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
         const isFindings = titleUpper.includes("FINDING");
         const isImpression = titleUpper.includes("IMPRESSION");
         const isRecs = titleUpper.includes("RECOMMENDATION");
+        const isNotes = titleUpper.includes("NOTE");
 
         const SectionIcon = isFindings
           ? Activity
@@ -187,21 +195,52 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
           ? CheckCircle2
           : isRecs
           ? ListPlus
+          : isNotes
+          ? StickyNote
           : Stethoscope;
 
         return (
-          <section key={sIdx} className="rounded-lg border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs">
+          <section
+            key={sIdx}
+            className={cn(
+              "rounded-lg border p-3.5 sm:p-4 shadow-xs transition-colors",
+              isFindings
+                ? "border-blue-200/70 bg-blue-50/20 dark:border-blue-900/60 dark:bg-blue-950/15"
+                : isImpression
+                ? "border-emerald-200/70 bg-emerald-50/20 dark:border-emerald-900/60 dark:bg-emerald-950/15"
+                : isRecs
+                ? "border-amber-200/70 bg-amber-50/20 dark:border-amber-900/60 dark:bg-amber-950/15"
+                : isNotes
+                ? "border-purple-200/80 bg-purple-50/30 dark:border-purple-900/70 dark:bg-purple-950/25"
+                : "border-border/70 bg-card"
+            )}
+          >
             {section.title && (
-              <div className="mb-3 flex items-center gap-2 border-b border-border/70 pb-2">
+              <div
+                className={cn(
+                  "mb-3 flex items-center gap-2 border-b pb-2",
+                  isFindings
+                    ? "border-blue-200/70 dark:border-blue-900/50"
+                    : isImpression
+                    ? "border-emerald-200/70 dark:border-emerald-900/50"
+                    : isRecs
+                    ? "border-amber-200/70 dark:border-amber-900/50"
+                    : isNotes
+                    ? "border-purple-200/70 dark:border-purple-900/50"
+                    : "border-border/70"
+                )}
+              >
                 <div
                   className={cn(
                     "flex h-6 w-6 items-center justify-center rounded-md",
                     isFindings
-                      ? "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/60 dark:text-blue-300"
                       : isImpression
-                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-300"
                       : isRecs
-                      ? "bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+                      ? "bg-amber-100 text-amber-600 dark:bg-amber-900/60 dark:text-amber-300"
+                      : isNotes
+                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300"
                       : "bg-primary/10 text-primary"
                   )}
                 >
@@ -216,6 +255,8 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
                       ? "text-emerald-700 dark:text-emerald-300"
                       : isRecs
                       ? "text-amber-700 dark:text-amber-300"
+                      : isNotes
+                      ? "text-purple-700 dark:text-purple-300"
                       : "text-primary"
                   )}
                 >
@@ -226,6 +267,17 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
 
             <div className="space-y-2">
               {section.items.map((item, iIdx) => {
+                if (isNotes && item.type === "paragraph") {
+                  return (
+                    <div
+                      key={iIdx}
+                      className="rounded-md border border-purple-200/60 bg-purple-50/50 p-2.5 text-sm leading-relaxed text-purple-950 shadow-2xs dark:border-purple-800/50 dark:bg-purple-950/40 dark:text-purple-100"
+                    >
+                      {renderFormattedContent(item.content)}
+                    </div>
+                  );
+                }
+
                 if (item.type === "organ") {
                   return (
                     <div key={iIdx} className="mt-3.5 first:mt-0 space-y-1">
@@ -258,7 +310,7 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
                   return (
                     <div
                       key={iIdx}
-                      className="flex items-start gap-2.5 py-1 rounded-md bg-muted/30 px-2.5 border border-border/40 my-1 text-sm leading-relaxed text-foreground"
+                      className="flex items-start gap-2.5 py-1 rounded-md bg-background/80 px-2.5 border border-border/40 my-1 text-sm leading-relaxed text-foreground shadow-2xs"
                     >
                       <span
                         className={cn(
