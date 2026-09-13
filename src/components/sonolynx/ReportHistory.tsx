@@ -34,25 +34,27 @@ interface ReportHistoryProps {
 export function ReportHistory({ patient, items, loading, onOpen, onClose }: ReportHistoryProps) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between border-b pl-4 pr-12 py-3 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <FileText className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold leading-tight text-foreground">Report History</h2>
-            <p className="text-xs text-muted-foreground truncate max-w-[220px]">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold leading-tight text-foreground">Report History</h2>
+              {items.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0.5">
+                  {items.length} {items.length === 1 ? "report" : "reports"}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground truncate max-w-[200px]">
               {formatPatientName(patient, "No patient selected")}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-          {items.length > 0 && (
-            <Badge variant="secondary" className="text-[11px] font-medium px-2 py-0.5">
-              {items.length} {items.length === 1 ? "report" : "reports"}
-            </Badge>
-          )}
         </div>
       </div>
 

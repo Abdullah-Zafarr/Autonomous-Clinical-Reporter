@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { FileText, Activity, AlertCircle, Edit3, Check, Maximize2 } from "lucide-react";
-import type { ReportSections } from "@/lib/report-engine";
+import { useState, useRef } from "react";
+import { FileText, Activity, AlertCircle, Edit3, Check, Maximize2, Bold, List, Heading, ListOrdered } from "lucide-react";
+import { reportToText, type ReportSections } from "@/lib/report-engine";
 import type { ValidationIssue } from "@/lib/clinical-validator";
 import type { Patient } from "@/lib/sonoflow-types";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { AiReportAssistantDialog } from "./AiReportAssistantDialog";
 import { AiDrafterIcon } from "./AiDrafterIcon";
 import { ReportCopilot } from "./ReportCopilot";
 import { CorrectionPanel } from "@/components/sonolynx/CorrectionPanel";
+import { FormattedReportView } from "./FormattedReportView";
 import type { CorrectionFieldOption, KeyReportImage, WorksheetCorrection } from "@/lib/clinical-workflow-types";
 
 interface Props {
@@ -76,8 +77,25 @@ export function ReportPreview({
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const notes = additionalNotes.trim();
   const showAiTools = Boolean(isDoctorMode && canUseAiTools);
+
+  const insertFormatting = (prefix: string, suffix: string = "") => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const current = editableText || "";
+    const selected = current.substring(start, end);
+    const replacement = `${prefix}${selected || "text"}${suffix}`;
+    const newText = current.substring(0, start) + replacement + current.substring(end);
+    onEditableTextChange?.(newText);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + prefix.length, start + prefix.length + (selected ? selected.length : 4));
+    }, 10);
+  };
 
   return (
     <aside className="flex h-full min-w-0 flex-col overflow-hidden bg-card lg:border-l">
@@ -194,86 +212,68 @@ export function ReportPreview({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
         <div className="max-w-4xl">
         {isDoctorMode && isEditing ? (
-          <textarea
-            aria-label="Clinical report text"
-            disabled={busy}
-            className="w-full min-h-72 resize-y bg-transparent border-0 p-0 text-sm leading-relaxed focus:outline-none focus:ring-0 text-foreground"
-            value={editableText || ""}
-            onChange={(e) => onEditableTextChange?.(e.target.value)}
-            placeholder="Review and edit the report text here..."
-            autoFocus
-          />
-        ) : hasBeenEdited ? (
-          <div 
-            className="text-sm leading-7 whitespace-pre-wrap text-foreground cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors"
-            onClick={() => isDoctorMode && setIsEditing(true)}
-            title={isDoctorMode ? "Click to edit report" : undefined}
-          >
-            {editableText}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 p-1.5 text-xs text-muted-foreground">
+              <span className="text-[11px] font-medium text-foreground mr-1">Insert:</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs font-bold"
+                onClick={() => insertFormatting("**", "**")}
+                title="Bold (wrap in **bold**)"
+              >
+                <Bold className="h-3 w-3 mr-1" /> Bold
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={() => insertFormatting("• ")}
+                title="Add bullet point"
+              >
+                <List className="h-3 w-3 mr-1" /> Bullet
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={() => insertFormatting("1. ")}
+                title="Add numbered item"
+              >
+                <ListOrdered className="h-3 w-3 mr-1" /> Number
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs font-medium"
+                onClick={() => insertFormatting("\n\nFINDINGS:\n\n")}
+                title="Insert section heading"
+              >
+                <Heading className="h-3 w-3 mr-1" /> + Heading
+              </Button>
+            </div>
+            <textarea
+              ref={textareaRef}
+              aria-label="Clinical report text"
+              disabled={busy}
+              className="w-full min-h-80 resize-y rounded-md border bg-background p-3 text-sm font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+              value={editableText || ""}
+              onChange={(e) => onEditableTextChange?.(e.target.value)}
+              placeholder="Review and edit the report text here..."
+              autoFocus
+            />
           </div>
         ) : (
-          <article 
-            className={cn("space-y-6 text-sm leading-7 text-foreground", isDoctorMode && "cursor-pointer hover:bg-muted/30 p-2 -m-2 rounded-md transition-colors")}
+          <FormattedReportView
+            text={editableText || reportToText(report)}
+            className={cn(isDoctorMode && "cursor-pointer hover:ring-1 hover:ring-primary/20 p-2 -m-2 rounded-lg transition-all")}
             onClick={() => isDoctorMode && setIsEditing(true)}
             title={isDoctorMode ? "Click to edit report" : undefined}
-          >
-            <section>
-              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-                <Activity className="h-3.5 w-3.5" />
-                Findings
-              </h3>
-              <div className="space-y-2.5">
-                {!report.findings.length && <p className="text-muted-foreground">No findings recorded yet. {isDoctorMode ? "Open a submitted case or edit the report to begin your review." : "Complete the worksheet to generate findings."}</p>}
-                {report.findings.map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">
-                Impression
-              </h3>
-              <ol className="space-y-1.5">
-                {report.impression.map((line, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="font-semibold text-muted-foreground">{i + 1}.</span>
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-            {report.recommendations && report.recommendations.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">
-                  Recommendations
-                </h3>
-                <ol className="space-y-1.5">
-                  {report.recommendations.map((line, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="font-semibold text-muted-foreground">{i + 1}.</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-
-            <Separator />
-
-            <section>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">
-                Additional Notes
-              </h3>
-              {notes ? (
-                <p className="whitespace-pre-wrap">{notes}</p>
-              ) : (
-                <p className="italic text-muted-foreground">
-                  No additional notes. Add manual notes from the worksheet panel.
-                </p>
-              )}
-            </section>
-          </article>
+          />
         )}
             {keyImages.length > 0 && (
               <section className="mt-4 pt-3 border-t break-inside-avoid-page">
