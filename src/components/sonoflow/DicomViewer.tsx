@@ -478,17 +478,23 @@ export function DicomViewer({
         process.env.NEXT_PUBLIC_DICOMWEB_API_URL;
       if (!baseUrl) {
         setStatus("DICOMweb endpoint not configured");
+        toast.error("PACS Endpoint Not Configured", {
+          description: "No DICOMweb server URL configured in settings. You can upload local scan files directly.",
+        });
         return;
       }
       if (!accession) {
         setStatus("Accession number missing for DICOMweb lookup");
+        toast.error("Missing Accession Number", {
+          description: "An accession number is required to query PACS for this patient.",
+        });
         return;
       }
 
       const studyQuery = accession
         ? `${baseUrl}/studies?AccessionNumber=${encodeURIComponent(accession)}&limit=1`
         : `${baseUrl}/studies?limit=1`;
-      const studyRes = await fetchWithTimeout(studyQuery, { timeoutMs: 10000, retries: 1 });
+      const studyRes = await fetchWithTimeout(studyQuery, { timeoutMs: 6000, retries: 0 });
       if (!studyRes.ok) {
         throw new Error(`Study query failed (${studyRes.status})`);
       }
@@ -496,13 +502,16 @@ export function DicomViewer({
       const studyUid = studies?.[0]?.["0020000D"]?.Value?.[0];
       if (!studyUid) {
         setStatus(accession ? `No study found for accession ${accession}` : "No studies found");
+        toast.info("No Study Found", {
+          description: `No matching DICOM study found on PACS for accession ${accession}.`,
+        });
         setImageIds([]);
         return;
       }
 
       const seriesRes = await fetchWithTimeout(`${baseUrl}/studies/${encodeURIComponent(studyUid)}/series`, {
-        timeoutMs: 10000,
-        retries: 1,
+        timeoutMs: 6000,
+        retries: 0,
       });
       if (!seriesRes.ok) {
         throw new Error(`Series query failed (${seriesRes.status})`);
@@ -516,7 +525,7 @@ export function DicomViewer({
 
         const instRes = await fetchWithTimeout(
           `${baseUrl}/studies/${encodeURIComponent(studyUid)}/series/${encodeURIComponent(seriesUid)}/instances`,
-          { timeoutMs: 10000, retries: 1 },
+          { timeoutMs: 6000, retries: 0 },
         );
         if (!instRes.ok) continue;
         const instances = await instRes.json();
@@ -535,7 +544,10 @@ export function DicomViewer({
       }
 
       if (ids.length === 0) {
-        setStatus("No renderable instances found");
+        setStatus("No renderable instances found on PACS");
+        toast.info("No Image Instances", {
+          description: "Study was located on PACS but contains no renderable image frames.",
+        });
         setImageIds([]);
         return;
       }
@@ -543,10 +555,33 @@ export function DicomViewer({
       setImageIds(ids);
       setCurrentIndex(0);
       setStatus(`${ids.length} frame(s) loaded from DICOMweb`);
+      toast.success("Scans Loaded", {
+        description: `Loaded ${ids.length} frame(s) from PACS.`,
+      });
     } catch (err) {
-      setStatus("DICOMweb connection failed");
       setLastFetchFailed(true);
-      console.error(err);
+      const baseUrl =
+        process.env.VITE_DICOMWEB_API_URL ||
+        process.env.NEXT_PUBLIC_DICOMWEB_API_URL ||
+        "PACS server";
+
+      const isNetworkError =
+        err instanceof TypeError ||
+        (err instanceof Error &&
+          (err.message.includes("fetch") || err.name === "TypeError" || err.message.includes("Failed to fetch")));
+
+      const friendlyMessage = isNetworkError
+        ? "PACS server unreachable (offline or invalid endpoint)"
+        : err instanceof Error
+        ? err.message
+        : "DICOMweb connection failed";
+
+      setStatus(friendlyMessage);
+      console.warn("DICOMweb PACS query notice:", err);
+
+      toast.error("PACS Server Unreachable", {
+        description: `Could not connect to ${baseUrl}. Verify PACS server connection or upload local scan images.`,
+      });
     } finally {
       setLoading(false);
     }
@@ -1131,7 +1166,7 @@ export function DicomViewer({
               <div className="space-y-1">
                 <p className="text-sm font-medium text-slate-100">Upload DICOM files or attach images</p>
                 <p className="text-xs text-slate-400">{status}</p>
-                {lastFetchFailed && <p className="text-xs text-amber-400">Use Fetch Server again to retry.</p>}
+                {lastFetchFailed && <p className="text-xs text-amber-400/90">PACS server is currently offline or unreachable. Upload DICOM files or attach images directly.</p>}
               </div>
             </div>
           )
