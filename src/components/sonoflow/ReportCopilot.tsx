@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Languages,
   MessageSquareText,
-  Sparkles,
+  BrainCircuit,
   Loader2,
   CheckCheck,
   Copy,
@@ -60,7 +60,7 @@ export function ReportCopilot({ reportText, worksheetId, signed, patientLabel, o
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+            <BrainCircuit className="h-3.5 w-3.5 text-blue-600" />
             <span>AI Report Tools</span>
           </div>
           <span className="text-[10px] text-muted-foreground">Clinician reviewed</span>
@@ -397,7 +397,7 @@ function CopilotDialog({
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
+              <BrainCircuit className="mr-2 h-4 w-4" />
             )}
             {busy ? "Working…" : editing ? "Preview AI Changes" : "Generate Patient Explanation"}
           </Button>

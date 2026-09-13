@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Wifi, Maximize2, Layers, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2 } from "lucide-react";
+import { Crosshair, Wifi, Maximize2, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -767,7 +767,7 @@ export function DicomViewer({
         
         {activeKeyImage ? (
           <div
-            className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden"
+            className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden p-4 pt-14 pb-4"
             onWheel={handleWheelZoom}
             onMouseDown={handlePanMouseDown}
             onMouseMove={handlePanMouseMove}
@@ -779,12 +779,10 @@ export function DicomViewer({
               src={activeKeyImage.dataUrl}
               alt={activeKeyImage.caption}
               draggable={false}
+              className="max-h-full max-w-full object-contain select-none pointer-events-auto"
               style={{
                 transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
-                maxHeight: "100%",
-                maxWidth: "100%",
-                objectFit: "contain",
                 cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
               }}
               onClick={() => {
@@ -834,13 +832,6 @@ export function DicomViewer({
                 </Button>
               </div>
             </div>
-
-            {/* Zoom hint badge at bottom */}
-            {imageZoom === 1 && (
-              <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[10px] text-slate-400 backdrop-blur-sm border border-slate-800/80">
-                Click or scroll to zoom · Drag to pan
-              </div>
-            )}
           </div>
         ) : (
           !hasImages && (
@@ -859,87 +850,78 @@ export function DicomViewer({
         )}
       </div>
 
-      <footer className="border-t border-slate-800 px-4 py-2 text-[10px] text-slate-400">
-        {keyImages.length > 0 && (
-          <div className="mb-2 space-y-1">
-            <div className="flex items-center justify-between font-medium text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <span>Attached to report ({keyImages.length}/6)</span>
-              </span>
-              <span className="text-[10px] text-slate-500">Click to view full size</span>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
-            {keyImages.map((image) => {
-              const isActive = activeKeyImage?.id === image.id;
-              return (
-                <div
-                  key={image.id}
-                  className={cn(
-                    "group relative w-20 shrink-0 cursor-pointer rounded transition-all",
-                    isActive
-                      ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950 scale-102"
-                      : "opacity-75 hover:opacity-100"
-                  )}
-                  onClick={() => handleSelectKeyImage(image)}
-                  title={`Click to view "${image.caption}" in full size`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.dataUrl}
-                    alt={image.caption}
+      {(keyImages.length > 0 || hasImages) && (
+        <footer className="shrink-0 border-t border-slate-800 px-4 py-2 text-[10px] text-slate-400">
+          {keyImages.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between font-medium text-slate-300 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <span>Attached to report ({keyImages.length}/6)</span>
+                </span>
+                <span className="text-[10px] text-slate-500">Click thumbnail to view</span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
+              {keyImages.map((image) => {
+                const isActive = activeKeyImage?.id === image.id;
+                return (
+                  <div
+                    key={image.id}
                     className={cn(
-                      "h-12 w-20 rounded border object-cover transition-colors",
-                      isActive ? "border-blue-400 shadow-md shadow-blue-950/60" : "border-slate-800"
+                      "group relative w-20 shrink-0 cursor-pointer rounded transition-all",
+                      isActive
+                        ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950 scale-102"
+                        : "opacity-75 hover:opacity-100"
                     )}
-                  />
-                  {canSelectKeyImages && (
-                    <button
-                      type="button"
-                      className="absolute right-0.5 top-0.5 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
-                        if (activeKeyImage?.id === image.id) {
-                          const remaining = keyImages.filter((item) => item.id !== image.id);
-                          if (remaining.length > 0) {
-                            handleSelectKeyImage(remaining[0]);
-                          } else {
-                            handleDeselectKeyImage();
+                    onClick={() => handleSelectKeyImage(image)}
+                    title={`Click to view "${image.caption}" in full size`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.dataUrl}
+                      alt={image.caption}
+                      className={cn(
+                        "h-12 w-20 rounded border object-cover transition-colors",
+                        isActive ? "border-blue-400 shadow-md shadow-blue-950/60" : "border-slate-800"
+                      )}
+                    />
+                    {canSelectKeyImages && (
+                      <button
+                        type="button"
+                        className="absolute right-0.5 top-0.5 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
+                          if (activeKeyImage?.id === image.id) {
+                            const remaining = keyImages.filter((item) => item.id !== image.id);
+                            if (remaining.length > 0) {
+                              handleSelectKeyImage(remaining[0]);
+                            } else {
+                              handleDeselectKeyImage();
+                            }
                           }
-                        }
-                      }}
-                      aria-label={`Remove ${image.caption}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
-                  <p className={cn("mt-1 truncate text-center text-[10px]", isActive ? "font-medium text-white" : "text-slate-400")} title={image.caption}>
-                    {image.caption}
-                  </p>
-                </div>
-              );
-            })}
+                        }}
+                        aria-label={`Remove ${image.caption}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                    <p className={cn("mt-1 truncate text-center text-[10px]", isActive ? "font-medium text-white" : "text-slate-400")} title={image.caption}>
+                      {image.caption}
+                    </p>
+                  </div>
+                );
+              })}
+              </div>
             </div>
-          </div>
-        )}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
-            <Layers className="mb-1 h-3 w-3 text-slate-500" />
-            Series: {activeKeyImage ? "Report" : (hasImages ? 1 : 0)}
-          </div>
-          <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
-            <Maximize2 className="mb-1 h-3 w-3 text-slate-500" />
-            Images: {activeKeyImage ? keyImages.length : imageIds.length}
-          </div>
-          <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
-            <Crosshair className="mb-1 h-3 w-3 text-slate-500" />
-            Image: {activeKeyImage ? `${activeKeyImageIndex + 1} / ${keyImages.length}` : currentFrame}
-          </div>
-        </div>
-        <div className="mt-2 text-center text-[10px] text-slate-500">
-          {activeKeyImage ? "Click or scroll to zoom · Drag to pan · Click another image below to switch" : "Left drag: WW/WL · Middle drag: Pan · Right drag: Zoom"}
-        </div>
-      </footer>
+          )}
+          {hasImages && !activeKeyImage && (
+            <div className="flex items-center justify-between py-1 text-[11px] text-slate-400">
+              <span>Frame {currentFrame} of {imageIds.length}</span>
+              <span className="text-[10px] text-slate-500">Drag: Pan / WW / WL · Scroll: Zoom</span>
+            </div>
+          )}
+        </footer>
+      )}
 
       <Dialog open={annotationOpen} onOpenChange={setAnnotationOpen}>
         <DialogContent className="max-w-4xl border-slate-800 bg-slate-950 text-slate-100">

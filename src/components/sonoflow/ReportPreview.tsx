@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Activity, AlertCircle, Edit3, Check, Sparkles, Maximize2 } from "lucide-react";
+import { FileText, Activity, AlertCircle, Edit3, Check, BrainCircuit, Maximize2 } from "lucide-react";
 import type { ReportSections } from "@/lib/report-engine";
 import type { ValidationIssue } from "@/lib/clinical-validator";
 import type { Patient } from "@/lib/sonoflow-types";
@@ -98,7 +98,7 @@ export function ReportPreview({
                   disabled={busy}
                   title="Draft or enhance report with AI Clinical Assistant"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                  <BrainCircuit className="h-3.5 w-3.5 text-blue-600" />
                   AI Drafter
                 </Button>}
                 <Button

@@ -1255,6 +1255,7 @@ export default function SonolynxApp() {
             patientLabel={formatPatientName(patient, "")}
             busy={savingDraft || sendingToDoctor || sendingReport || loadingWorksheet}
             compact
+            className="min-w-0 flex-1 border-t xl:border-t-0 xl:border-b-0"
           />
         </div>
       )}
