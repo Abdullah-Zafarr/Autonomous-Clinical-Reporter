@@ -1,7 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Wifi, Maximize2, Upload, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RefreshCw, ImagePlus, Trash2, Undo2, Eye } from "lucide-react";
+import {
+  Crosshair,
+  Wifi,
+  Maximize2,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  ImagePlus,
+  Trash2,
+  Undo2,
+  Eye,
+  Pencil,
+  Highlighter,
+  MoveRight,
+  Circle,
+  Check,
+  Tag,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +36,74 @@ let csInitialized = false;
 
 const EYE_FADE_MASK =
   "radial-gradient(ellipse 50% 50% at 50% 50%, #000 85%, rgba(0, 0, 0, 0.92) 91%, rgba(0, 0, 0, 0.45) 97%, transparent 100%)";
+
+const FINDING_PRESETS = [
+  "Gallbladder wall thickening",
+  "Cholelithiasis",
+  "Hepatic cyst",
+  "Renal calculi",
+  "Hydronephrosis",
+  "Nodule / Mass",
+  "Fluid collection",
+  "Acoustic shadowing",
+];
+
+function drawArrow(
+  ctx: CanvasRenderingContext2D,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  color: string,
+  width: number
+) {
+  const headlen = Math.max(14, width * 3.5);
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawEllipse(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: string,
+  width: number
+) {
+  const rx = Math.abs(x2 - x1) / 2;
+  const ry = Math.abs(y2 - y1) / 2;
+  const cx = Math.min(x1, x2) + rx;
+  const cy = Math.min(y1, y2) + ry;
+  if (rx < 2 || ry < 2) return;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.restore();
+}
 
 function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): Promise<string> {
   if (!dataUrl || !dataUrl.startsWith("data:image/")) {
@@ -85,10 +174,25 @@ export function DicomViewer({
   const [loading, setLoading] = useState(false);
   const [lastFetchFailed, setLastFetchFailed] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
-  const [snapshot, setSnapshot] = useState<{ dataUrl: string; frameNumber: number } | null>(null);
+  const [snapshot, setSnapshot] = useState<{
+    dataUrl: string;
+    frameNumber: number;
+    existingImageId?: string;
+  } | null>(null);
   const [caption, setCaption] = useState("");
   const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
+
+  // Drawing studio tools & history
+  type AnnotationTool = "pen" | "highlighter" | "arrow" | "circle";
+  const [activeTool, setActiveTool] = useState<AnnotationTool>("pen");
+  const [strokeWidth, setStrokeWidth] = useState<number>(4);
+  const [highlightColor, setHighlightColor] = useState<string>("#ef4444");
+  const [stampNoteOnImage, setStampNoteOnImage] = useState<boolean>(true);
+  const [canUndo, setCanUndo] = useState(false);
+  const undoStackRef = useRef<ImageData[]>([]);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const preDragCanvasDataRef = useRef<ImageData | null>(null);
 
   // Attached image viewing state
   const [internalSelectedKeyImageId, setInternalSelectedKeyImageId] = useState<string | null>(null);
@@ -502,6 +606,23 @@ export function DicomViewer({
     cornerstone.reset(el);
   };
 
+  const beginDrawOnScan = (targetImage?: KeyReportImage) => {
+    const target = targetImage || activeKeyImage;
+    if (target) {
+      setSnapshot({
+        dataUrl: target.dataUrl,
+        frameNumber: target.frameNumber,
+        existingImageId: target.id,
+      });
+      setCaption(target.caption || `Frame ${target.frameNumber} Finding`);
+      undoStackRef.current = [];
+      setCanUndo(false);
+      setAnnotationOpen(true);
+      return;
+    }
+    beginKeyImage();
+  };
+
   const beginKeyImage = () => {
     const el = viewportRef.current;
     if (!el) {
@@ -541,8 +662,10 @@ export function DicomViewer({
       return;
     }
 
+    undoStackRef.current = [];
+    setCanUndo(false);
     setSnapshot({ dataUrl, frameNumber: currentFrame || 1 });
-    setCaption(`Frame ${currentFrame || 1}`);
+    setCaption(`Frame ${currentFrame || 1} Finding`);
     setAnnotationOpen(true);
   };
 
@@ -552,6 +675,47 @@ export function DicomViewer({
     canvas.width = image.naturalWidth;
     canvas.height = image.naturalHeight;
     canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    undoStackRef.current = [];
+    setCanUndo(false);
+  };
+
+  const saveCanvasState = () => {
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    try {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      undoStackRef.current.push(data);
+      if (undoStackRef.current.length > 30) {
+        undoStackRef.current.shift();
+      }
+      setCanUndo(true);
+    } catch (e) {
+      console.warn("saveCanvasState failed:", e);
+    }
+  };
+
+  const handleUndo = () => {
+    const canvas = annotationCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const previous = undoStackRef.current.pop();
+    if (previous) {
+      ctx.putImageData(previous, 0, 0);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    setCanUndo(undoStackRef.current.length > 0);
+  };
+
+  const clearAnnotation = () => {
+    const canvas = annotationCanvasRef.current;
+    if (canvas) {
+      saveCanvasState();
+      canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    }
   };
 
   const pointerPosition = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -569,55 +733,146 @@ export function DicomViewer({
     const point = pointerPosition(event);
     const context = canvas.getContext("2d");
     if (!context) return;
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-    context.strokeStyle = "#ef4444";
-    context.lineWidth = Math.max(3, canvas.width / 240);
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    drawingRef.current = true;
+
+    saveCanvasState();
+
+    const scaleFactor = Math.max(1, canvas.width / 400);
+    const computedWidth = Math.max(strokeWidth, scaleFactor * (strokeWidth / 1.5));
+
+    if (activeTool === "pen" || activeTool === "highlighter") {
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      if (activeTool === "highlighter") {
+        context.strokeStyle = "rgba(239, 68, 68, 0.42)";
+        context.lineWidth = Math.max(16, scaleFactor * 12);
+      } else {
+        context.strokeStyle = highlightColor;
+        context.lineWidth = computedWidth;
+      }
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      drawingRef.current = true;
+    } else {
+      dragStartRef.current = point;
+      preDragCanvasDataRef.current = context.getImageData(0, 0, canvas.width, canvas.height);
+      drawingRef.current = true;
+    }
   };
 
   const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return;
-    const context = event.currentTarget.getContext("2d");
+    const canvas = event.currentTarget;
+    const context = canvas.getContext("2d");
     if (!context) return;
     const point = pointerPosition(event);
-    context.lineTo(point.x, point.y);
-    context.stroke();
+
+    if (activeTool === "pen" || activeTool === "highlighter") {
+      context.lineTo(point.x, point.y);
+      context.stroke();
+    } else if (dragStartRef.current && preDragCanvasDataRef.current) {
+      context.putImageData(preDragCanvasDataRef.current, 0, 0);
+      const start = dragStartRef.current;
+      const scaleFactor = Math.max(1, canvas.width / 400);
+      const computedWidth = Math.max(strokeWidth, scaleFactor * (strokeWidth / 1.5));
+
+      if (activeTool === "arrow") {
+        drawArrow(context, start.x, start.y, point.x, point.y, highlightColor, computedWidth);
+      } else if (activeTool === "circle") {
+        drawEllipse(context, start.x, start.y, point.x, point.y, highlightColor, computedWidth);
+      }
+    }
   };
 
-  const clearAnnotation = () => {
-    const canvas = annotationCanvasRef.current;
-    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+  const stopDrawing = () => {
+    drawingRef.current = false;
+    dragStartRef.current = null;
+    preDragCanvasDataRef.current = null;
   };
 
-  const saveKeyImage = async () => {
+  const saveKeyImage = async (asNew: boolean = false) => {
     if (!snapshot) return;
     const annotation = annotationCanvasRef.current;
     const image = new Image();
     image.onload = () => {
-      const maxWidth = 1200;
+      const maxWidth = 1400;
       const scale = Math.min(1, maxWidth / image.naturalWidth);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(image.naturalWidth * scale);
       canvas.height = Math.round(image.naturalHeight * scale);
       const context = canvas.getContext("2d");
       if (!context) return;
+
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      if (annotation) context.drawImage(annotation, 0, 0, canvas.width, canvas.height);
-      const next: KeyReportImage = {
-        id: crypto.randomUUID(),
-        dataUrl: canvas.toDataURL("image/jpeg", 0.82),
-        caption: caption.trim() || `Key ultrasound image · frame ${snapshot.frameNumber}`,
+      if (annotation) {
+        context.drawImage(annotation, 0, 0, canvas.width, canvas.height);
+      }
+
+      const trimmedCaption = caption.trim();
+      if (stampNoteOnImage && trimmedCaption) {
+        context.save();
+        const fontSize = Math.max(14, Math.round(canvas.width / 45));
+        context.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+        const metrics = context.measureText(trimmedCaption);
+        const padX = Math.round(fontSize * 0.8);
+        const padY = Math.round(fontSize * 0.45);
+        const dotRadius = Math.max(3, Math.round(fontSize * 0.22));
+        const badgeH = fontSize + padY * 2;
+        const badgeW = metrics.width + padX * 2 + dotRadius * 2 + 8;
+        const posX = 16;
+        const posY = canvas.height - badgeH - 16;
+
+        context.fillStyle = "rgba(2, 6, 23, 0.88)";
+        context.strokeStyle = "rgba(239, 68, 68, 0.75)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.roundRect(posX, posY, badgeW, badgeH, Math.round(badgeH / 2));
+        context.fill();
+        context.stroke();
+
+        context.fillStyle = "#ef4444";
+        context.beginPath();
+        context.arc(posX + padX, posY + badgeH / 2, dotRadius, 0, 2 * Math.PI);
+        context.fill();
+
+        context.fillStyle = "#ffffff";
+        context.textBaseline = "middle";
+        context.fillText(trimmedCaption, posX + padX + dotRadius * 2 + 8, posY + badgeH / 2);
+        context.restore();
+      }
+
+      const isUpdate = Boolean(snapshot.existingImageId && !asNew);
+      const nextId = isUpdate ? snapshot.existingImageId! : crypto.randomUUID();
+
+      const nextItem: KeyReportImage = {
+        id: nextId,
+        dataUrl: canvas.toDataURL("image/jpeg", 0.86),
+        caption: trimmedCaption || `Finding · Frame ${snapshot.frameNumber}`,
         frameNumber: snapshot.frameNumber,
         createdAt: new Date().toISOString(),
         createdBy: currentUserId,
       };
-      onKeyImagesChange?.([...keyImages, next]);
+
+      if (isUpdate) {
+        const updated = keyImages.map((img) => (img.id === snapshot.existingImageId ? nextItem : img));
+        onKeyImagesChange?.(updated);
+        toast.success("Picture updated in report", {
+          description: "Your red highlights and note have been saved.",
+        });
+      } else {
+        if (keyImages.length >= 6) {
+          toast.info("Key image limit reached", {
+            description: "Maximum 6 key images allowed in report.",
+          });
+          return;
+        }
+        onKeyImagesChange?.([...keyImages, nextItem]);
+        toast.success("Picture attached to report", {
+          description: "Your red highlights and note are attached to the report.",
+        });
+      }
+
       setAnnotationOpen(false);
       setSnapshot(null);
-      toast.success("Key image added", { description: "It will be included in the report and PDF." });
     };
     image.src = snapshot.dataUrl;
   };
@@ -672,26 +927,26 @@ export function DicomViewer({
           {canSelectKeyImages && (
             <Button
               size="sm"
-              variant="secondary"
-              className="h-8 bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700/80"
-              onClick={() => imageInputRef.current?.click()}
-              title="Attach ultrasound photo or screenshot directly to report"
+              className="h-8 bg-red-600 text-white hover:bg-red-500 font-semibold shadow-xs shadow-red-500/25 border border-red-500/30"
+              onClick={() => beginDrawOnScan()}
+              disabled={!hasImages && !activeKeyImage}
+              title="Draw red highlights directly on this scan frame and attach to report"
             >
-              <ImagePlus className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
-              Attach Image
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Draw on Scan
             </Button>
           )}
 
           {canSelectKeyImages && (
             <Button
               size="sm"
-              className="h-8 bg-blue-600 text-white hover:bg-blue-500"
-              onClick={beginKeyImage}
-              disabled={!hasImages}
-              title="Capture and annotate current DICOM frame"
+              variant="secondary"
+              className="h-8 bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700/80"
+              onClick={() => imageInputRef.current?.click()}
+              title="Upload ultrasound photo from computer"
             >
-              <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
-              Capture Frame
+              <ImagePlus className="mr-1.5 h-3.5 w-3.5 text-blue-400" />
+              Attach Image
             </Button>
           )}
           <Button
@@ -817,6 +1072,16 @@ export function DicomViewer({
               </div>
 
               <div className="pointer-events-auto flex items-center gap-1.5">
+                {canSelectKeyImages && (
+                  <Button
+                    size="sm"
+                    className="h-7 px-2.5 text-xs bg-red-600 hover:bg-red-500 text-white border border-red-500/40 rounded shadow-xs font-medium"
+                    onClick={() => beginDrawOnScan()}
+                    title="Draw red highlights on this scan"
+                  >
+                    <Pencil className="h-3 w-3 mr-1" /> Draw Highlights
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="secondary"
@@ -910,25 +1175,39 @@ export function DicomViewer({
                         }}
                       />
                       {canSelectKeyImages && (
-                        <button
-                          type="button"
-                          className="absolute right-0.5 top-0.5 z-10 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600 focus:opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
-                            if (activeKeyImage?.id === image.id) {
-                              const remaining = keyImages.filter((item) => item.id !== image.id);
-                              if (remaining.length > 0) {
-                                handleSelectKeyImage(remaining[0]);
-                              } else {
-                                handleDeselectKeyImage();
+                        <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                          <button
+                            type="button"
+                            className="rounded bg-black/85 p-1 text-white hover:bg-red-600 transition-colors shadow-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              beginDrawOnScan(image);
+                            }}
+                            title="Draw red highlights on this picture"
+                            aria-label={`Draw on ${image.caption}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded bg-black/85 p-1 text-white hover:bg-red-600 transition-colors shadow-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
+                              if (activeKeyImage?.id === image.id) {
+                                const remaining = keyImages.filter((item) => item.id !== image.id);
+                                if (remaining.length > 0) {
+                                  handleSelectKeyImage(remaining[0]);
+                                } else {
+                                  handleDeselectKeyImage();
+                                }
                               }
-                            }
-                          }}
-                          aria-label={`Remove ${image.caption}`}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                            }}
+                            aria-label={`Remove ${image.caption}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
                     <p
@@ -956,21 +1235,167 @@ export function DicomViewer({
       )}
 
       <Dialog open={annotationOpen} onOpenChange={setAnnotationOpen}>
-        <DialogContent className="max-w-4xl border-slate-800 bg-slate-950 text-slate-100">
-          <DialogHeader>
-            <DialogTitle className="text-slate-100">Annotate key image</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Draw over the image to mark the finding, then add a clinical caption.
-            </DialogDescription>
+        <DialogContent className="max-w-5xl border-slate-800 bg-slate-950 text-slate-100 p-5 flex flex-col max-h-[92vh]">
+          <DialogHeader className="pb-2 border-b border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <DialogTitle className="text-slate-100 flex items-center gap-2 text-base font-bold">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600/20 text-red-400 border border-red-500/30">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </span>
+                  Draw on Scan & Attach to Report
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-400">
+                  Draw red highlights directly on the scan frame to point out findings, add a quick note, and attach straight into the report.
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-[11px] border-red-500/30 bg-red-950/20 text-red-400">
+                  Frame {snapshot?.frameNumber || 1}
+                </Badge>
+              </div>
+            </div>
           </DialogHeader>
+
+          {/* Annotation Studio Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-800/80 bg-slate-900/50 px-2.5 rounded-md text-xs">
+            {/* Tool Selection */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Tool:</span>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeTool === "pen" ? "default" : "ghost"}
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1.5 transition-colors",
+                  activeTool === "pen" ? "bg-red-600 text-white hover:bg-red-500 font-semibold" : "text-slate-300 hover:bg-slate-800"
+                )}
+                onClick={() => setActiveTool("pen")}
+                title="Freehand Red Pen"
+              >
+                <Pencil className="h-3 w-3" /> Pen
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeTool === "highlighter" ? "default" : "ghost"}
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1.5 transition-colors",
+                  activeTool === "highlighter" ? "bg-red-600 text-white hover:bg-red-500 font-semibold" : "text-slate-300 hover:bg-slate-800"
+                )}
+                onClick={() => setActiveTool("highlighter")}
+                title="Red Highlighter (Semi-transparent)"
+              >
+                <Highlighter className="h-3 w-3" /> Highlighter
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeTool === "arrow" ? "default" : "ghost"}
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1.5 transition-colors",
+                  activeTool === "arrow" ? "bg-red-600 text-white hover:bg-red-500 font-semibold" : "text-slate-300 hover:bg-slate-800"
+                )}
+                onClick={() => setActiveTool("arrow")}
+                title="Arrow Pointer"
+              >
+                <MoveRight className="h-3 w-3" /> Arrow
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeTool === "circle" ? "default" : "ghost"}
+                className={cn(
+                  "h-7 px-2.5 text-xs gap-1.5 transition-colors",
+                  activeTool === "circle" ? "bg-red-600 text-white hover:bg-red-500 font-semibold" : "text-slate-300 hover:bg-slate-800"
+                )}
+                onClick={() => setActiveTool("circle")}
+                title="Circle / Callout"
+              >
+                <Circle className="h-3 w-3" /> Circle
+              </Button>
+            </div>
+
+            {/* Stroke Width */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Width:</span>
+              {[
+                { label: "Fine", width: 2 },
+                { label: "Med", width: 4 },
+                { label: "Bold", width: 8 },
+              ].map((sw) => (
+                <button
+                  key={sw.width}
+                  type="button"
+                  className={cn(
+                    "h-6 px-2 text-[11px] rounded border transition-all",
+                    strokeWidth === sw.width
+                      ? "bg-slate-800 border-red-500 text-red-400 font-bold"
+                      : "border-slate-800 text-slate-400 hover:bg-slate-800/60"
+                  )}
+                  onClick={() => setStrokeWidth(sw.width)}
+                >
+                  {sw.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Color Accent */}
+            <div className="flex items-center gap-1.5">
+              {[
+                { color: "#ef4444", title: "Clinical Red" },
+                { color: "#fbbf24", title: "Warning Amber" },
+                { color: "#38bdf8", title: "Sky Cyan" },
+              ].map((c) => (
+                <button
+                  key={c.color}
+                  type="button"
+                  className={cn(
+                    "h-5 w-5 rounded-full border-2 transition-transform",
+                    highlightColor === c.color ? "scale-110 border-white shadow-xs shadow-white/30" : "border-transparent opacity-70 hover:opacity-100"
+                  )}
+                  style={{ backgroundColor: c.color }}
+                  onClick={() => setHighlightColor(c.color)}
+                  title={c.title}
+                />
+              ))}
+            </div>
+
+            {/* History Controls */}
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canUndo}
+                onClick={handleUndo}
+                className="h-7 px-2 text-xs border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+                title="Undo last stroke"
+              >
+                <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={clearAnnotation}
+                className="h-7 px-2 text-xs border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-red-400"
+                title="Clear all ink"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            </div>
+          </div>
+
+          {/* Canvas Workspace */}
           {snapshot && (
-            <div className="mx-auto flex max-h-[60vh] max-w-full items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-black/80 p-2">
-              <div className="relative inline-block touch-none">
+            <div className="relative my-2 flex-1 min-h-[42vh] max-h-[52vh] flex items-center justify-center overflow-auto rounded-lg border border-slate-800 bg-black/90 p-2">
+              <div className="relative inline-block touch-none select-none">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={snapshot.dataUrl}
-                  alt="Selected DICOM frame"
-                  className="block max-h-[55vh] max-w-full rounded object-contain"
+                  alt="Scan frame"
+                  className="block max-h-[48vh] max-w-full rounded object-contain pointer-events-none"
                   onLoad={(event) => prepareAnnotationCanvas(event.currentTarget)}
                   onError={() => {
                     toast.error("Failed to render preview", { description: "The image data could not be displayed." });
@@ -981,44 +1406,83 @@ export function DicomViewer({
                   className="absolute inset-0 h-full w-full cursor-crosshair"
                   onPointerDown={startDrawing}
                   onPointerMove={draw}
-                  onPointerUp={() => { drawingRef.current = false; }}
-                  onPointerCancel={() => { drawingRef.current = false; }}
+                  onPointerUp={stopDrawing}
+                  onPointerCancel={stopDrawing}
                 />
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <Input
-              value={caption}
-              onChange={(event) => setCaption(event.target.value)}
-              placeholder="Caption, e.g. Gallstone with posterior acoustic shadowing"
-              className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={clearAnnotation}
-              className="shrink-0 border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
-            >
-              <Undo2 className="mr-1.5 h-4 w-4" /> Clear ink
-            </Button>
+
+          {/* Finding Presets & Clinical Note */}
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="font-semibold text-slate-400 mr-1 flex items-center gap-1">
+                <Tag className="h-3 w-3 text-red-400" /> Finding:
+              </span>
+              {FINDING_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="rounded-md border border-slate-800 bg-slate-900/80 px-2 py-0.5 text-slate-300 hover:border-red-500/50 hover:bg-red-950/20 hover:text-red-200 transition-colors"
+                  onClick={() => setCaption((prev) => (prev ? `${prev} · ${preset}` : preset))}
+                >
+                  + {preset}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Input
+                  value={caption}
+                  onChange={(event) => setCaption(event.target.value)}
+                  placeholder="Quick note / Finding, e.g. Positive Murphy's sign · GB wall thickening 4.5 mm"
+                  className="border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus-visible:ring-red-500 pr-3 h-9 text-xs"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 select-none shrink-0 bg-slate-900/70 border border-slate-800 px-2.5 py-1.5 rounded-md">
+                <input
+                  type="checkbox"
+                  checked={stampNoteOnImage}
+                  onChange={(e) => setStampNoteOnImage(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-950 text-red-600 focus:ring-red-500 h-3.5 w-3.5"
+                />
+                <span>Stamp note on picture</span>
+              </label>
+            </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+
+          <DialogFooter className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between sm:justify-between gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setAnnotationOpen(false)}
-              className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+              className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={saveKeyImage}
-              className="bg-blue-600 text-white hover:bg-blue-500"
-            >
-              Add to report
-            </Button>
+
+            <div className="flex items-center gap-2">
+              {snapshot?.existingImageId && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => saveKeyImage(true)}
+                  className="border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                >
+                  Attach as New Picture
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={() => saveKeyImage(false)}
+                className="bg-red-600 text-white hover:bg-red-500 font-semibold shadow-xs shadow-red-500/20"
+              >
+                <Check className="mr-1.5 h-4 w-4" />
+                {snapshot?.existingImageId ? "Update Picture in Report" : "Attach Picture to Report"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
