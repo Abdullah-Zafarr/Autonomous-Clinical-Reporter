@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { Activity, CheckCircle2, ListPlus, FileText, Stethoscope, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SectionItem {
@@ -41,7 +40,6 @@ export function parseClinicalReportText(text: string): SectionBlock[] {
 
     for (const line of lines) {
       // Normalize line: strip markdown bold/italic/header symbols, bullets, and trailing colons
-      // e.g. "*ADDITIONAL NOTES:**", "**ADDITIONAL NOTES:**", "### FINDINGS:", "• **RECOMMENDATIONS:**"
       const normalizedHeaderCandidate = line
         .replace(/^[\s\*\#\•\-\_]+|[\s\*\#\•\-\_]+$/g, "")
         .replace(/:$/, "")
@@ -112,13 +110,13 @@ export function parseClinicalReportText(text: string): SectionBlock[] {
 }
 
 /**
- * Parses markdown bold (**word**), measurements (e.g. 12 cm, 2.5 mm),
- * and key clinical diagnostic findings to give them emphatic bold rendering.
+ * Parses markdown bold (**word**), measurements (e.g. 12 cm, 2.5 mm)
+ * into clean, bolded typography without artificial colored underlines.
  */
 export function renderFormattedContent(text: string): React.ReactNode {
   if (!text) return null;
 
-  // Regex to split by markdown bold **...**
+  // Split by markdown bold **...**
   const boldParts = text.split(/(\*\*.*?\*\*)/g);
 
   return (
@@ -127,14 +125,14 @@ export function renderFormattedContent(text: string): React.ReactNode {
         if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
           const inner = part.slice(2, -2);
           return (
-            <strong key={index} className="font-bold text-foreground">
+            <strong key={index} className="font-semibold text-foreground">
               {inner}
             </strong>
           );
         }
 
-        // Highlight measurements like "12 cm", "2.5 mm", "4 mm" and key clinical words
-        const words = part.split(/(\b\d+(?:\.\d+)?\s*(?:cm|mm|m\/s|cm\/s|%|g|kg|bpm)\b|\b(?:positive|negative|simple hepatic cyst|biliary sludge|acute cholecystitis|cholelithiasis|splenomegaly|calculi|hydronephrosis|stenosis|thrombus)\b)/gi);
+        // Highlight measurements like "12 cm", "2.5 mm", "4 mm"
+        const words = part.split(/(\b\d+(?:\.\d+)?\s*(?:cm|mm|m\/s|cm\/s|%|g|kg|bpm)\b)/gi);
 
         return (
           <React.Fragment key={index}>
@@ -142,13 +140,6 @@ export function renderFormattedContent(text: string): React.ReactNode {
               if (/^\d+(?:\.\d+)?\s*(?:cm|mm|m\/s|cm\/s|%|g|kg|bpm)$/i.test(w)) {
                 return (
                   <strong key={wIdx} className="font-semibold text-foreground">
-                    {w}
-                  </strong>
-                );
-              }
-              if (/^(?:positive|acute cholecystitis|simple hepatic cyst|biliary sludge|cholelithiasis|splenomegaly|calculi|hydronephrosis|stenosis|thrombus)$/i.test(w)) {
-                return (
-                  <strong key={wIdx} className="font-semibold text-foreground underline decoration-primary/40 decoration-1 underline-offset-2">
                     {w}
                   </strong>
                 );
@@ -181,152 +172,51 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
   }
 
   return (
-    <div className={cn("space-y-4 text-sm select-text", className)} onClick={onClick} title={title}>
+    <div className={cn("space-y-6 text-sm select-text", className)} onClick={onClick} title={title}>
       {sections.map((section, sIdx) => {
-        const titleUpper = section.title?.toUpperCase() || "";
-        const isFindings = titleUpper.includes("FINDING");
-        const isImpression = titleUpper.includes("IMPRESSION");
-        const isRecs = titleUpper.includes("RECOMMENDATION");
-        const isNotes = titleUpper.includes("NOTE");
-
-        const SectionIcon = isFindings
-          ? Activity
-          : isImpression
-          ? CheckCircle2
-          : isRecs
-          ? ListPlus
-          : isNotes
-          ? StickyNote
-          : Stethoscope;
-
         return (
-          <section
-            key={sIdx}
-            className={cn(
-              "rounded-lg border p-3.5 sm:p-4 shadow-xs transition-colors",
-              isFindings
-                ? "border-blue-200/70 bg-blue-50/20 dark:border-blue-900/60 dark:bg-blue-950/15"
-                : isImpression
-                ? "border-emerald-200/70 bg-emerald-50/20 dark:border-emerald-900/60 dark:bg-emerald-950/15"
-                : isRecs
-                ? "border-amber-200/70 bg-amber-50/20 dark:border-amber-900/60 dark:bg-amber-950/15"
-                : isNotes
-                ? "border-purple-200/80 bg-purple-50/30 dark:border-purple-900/70 dark:bg-purple-950/25"
-                : "border-border/70 bg-card"
-            )}
-          >
+          <section key={sIdx} className="space-y-2.5">
             {section.title && (
-              <div
-                className={cn(
-                  "mb-3 flex items-center gap-2 border-b pb-2",
-                  isFindings
-                    ? "border-blue-200/70 dark:border-blue-900/50"
-                    : isImpression
-                    ? "border-emerald-200/70 dark:border-emerald-900/50"
-                    : isRecs
-                    ? "border-amber-200/70 dark:border-amber-900/50"
-                    : isNotes
-                    ? "border-purple-200/70 dark:border-purple-900/50"
-                    : "border-border/70"
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-md",
-                    isFindings
-                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/60 dark:text-blue-300"
-                      : isImpression
-                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-300"
-                      : isRecs
-                      ? "bg-amber-100 text-amber-600 dark:bg-amber-900/60 dark:text-amber-300"
-                      : isNotes
-                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300"
-                      : "bg-primary/10 text-primary"
-                  )}
-                >
-                  <SectionIcon className="h-3.5 w-3.5" />
-                </div>
-                <h3
-                  className={cn(
-                    "text-xs font-bold uppercase tracking-wider",
-                    isFindings
-                      ? "text-blue-700 dark:text-blue-300"
-                      : isImpression
-                      ? "text-emerald-700 dark:text-emerald-300"
-                      : isRecs
-                      ? "text-amber-700 dark:text-amber-300"
-                      : isNotes
-                      ? "text-purple-700 dark:text-purple-300"
-                      : "text-primary"
-                  )}
-                >
+              <div className="border-b border-border/60 pb-1.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   {section.title}
                 </h3>
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-2 text-foreground/90">
               {section.items.map((item, iIdx) => {
-                if (isNotes && item.type === "paragraph") {
-                  return (
-                    <div
-                      key={iIdx}
-                      className="rounded-md border border-purple-200/60 bg-purple-50/50 p-2.5 text-sm leading-relaxed text-purple-950 shadow-2xs dark:border-purple-800/50 dark:bg-purple-950/40 dark:text-purple-100"
-                    >
-                      {renderFormattedContent(item.content)}
-                    </div>
-                  );
-                }
-
                 if (item.type === "organ") {
                   return (
-                    <div key={iIdx} className="mt-3.5 first:mt-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                        <span className="font-bold text-sm text-foreground tracking-tight">
-                          {item.organName}
-                        </span>
+                    <div key={iIdx} className="space-y-1 pt-1 first:pt-0">
+                      <div className="text-sm leading-relaxed">
+                        <span className="font-semibold text-foreground">{item.organName}:</span>
+                        {item.content && (
+                          <span className="ml-1.5 text-foreground/90">
+                            {renderFormattedContent(item.content)}
+                          </span>
+                        )}
                       </div>
-                      {item.content && (
-                        <div className="flex items-start gap-2 pl-4 py-0.5 text-sm leading-relaxed text-foreground/90">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400/80 dark:bg-slate-500 shrink-0" />
-                          <span>{renderFormattedContent(item.content)}</span>
-                        </div>
-                      )}
                     </div>
                   );
                 }
 
                 if (item.type === "bullet") {
                   return (
-                    <div key={iIdx} className="flex items-start gap-2 pl-4 py-0.5 text-sm leading-relaxed text-foreground/90">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400/80 dark:bg-slate-500 shrink-0" />
-                      <span>{renderFormattedContent(item.content)}</span>
+                    <div key={iIdx} className="flex items-start gap-2.5 pl-3 py-0.5 text-sm leading-relaxed text-foreground/90">
+                      <span className="text-muted-foreground/60 select-none">•</span>
+                      <span className="flex-1">{renderFormattedContent(item.content)}</span>
                     </div>
                   );
                 }
 
                 if (item.type === "numbered") {
                   return (
-                    <div
-                      key={iIdx}
-                      className="flex items-start gap-2.5 py-1 rounded-md bg-background/80 px-2.5 border border-border/40 my-1 text-sm leading-relaxed text-foreground shadow-2xs"
-                    >
-                      <span
-                        className={cn(
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold mt-0.5",
-                          isImpression
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
-                            : isRecs
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
-                            : "bg-primary/10 text-primary"
-                        )}
-                      >
-                        {(item.number || `${iIdx + 1}`).replace(/[\.\)]/, "")}
+                    <div key={iIdx} className="flex items-start gap-2.5 pl-1 py-0.5 text-sm leading-relaxed text-foreground/90">
+                      <span className="font-semibold text-foreground/80 select-none min-w-[1.25rem]">
+                        {item.number}
                       </span>
-                      <span className="font-medium flex-1 pt-0.5">
-                        {renderFormattedContent(item.content)}
-                      </span>
+                      <span className="flex-1 font-medium">{renderFormattedContent(item.content)}</span>
                     </div>
                   );
                 }
