@@ -4,6 +4,7 @@ import {
   formatBackupTimestamp,
   hasRecoverableProgress,
   getBackupStorageKey,
+  getBackupListStorageKey,
   type SessionBackup,
 } from "../src/lib/auto-recovery";
 
@@ -74,4 +75,10 @@ test("getBackupStorageKey generates isolated keys per patient", () => {
   assert.equal(getBackupStorageKey("pt-123"), "sonolynx_crashproof_backup_pt-123");
   assert.equal(getBackupStorageKey("pt-456"), "sonolynx_crashproof_backup_pt-456");
   assert.notEqual(getBackupStorageKey("pt-123"), getBackupStorageKey("pt-456"));
+});
+
+test("getBackupListStorageKey generates isolated backup list keys per patient", () => {
+  assert.equal(getBackupListStorageKey("pt-123"), "sonolynx_crashproof_backups_list_pt-123");
+  assert.equal(getBackupListStorageKey("pt-456"), "sonolynx_crashproof_backups_list_pt-456");
+  assert.notEqual(getBackupListStorageKey("pt-123"), getBackupListStorageKey("pt-456"));
 });

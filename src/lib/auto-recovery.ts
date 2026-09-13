@@ -30,53 +30,15 @@ export interface SessionBackup {
 }
 
 const STORAGE_PREFIX = "sonolynx_crashproof_backup_";
+const STORAGE_HISTORY_PREFIX = "sonolynx_crashproof_backups_list_";
 const GLOBAL_POINTER_KEY = "sonolynx_last_active_backup_patient";
 
 export function getBackupStorageKey(patientId: string): string {
   return `${STORAGE_PREFIX}${patientId || "default"}`;
 }
 
-/**
- * Saves an immediate snapshot of the current session state to persistent local storage.
- */
-export function saveSessionBackup(backup: Omit<SessionBackup, "backupId" | "savedAt" | "savedAtIso">): SessionBackup | null {
-  if (typeof window === "undefined") return null;
-
-  const now = Date.now();
-  const fullBackup: SessionBackup = {
-    ...backup,
-    backupId: crypto.randomUUID(),
-    savedAt: now,
-    savedAtIso: new Date(now).toISOString(),
-  };
-
-  const key = getBackupStorageKey(backup.patientId);
-
-  try {
-    const serialized = JSON.stringify(fullBackup);
-    localStorage.setItem(key, serialized);
-    if (backup.patientId) {
-      localStorage.setItem(GLOBAL_POINTER_KEY, backup.patientId);
-    }
-    return fullBackup;
-  } catch (err) {
-    console.warn("localStorage quota exceeded for full backup, attempting lightweight backup:", err);
-    try {
-      // If quota exceeded (due to multiple attached images), save lightweight backup without images
-      const lightweight: SessionBackup = {
-        ...fullBackup,
-        keyImages: fullBackup.keyImages.map((img) => ({
-          ...img,
-          dataUrl: "", // Strip dataUrl to conserve storage
-        })),
-      };
-      localStorage.setItem(key, JSON.stringify(lightweight));
-      return lightweight;
-    } catch (fallbackErr) {
-      console.error("Critical: failed to write backup to localStorage:", fallbackErr);
-      return null;
-    }
-  }
+export function getBackupListStorageKey(patientId: string): string {
+  return `${STORAGE_HISTORY_PREFIX}${patientId || "default"}`;
 }
 
 /**
@@ -92,6 +54,126 @@ export function getSessionBackup(patientId: string): SessionBackup | null {
   } catch (err) {
     console.error("Failed to parse session backup:", err);
     return null;
+  }
+}
+
+/**
+ * Retrieves all stored backup snapshots for a patient in descending order (newest first).
+ */
+export function getAllSessionBackups(patientId: string): SessionBackup[] {
+  if (typeof window === "undefined" || !patientId) return [];
+  try {
+    const listKey = getBackupListStorageKey(patientId);
+    const raw = localStorage.getItem(listKey);
+    let backups: SessionBackup[] = [];
+    if (raw) {
+      try {
+        backups = JSON.parse(raw) as SessionBackup[];
+      } catch (parseErr) {
+        console.warn("Could not parse backups history list:", parseErr);
+      }
+    }
+
+    // Ensure latest single primary backup is in the list
+    const primary = getSessionBackup(patientId);
+    if (primary) {
+      const alreadyIncluded = backups.some(
+        (b) => b.backupId === primary.backupId || Math.abs(b.savedAt - primary.savedAt) < 1500
+      );
+      if (!alreadyIncluded) {
+        backups.unshift(primary);
+      }
+    }
+
+    // Sort newest first
+    backups.sort((a, b) => b.savedAt - a.savedAt);
+    return backups;
+  } catch (err) {
+    console.error("Failed to retrieve all session backups:", err);
+    const fallback = getSessionBackup(patientId);
+    return fallback ? [fallback] : [];
+  }
+}
+
+/**
+ * Saves an immediate snapshot of the current session state to persistent local storage.
+ * Maintains a rolling history of up to 15 snapshots per patient.
+ */
+export function saveSessionBackup(backup: Omit<SessionBackup, "backupId" | "savedAt" | "savedAtIso">): SessionBackup | null {
+  if (typeof window === "undefined") return null;
+
+  const now = Date.now();
+  const fullBackup: SessionBackup = {
+    ...backup,
+    backupId: crypto.randomUUID(),
+    savedAt: now,
+    savedAtIso: new Date(now).toISOString(),
+  };
+
+  const key = getBackupStorageKey(backup.patientId);
+
+  const appendToHistoryList = (snapshotToStore: SessionBackup) => {
+    try {
+      const existing = getAllSessionBackups(backup.patientId);
+      // Avoid rapid-fire duplicates saved within 3 seconds with identical content
+      const filtered = existing.filter((b) => Math.abs(b.savedAt - now) > 3000);
+      const updatedList = [snapshotToStore, ...filtered].slice(0, 15);
+      localStorage.setItem(getBackupListStorageKey(backup.patientId), JSON.stringify(updatedList));
+    } catch (listErr) {
+      console.warn("Could not write to backup history list:", listErr);
+    }
+  };
+
+  try {
+    const serialized = JSON.stringify(fullBackup);
+    localStorage.setItem(key, serialized);
+    if (backup.patientId) {
+      localStorage.setItem(GLOBAL_POINTER_KEY, backup.patientId);
+    }
+    appendToHistoryList(fullBackup);
+    return fullBackup;
+  } catch (err) {
+    console.warn("localStorage quota exceeded for full backup, attempting lightweight backup:", err);
+    try {
+      // If quota exceeded (due to multiple attached images), save lightweight backup without images
+      const lightweight: SessionBackup = {
+        ...fullBackup,
+        keyImages: fullBackup.keyImages.map((img) => ({
+          ...img,
+          dataUrl: "", // Strip dataUrl to conserve storage
+        })),
+      };
+      localStorage.setItem(key, JSON.stringify(lightweight));
+      appendToHistoryList(lightweight);
+      return lightweight;
+    } catch (fallbackErr) {
+      console.error("Critical: failed to write backup to localStorage:", fallbackErr);
+      return null;
+    }
+  }
+}
+
+/**
+ * Deletes a specific snapshot from the history list.
+ */
+export function deleteSessionBackup(patientId: string, backupId: string): SessionBackup[] {
+  if (typeof window === "undefined" || !patientId) return [];
+  try {
+    const existing = getAllSessionBackups(patientId);
+    const updated = existing.filter((b) => b.backupId !== backupId);
+    localStorage.setItem(getBackupListStorageKey(patientId), JSON.stringify(updated));
+
+    const primary = getSessionBackup(patientId);
+    if (primary && primary.backupId === backupId) {
+      if (updated.length > 0) {
+        localStorage.setItem(getBackupStorageKey(patientId), JSON.stringify(updated[0]));
+      } else {
+        localStorage.removeItem(getBackupStorageKey(patientId));
+      }
+    }
+    return updated;
+  } catch {
+    return [];
   }
 }
 
@@ -114,6 +196,7 @@ export function clearSessionBackup(patientId: string): void {
   if (typeof window === "undefined" || !patientId) return;
   try {
     localStorage.removeItem(getBackupStorageKey(patientId));
+    localStorage.removeItem(getBackupListStorageKey(patientId));
     if (localStorage.getItem(GLOBAL_POINTER_KEY) === patientId) {
       localStorage.removeItem(GLOBAL_POINTER_KEY);
     }

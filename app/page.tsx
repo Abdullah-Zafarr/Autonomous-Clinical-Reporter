@@ -22,9 +22,11 @@ import { AutoRecoveryStatusButton } from "@/components/sonoflow/AutoRecoveryStat
 import {
   saveSessionBackup,
   getSessionBackup,
+  getAllSessionBackups,
   clearSessionBackup,
   hasRecoverableProgress,
   formatBackupTimestamp,
+  type SessionBackup,
 } from "@/lib/auto-recovery";
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -471,9 +473,9 @@ export default function SonolynxApp() {
     }
   };
 
-  const handleRestoreFromBackup = () => {
+  const handleRestoreFromBackup = (customBackup?: SessionBackup) => {
     if (!patient?.id) return;
-    const backup = getSessionBackup(patient.id);
+    const backup = customBackup || getSessionBackup(patient.id);
     if (!backup) {
       toast.info("No local backup found for this patient.");
       return;
