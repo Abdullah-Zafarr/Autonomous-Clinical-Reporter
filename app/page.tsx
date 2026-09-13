@@ -18,6 +18,14 @@ import { ReportHistory } from "@/components/sonolynx/ReportHistory";
 import { SignReportDialog } from "@/components/sonolynx/SignReportDialog";
 import { WorkflowProgress } from "@/components/sonolynx/WorkflowProgress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AutoRecoveryStatusButton } from "@/components/sonoflow/AutoRecoveryStatusButton";
+import {
+  saveSessionBackup,
+  getSessionBackup,
+  clearSessionBackup,
+  hasRecoverableProgress,
+  formatBackupTimestamp,
+} from "@/lib/auto-recovery";
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatPatientName } from "@/lib/utils";
@@ -223,6 +231,10 @@ export default function SonolynxApp() {
   const [, forceTick] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [initialCaseChecked, setInitialCaseChecked] = useState(false);
+  const [lastBackupTime, setLastBackupTime] = useState<number | null>(null);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [hasStoredBackup, setHasStoredBackup] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -359,15 +371,163 @@ export default function SonolynxApp() {
   }, [worksheet, thyroid, ob, vascular, exam, abdomenOrder, additionalNotes, editedReportText, keyImages, corrections]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const performAutoBackup = (source: "auto" | "heartbeat" | "manual" | "beforeunload" = "auto") => {
+    if (!patient?.id) return;
+    setIsBackingUp(true);
+    try {
+      const snapshot = saveSessionBackup({
+        patientId: patient.id,
+        patientName: formatPatientName(patient, "Patient"),
+        mrn: patient.mrn,
+        studyId: patient.studyId,
+        accession,
+        exam,
+        worksheetPayload: {
+          abdomen: worksheet,
+          abdomenOrder,
+          thyroid,
+          ob,
+          vascular,
+          additionalNotes,
+        },
+        editedReportText,
+        additionalNotes,
+        keyImages,
+        corrections,
+        isDirty,
+        source,
+      });
+      if (snapshot) {
+        setLastBackupTime(snapshot.savedAt);
+        setHasStoredBackup(true);
+        if (source === "manual") {
+          toast.success("Crash-Proof Backup Saved", {
+            description: `Session snapshot saved at ${formatBackupTimestamp(snapshot.savedAt).absolute}.`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[auto-recovery] Backup error:", err);
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreFromBackup = () => {
+    if (!patient?.id) return;
+    const backup = getSessionBackup(patient.id);
+    if (!backup) {
+      toast.info("No local backup found for this patient.");
+      return;
+    }
+    isInitialMount.current = true;
+    if (backup.exam) setExam(backup.exam);
+    if (backup.worksheetPayload?.abdomen) {
+      setWorksheet(backup.worksheetPayload.abdomen as WorksheetData);
+    }
+    if (backup.worksheetPayload?.abdomenOrder) {
+      setAbdomenOrder(backup.worksheetPayload.abdomenOrder);
+    }
+    if (backup.worksheetPayload?.thyroid) {
+      setThyroid(backup.worksheetPayload.thyroid as ThyroidData);
+    }
+    if (backup.worksheetPayload?.ob) {
+      setOb(backup.worksheetPayload.ob as ObData);
+    }
+    if (backup.worksheetPayload?.vascular) {
+      setVascular(backup.worksheetPayload.vascular as VascularData);
+    }
+    if (typeof backup.additionalNotes === "string") {
+      setAdditionalNotes(backup.additionalNotes);
+    }
+    if (backup.editedReportText !== null && backup.editedReportText !== undefined) {
+      setEditedReportText(backup.editedReportText);
+    }
+    if (Array.isArray(backup.keyImages)) {
+      setKeyImages(backup.keyImages);
+    }
+    if (Array.isArray(backup.corrections)) {
+      setCorrections(backup.corrections);
+    }
+    setLastBackupTime(backup.savedAt);
+    setHasStoredBackup(true);
+    setIsDirty(true);
+    const { absolute } = formatBackupTimestamp(backup.savedAt);
+    toast.success("Session Restored", {
+      description: `Restored uncommitted session from ${absolute}.`,
+    });
+  };
+
+  useEffect(() => {
+    if (!patient?.id) return;
+    const timer = setTimeout(() => {
+      performAutoBackup("auto");
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [
+    patient?.id,
+    worksheet,
+    thyroid,
+    ob,
+    vascular,
+    exam,
+    abdomenOrder,
+    additionalNotes,
+    editedReportText,
+    keyImages,
+    corrections,
+    isDirty,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const heartbeat = setInterval(() => {
+      if (patient?.id && isDirty) {
+        performAutoBackup("heartbeat");
+      }
+    }, 12000);
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (patient?.id) {
+        performAutoBackup("beforeunload");
+      }
       if (isDirty) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [
+    patient?.id,
+    worksheet,
+    thyroid,
+    ob,
+    vascular,
+    exam,
+    abdomenOrder,
+    additionalNotes,
+    editedReportText,
+    keyImages,
+    corrections,
+    isDirty,
+  ]);
 
   const accession = useMemo(
     () => patient.accessionNumber || `ACC-${patient.mrn.replace(/\D/g, "").slice(-6)}-${new Date().getFullYear()}`,
@@ -513,6 +673,29 @@ export default function SonolynxApp() {
         const existing = await loadWorksheet(patient.studyId, undefined, activeWorksheetId);
         if (!active) return;
         if (!existing) {
+          const crashBackup = getSessionBackup(patient.id);
+          if (crashBackup && hasRecoverableProgress(crashBackup, null)) {
+            isInitialMount.current = true;
+            setCurrentWorksheet(null);
+            if (crashBackup.exam) setExam(crashBackup.exam);
+            setWorksheet(hasPersistedSection(crashBackup.worksheetPayload?.abdomen) ? crashBackup.worksheetPayload.abdomen as unknown as WorksheetData : defaultWorksheet);
+            if (crashBackup.worksheetPayload?.abdomenOrder) setAbdomenOrder(crashBackup.worksheetPayload.abdomenOrder);
+            setThyroid(hasPersistedSection(crashBackup.worksheetPayload?.thyroid) ? crashBackup.worksheetPayload.thyroid as unknown as ThyroidData : defaultThyroid);
+            setOb(hasPersistedSection(crashBackup.worksheetPayload?.ob) ? crashBackup.worksheetPayload.ob as unknown as ObData : defaultOb);
+            setVascular(hasPersistedSection(crashBackup.worksheetPayload?.vascular) ? crashBackup.worksheetPayload.vascular as unknown as VascularData : defaultVascular);
+            setAdditionalNotes(crashBackup.additionalNotes || "");
+            setKeyImages(Array.isArray(crashBackup.keyImages) ? crashBackup.keyImages : []);
+            setCorrections(Array.isArray(crashBackup.corrections) ? crashBackup.corrections : []);
+            setEditedReportText(crashBackup.editedReportText ?? null);
+            setLastBackupTime(crashBackup.savedAt);
+            setHasStoredBackup(true);
+            setIsDirty(true);
+            const { absolute } = formatBackupTimestamp(crashBackup.savedAt);
+            toast.info("Auto-Recovery Restored Session", {
+              description: `Recovered uncommitted draft from ${absolute}.`,
+            });
+            return;
+          }
           isInitialMount.current = true;
           setCurrentWorksheet(null);
           setWorksheet(defaultWorksheet);
@@ -564,6 +747,49 @@ export default function SonolynxApp() {
         setEditedReportText(isDoctorView && existing.report_text ? existing.report_text : null);
 
         setLastSaved(existing.updated_at ? new Date(existing.updated_at) : new Date());
+
+        // Crash-proof auto-recovery: check if local storage has newer uncommitted edits
+        const crashBackup = getSessionBackup(patient.id);
+        if (crashBackup) {
+          setLastBackupTime(crashBackup.savedAt);
+          setHasStoredBackup(true);
+          if (hasRecoverableProgress(crashBackup, existing.updated_at)) {
+            console.info("[auto-recovery] Newer uncommitted crash backup detected. Auto-restoring session...", crashBackup);
+            if (crashBackup.exam) setExam(crashBackup.exam);
+            if (crashBackup.worksheetPayload?.abdomen) {
+              setWorksheet(crashBackup.worksheetPayload.abdomen as WorksheetData);
+            }
+            if (crashBackup.worksheetPayload?.abdomenOrder) {
+              setAbdomenOrder(crashBackup.worksheetPayload.abdomenOrder);
+            }
+            if (crashBackup.worksheetPayload?.thyroid) {
+              setThyroid(crashBackup.worksheetPayload.thyroid as ThyroidData);
+            }
+            if (crashBackup.worksheetPayload?.ob) {
+              setOb(crashBackup.worksheetPayload.ob as ObData);
+            }
+            if (crashBackup.worksheetPayload?.vascular) {
+              setVascular(crashBackup.worksheetPayload.vascular as VascularData);
+            }
+            if (typeof crashBackup.additionalNotes === "string") {
+              setAdditionalNotes(crashBackup.additionalNotes);
+            }
+            if (Array.isArray(crashBackup.keyImages) && crashBackup.keyImages.length > 0) {
+              setKeyImages(crashBackup.keyImages);
+            }
+            if (Array.isArray(crashBackup.corrections) && crashBackup.corrections.length > 0) {
+              setCorrections(crashBackup.corrections);
+            }
+            if (crashBackup.editedReportText !== null && crashBackup.editedReportText !== undefined) {
+              setEditedReportText(crashBackup.editedReportText);
+            }
+            setIsDirty(true);
+            const { absolute } = formatBackupTimestamp(crashBackup.savedAt);
+            toast.info("Auto-Recovery Restored Session", {
+              description: `Recovered uncommitted changes from ${absolute} after unexpected exit.`,
+            });
+          }
+        }
       } catch (error) {
         if (!active) return;
         setWorksheetLoadError(true);
@@ -1210,6 +1436,18 @@ export default function SonolynxApp() {
                 </span>
               )}
             </Button>
+            <AutoRecoveryStatusButton
+              lastBackupTime={lastBackupTime}
+              isBackingUp={isBackingUp}
+              isOnline={isOnline}
+              patientName={formatPatientName(patient, "Patient")}
+              mrn={patient.mrn}
+              exam={exam}
+              keyImagesCount={keyImages.length}
+              onManualBackup={() => performAutoBackup("manual")}
+              onRestoreBackup={handleRestoreFromBackup}
+              hasStoredBackup={hasStoredBackup}
+            />
           </div>
       </div>
 
