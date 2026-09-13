@@ -85,19 +85,7 @@ export function HL7InspectorDialog({ open, onOpenChange, hl7 }: Props) {
         {/* Toolbar & Controls */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="font-semibold text-foreground">Segment Legend:</span>
-            <span className="inline-flex items-center gap-1 rounded bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
-              MSH (Header)
-            </span>
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              PID (Patient)
-            </span>
-            <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 font-mono text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              OBR (Order)
-            </span>
-            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              OBX (Report)
-            </span>
+            <span>Segments: MSH (header) · PID (patient) · OBR (order) · OBX (report)</span>
           </div>
 
           <div className="flex items-center gap-1.5 ml-auto">
@@ -106,7 +94,7 @@ export function HL7InspectorDialog({ open, onOpenChange, hl7 }: Props) {
               variant="outline"
               size="sm"
               onClick={() => setWrapLines((prev) => !prev)}
-              className={cn("h-7 text-xs gap-1", wrapLines && "bg-muted font-semibold")}
+              className={cn("h-7 text-xs gap-1 border-border", wrapLines && "bg-muted font-semibold")}
               title="Toggle line wrapping"
             >
               <WrapText className="h-3.5 w-3.5" />
@@ -117,7 +105,7 @@ export function HL7InspectorDialog({ open, onOpenChange, hl7 }: Props) {
               variant="outline"
               size="sm"
               onClick={handleDownload}
-              className="h-7 text-xs gap-1"
+              className="h-7 text-xs gap-1 border-border"
               title="Download raw .hl7 file"
             >
               <Download className="h-3.5 w-3.5" />
@@ -125,9 +113,10 @@ export function HL7InspectorDialog({ open, onOpenChange, hl7 }: Props) {
             </Button>
             <Button
               type="button"
+              variant="outline"
               size="sm"
               onClick={handleCopy}
-              className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+              className="h-7 text-xs gap-1 border-border"
             >
               {copied ? (
                 <>
@@ -158,37 +147,22 @@ export function HL7InspectorDialog({ open, onOpenChange, hl7 }: Props) {
               lines.map((line, i) => {
                 const seg = line.slice(0, 3);
                 const rest = line.slice(3);
-                const isHeader = seg === "MSH";
-                const isPatient = seg === "PID";
-                const isOrder = seg === "OBR";
-                const isObservation = seg === "OBX";
 
                 return (
                   <div
                     key={i}
                     className="flex items-start hover:bg-slate-900/80 py-0.5 px-1 rounded transition-colors"
                   >
-                    <span className="select-none text-slate-500 w-7 text-right pr-2 shrink-0 text-[11px] font-mono">
+                    <span className="select-none text-slate-600 w-7 text-right pr-2 shrink-0 text-[11px] font-mono">
                       {i + 1}
                     </span>
                     <span
                       className={cn(
-                        "font-mono text-[12px] leading-relaxed text-slate-200",
+                        "font-mono text-[12px] leading-relaxed text-slate-300",
                         wrapLines ? "whitespace-pre-wrap break-all" : "whitespace-pre"
                       )}
                     >
-                      <span
-                        className={cn(
-                          "font-bold",
-                          isHeader && "text-cyan-400",
-                          isPatient && "text-amber-400",
-                          isOrder && "text-blue-400",
-                          isObservation && "text-emerald-400",
-                          !isHeader && !isPatient && !isOrder && !isObservation && "text-purple-400"
-                        )}
-                      >
-                        {seg}
-                      </span>
+                      <span className="font-bold text-slate-100">{seg}</span>
                       <span>{rest}</span>
                     </span>
                   </div>
