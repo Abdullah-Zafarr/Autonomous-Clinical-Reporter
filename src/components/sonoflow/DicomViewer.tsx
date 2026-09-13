@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { fetchWithTimeout } from "@/lib/api-client";
 import type { KeyReportImage } from "@/lib/clinical-workflow-types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 let csInitialized = false;
 
@@ -56,9 +57,19 @@ interface DicomViewerProps {
   onKeyImagesChange?: (images: KeyReportImage[]) => void;
   currentUserId?: string;
   canSelectKeyImages?: boolean;
+  selectedKeyImageId?: string | null;
+  onSelectKeyImage?: (id: string | null) => void;
 }
 
-export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, currentUserId = "", canSelectKeyImages = false }: DicomViewerProps) {
+export function DicomViewer({
+  accession,
+  keyImages = [],
+  onKeyImagesChange,
+  currentUserId = "",
+  canSelectKeyImages = false,
+  selectedKeyImageId,
+  onSelectKeyImage,
+}: DicomViewerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -76,6 +87,86 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
   const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
 
+  // Attached image viewing state
+  const [internalSelectedKeyImageId, setInternalSelectedKeyImageId] = useState<string | null>(null);
+  const [userExplicitlyDismissedKeyImage, setUserExplicitlyDismissedKeyImage] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, startPanX: 0, startPanY: 0 });
+  const [fullscreenModalOpen, setFullscreenModalOpen] = useState(false);
+
+  const currentSelectedId = selectedKeyImageId !== undefined ? selectedKeyImageId : internalSelectedKeyImageId;
+
+  // Active key image to display full-size
+  const activeKeyImage = useMemo(() => {
+    if (keyImages.length === 0) return null;
+    if (currentSelectedId) {
+      return keyImages.find((img) => img.id === currentSelectedId) ?? null;
+    }
+    // Default to first attached image if no DICOM studies are loaded
+    if (imageIds.length === 0 && !userExplicitlyDismissedKeyImage) {
+      return keyImages[0];
+    }
+    return null;
+  }, [keyImages, currentSelectedId, imageIds.length, userExplicitlyDismissedKeyImage]);
+
+  const activeKeyImageIndex = useMemo(() => {
+    if (!activeKeyImage) return -1;
+    return keyImages.findIndex((img) => img.id === activeKeyImage.id);
+  }, [keyImages, activeKeyImage]);
+
+  const handleSelectKeyImage = (image: KeyReportImage) => {
+    setUserExplicitlyDismissedKeyImage(false);
+    if (onSelectKeyImage) {
+      onSelectKeyImage(image.id);
+    }
+    setInternalSelectedKeyImageId(image.id);
+    setImageZoom(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const handleDeselectKeyImage = () => {
+    setUserExplicitlyDismissedKeyImage(true);
+    if (onSelectKeyImage) {
+      onSelectKeyImage(null);
+    }
+    setInternalSelectedKeyImageId(null);
+    setImageZoom(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const handleWheelZoom = (e: React.WheelEvent) => {
+    if (!activeKeyImage) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.25 : -0.25;
+    setImageZoom((prev) => Math.max(0.5, Math.min(5, Number((prev + delta).toFixed(2)))));
+  };
+
+  const handlePanMouseDown = (e: React.MouseEvent) => {
+    if (!activeKeyImage || imageZoom <= 1) return;
+    setIsPanning(true);
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      startPanX: panPosition.x,
+      startPanY: panPosition.y,
+    };
+  };
+
+  const handlePanMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    setPanPosition({
+      x: panStartRef.current.startPanX + dx,
+      y: panStartRef.current.startPanY + dy,
+    });
+  };
+
+  const handlePanMouseUp = () => {
+    setIsPanning(false);
+  };
 
   const hasImages = imageIds.length > 0;
   const currentFrame = useMemo(() => (hasImages ? currentIndex + 1 : 0), [hasImages, currentIndex]);
@@ -354,15 +445,38 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
   };
 
 
+  const canPrev = activeKeyImage ? activeKeyImageIndex > 0 : (hasImages && currentIndex > 0);
+  const canNext = activeKeyImage
+    ? activeKeyImageIndex >= 0 && activeKeyImageIndex < keyImages.length - 1
+    : (hasImages && currentIndex < imageIds.length - 1);
+
   const nextFrame = () => {
+    if (activeKeyImage) {
+      const idx = keyImages.findIndex((img) => img.id === activeKeyImage.id);
+      if (idx >= 0 && idx < keyImages.length - 1) {
+        handleSelectKeyImage(keyImages[idx + 1]);
+      }
+      return;
+    }
     setCurrentIndex((prev) => Math.min(prev + 1, imageIds.length - 1));
   };
 
   const prevFrame = () => {
+    if (activeKeyImage) {
+      const idx = keyImages.findIndex((img) => img.id === activeKeyImage.id);
+      if (idx > 0) {
+        handleSelectKeyImage(keyImages[idx - 1]);
+      }
+      return;
+    }
     setCurrentIndex((prev) => Math.max(prev - 1, 0));
   };
 
   const adjustZoom = (delta: number) => {
+    if (activeKeyImage) {
+      setImageZoom((prev) => Math.max(0.5, Math.min(5, Number((prev + delta * 2).toFixed(2)))));
+      return;
+    }
     const el = viewportRef.current;
     const cornerstone = csRef.current;
     if (!el || !cornerstone) return;
@@ -373,6 +487,11 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
   };
 
   const resetView = () => {
+    if (activeKeyImage) {
+      setImageZoom(1);
+      setPanPosition({ x: 0, y: 0 });
+      return;
+    }
     const el = viewportRef.current;
     const cornerstone = csRef.current;
     if (!el || !cornerstone) return;
@@ -506,8 +625,8 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
           <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-100">DICOM Viewer</h2>
         </div>
-        <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-300">
-          <Wifi className="mr-1 h-2.5 w-2.5" /> {hasImages ? "IMAGES LOADED" : "NO IMAGES"}
+        <Badge variant="outline" className={cn("text-[10px]", (activeKeyImage || hasImages) ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-400")}>
+          <Wifi className="mr-1 h-2.5 w-2.5" /> {activeKeyImage ? `ATTACHED IMAGE (${activeKeyImageIndex + 1}/${keyImages.length})` : (hasImages ? "DICOM LOADED" : "NO IMAGES")}
         </Badge>
       </header>
 
@@ -589,7 +708,7 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             variant="secondary"
             className="h-8 w-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={() => adjustZoom(0.1)}
-            disabled={!hasImages}
+            disabled={!hasImages && !activeKeyImage}
             title="Zoom In"
           >
             <ZoomIn className="h-4 w-4" />
@@ -599,7 +718,7 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             variant="secondary"
             className="h-8 w-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={() => adjustZoom(-0.1)}
-            disabled={!hasImages}
+            disabled={!hasImages && !activeKeyImage}
             title="Zoom Out"
           >
             <ZoomOut className="h-4 w-4" />
@@ -609,7 +728,7 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             variant="secondary"
             className="h-8 w-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={resetView}
-            disabled={!hasImages}
+            disabled={!hasImages && !activeKeyImage}
             title="Reset View"
           >
             <RefreshCw className="h-4 w-4" />
@@ -622,8 +741,9 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             variant="secondary"
             className="h-8 w-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={prevFrame}
-            disabled={!hasImages || currentIndex === 0}
-            aria-label="Previous frame"
+            disabled={!canPrev}
+            aria-label="Previous image or frame"
+            title="Previous image or frame"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -632,8 +752,9 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
             variant="secondary"
             className="h-8 w-8 bg-slate-800 text-slate-100 hover:bg-slate-700"
             onClick={nextFrame}
-            disabled={!hasImages || currentIndex >= imageIds.length - 1}
-            aria-label="Next frame"
+            disabled={!canNext}
+            aria-label="Next image or frame"
+            title="Next image or frame"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -641,20 +762,100 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
         </div>
       </div>
 
-      <div className="relative flex-1">
-        <div ref={viewportRef} className="h-full w-full bg-black" />
-        {!hasImages && (
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
-            <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-slate-700/60">
-              <div className="absolute inset-0 animate-ping rounded-full border border-emerald-500/20" />
-              <Crosshair className="h-12 w-12 text-emerald-400/80" strokeWidth={1.2} />
+      <div className="relative flex-1 bg-black overflow-hidden select-none">
+        <div ref={viewportRef} className={cn("h-full w-full bg-black", activeKeyImage && "hidden")} />
+        
+        {activeKeyImage ? (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden"
+            onWheel={handleWheelZoom}
+            onMouseDown={handlePanMouseDown}
+            onMouseMove={handlePanMouseMove}
+            onMouseUp={handlePanMouseUp}
+            onMouseLeave={handlePanMouseUp}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={activeKeyImage.dataUrl}
+              alt={activeKeyImage.caption}
+              draggable={false}
+              style={{
+                transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
+                transition: isPanning ? "none" : "transform 0.15s ease-out",
+                maxHeight: "100%",
+                maxWidth: "100%",
+                objectFit: "contain",
+                cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
+              }}
+              onClick={() => {
+                if (imageZoom === 1) {
+                  setImageZoom(1.8);
+                } else if (!isPanning) {
+                  setImageZoom(1);
+                  setPanPosition({ x: 0, y: 0 });
+                }
+              }}
+            />
+
+            {/* Floating top bar with caption and controls */}
+            <div className="pointer-events-none absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 rounded-md bg-black/80 px-2.5 py-1 text-xs text-white backdrop-blur-md border border-slate-700/80 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="font-semibold text-emerald-400 truncate max-w-[200px]">{activeKeyImage.caption}</span>
+                <span className="text-slate-400 text-[11px] shrink-0">
+                  · Image {activeKeyImageIndex + 1} of {keyImages.length}
+                </span>
+                {imageZoom > 1 && (
+                  <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-300 font-mono">
+                    {Math.round(imageZoom * 100)}%
+                  </span>
+                )}
+              </div>
+
+              <div className="pointer-events-auto flex items-center gap-1.5">
+                {hasImages && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs bg-slate-900/90 text-slate-200 border border-slate-700 hover:bg-slate-800"
+                    onClick={handleDeselectKeyImage}
+                  >
+                    View DICOM
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-7 w-7 bg-slate-900/90 text-slate-200 border border-slate-700 hover:bg-slate-800"
+                  onClick={() => setFullscreenModalOpen(true)}
+                  title="Expand to full screen"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-100">Upload DICOM files or attach images</p>
-              <p className="text-xs text-slate-400">{status}</p>
-              {lastFetchFailed && <p className="text-xs text-amber-400">Use Fetch Server again to retry.</p>}
-            </div>
+
+            {/* Zoom hint badge at bottom */}
+            {imageZoom === 1 && (
+              <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[10px] text-slate-400 backdrop-blur-sm border border-slate-800/80">
+                Click or scroll to zoom · Drag to pan
+              </div>
+            )}
           </div>
+        ) : (
+          !hasImages && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
+              <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-slate-700/60">
+                <div className="absolute inset-0 animate-ping rounded-full border border-emerald-500/20" />
+                <Crosshair className="h-12 w-12 text-emerald-400/80" strokeWidth={1.2} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-100">Upload DICOM files or attach images</p>
+                <p className="text-xs text-slate-400">{status}</p>
+                {lastFetchFailed && <p className="text-xs text-amber-400">Use Fetch Server again to retry.</p>}
+              </div>
+            </div>
+          )
         )}
       </div>
 
@@ -662,44 +863,90 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
         {keyImages.length > 0 && (
           <div className="mb-2 space-y-1">
             <div className="flex items-center justify-between font-medium text-slate-300">
-              <span>Attached to report ({keyImages.length}/6)</span>
+              <span className="flex items-center gap-1.5">
+                <span>Attached to report ({keyImages.length}/6)</span>
+                {activeKeyImage && (
+                  <span className="text-[10px] font-normal text-emerald-400">• Viewing full size</span>
+                )}
+              </span>
+              <span className="text-[10px] text-slate-500">Click to view full size</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
-            {keyImages.map((image) => (
-              <div key={image.id} className="group relative w-20 shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.dataUrl} alt={image.caption} className="h-12 w-20 rounded border border-slate-700 object-cover" />
-                {canSelectKeyImages && (
-                  <button
-                    type="button"
-                    className="absolute right-0.5 top-0.5 rounded bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={() => onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id))}
-                    aria-label={`Remove ${image.caption}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
-                <p className="mt-1 truncate" title={image.caption}>{image.caption}</p>
-              </div>
-            ))}
+            {keyImages.map((image) => {
+              const isActive = activeKeyImage?.id === image.id;
+              return (
+                <div
+                  key={image.id}
+                  className={cn(
+                    "group relative w-20 shrink-0 cursor-pointer rounded transition-all",
+                    isActive
+                      ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-950 scale-105"
+                      : "opacity-80 hover:opacity-100 hover:scale-102"
+                  )}
+                  onClick={() => handleSelectKeyImage(image)}
+                  title={`Click to view "${image.caption}" in full size`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.dataUrl}
+                    alt={image.caption}
+                    className={cn(
+                      "h-12 w-20 rounded border object-cover transition-colors",
+                      isActive ? "border-emerald-400 shadow-md shadow-emerald-950/50" : "border-slate-700"
+                    )}
+                  />
+                  {isActive && (
+                    <div className="absolute top-0.5 left-0.5 rounded bg-emerald-500 px-1 py-0.2 text-[8px] font-bold text-black uppercase tracking-wider shadow">
+                      Viewing
+                    </div>
+                  )}
+                  {canSelectKeyImages && (
+                    <button
+                      type="button"
+                      className="absolute right-0.5 top-0.5 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
+                        if (activeKeyImage?.id === image.id) {
+                          const remaining = keyImages.filter((item) => item.id !== image.id);
+                          if (remaining.length > 0) {
+                            handleSelectKeyImage(remaining[0]);
+                          } else {
+                            handleDeselectKeyImage();
+                          }
+                        }
+                      }}
+                      aria-label={`Remove ${image.caption}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                  <p className={cn("mt-1 truncate text-center", isActive ? "font-semibold text-emerald-300" : "text-slate-400")} title={image.caption}>
+                    {image.caption}
+                  </p>
+                </div>
+              );
+            })}
             </div>
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
             <Layers className="mb-1 h-3 w-3 text-slate-500" />
-            Series: {hasImages ? 1 : 0}
+            Series: {activeKeyImage ? "Report" : (hasImages ? 1 : 0)}
           </div>
           <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
             <Maximize2 className="mb-1 h-3 w-3 text-slate-500" />
-            Frames: {imageIds.length}
+            Images: {activeKeyImage ? keyImages.length : imageIds.length}
           </div>
           <div className="rounded border border-slate-800 bg-slate-900/50 p-2">
             <Crosshair className="mb-1 h-3 w-3 text-slate-500" />
-            Frame: {currentFrame}
+            Image: {activeKeyImage ? `${activeKeyImageIndex + 1} / ${keyImages.length}` : currentFrame}
           </div>
         </div>
-        <div className="mt-2 text-center text-[10px] text-slate-500">Left drag: WW/WL · Middle drag: Pan · Right drag: Zoom</div>
+        <div className="mt-2 text-center text-[10px] text-slate-500">
+          {activeKeyImage ? "Click or scroll to zoom · Drag to pan · Click another image below to switch" : "Left drag: WW/WL · Middle drag: Pan · Right drag: Zoom"}
+        </div>
       </footer>
 
       <Dialog open={annotationOpen} onOpenChange={setAnnotationOpen}>
@@ -767,6 +1014,56 @@ export function DicomViewer({ accession, keyImages = [], onKeyImagesChange, curr
               Add to report
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={fullscreenModalOpen} onOpenChange={setFullscreenModalOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] h-[92vh] border-slate-800 bg-slate-950 p-4 text-slate-100 flex flex-col">
+          <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-slate-800 space-y-0">
+            <div>
+              <DialogTitle className="text-slate-100 flex items-center gap-2 text-base">
+                <span className="text-emerald-400">{activeKeyImage?.caption || "Attached Image"}</span>
+                {activeKeyImage && (
+                  <span className="text-xs font-normal text-slate-400">
+                    · Image {activeKeyImageIndex + 1} of {keyImages.length}
+                  </span>
+                )}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-400">
+                High-resolution ultrasound key image view
+              </DialogDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                onClick={prevFrame}
+                disabled={!canPrev}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                onClick={nextFrame}
+                disabled={!canNext}
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 flex items-center justify-center p-2 bg-black rounded-lg overflow-hidden relative">
+            {activeKeyImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={activeKeyImage.dataUrl}
+                alt={activeKeyImage.caption}
+                className="max-h-full max-w-full object-contain rounded select-none"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </aside>

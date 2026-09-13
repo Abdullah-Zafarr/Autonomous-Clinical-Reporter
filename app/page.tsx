@@ -217,6 +217,7 @@ export default function SonolynxApp() {
   const [templateTier, setTemplateTier] = useState<OrganizationTier>("individual");
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [keyImages, setKeyImages] = useState<KeyReportImage[]>([]);
+  const [selectedKeyImageId, setSelectedKeyImageId] = useState<string | null>(null);
   const [corrections, setCorrections] = useState<WorksheetCorrection[]>([]);
   const [returningForCorrection, setReturningForCorrection] = useState(false);
   const [, forceTick] = useState(0);
@@ -1379,6 +1380,11 @@ export default function SonolynxApp() {
               studyStatus={patient.studyStatus}
               returningForCorrection={returningForCorrection}
               onReturnForCorrection={handleReturnForCorrection}
+              onSelectKeyImage={(image) => {
+                setSelectedKeyImageId(image.id);
+                userToggledDicom.current = true;
+                setShowDicom(true);
+              }}
             />
           </div>
         </ResizablePanel>
@@ -1395,6 +1401,8 @@ export default function SonolynxApp() {
                   onKeyImagesChange={setKeyImages}
                   currentUserId={user?.id}
                   canSelectKeyImages={true}
+                  selectedKeyImageId={selectedKeyImageId}
+                  onSelectKeyImage={setSelectedKeyImageId}
                 />
               </div>
             </ResizablePanel>

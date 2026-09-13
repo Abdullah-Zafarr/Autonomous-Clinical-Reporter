@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Activity, AlertCircle, Edit3, Check, Sparkles } from "lucide-react";
+import { FileText, Activity, AlertCircle, Edit3, Check, Sparkles, Maximize2 } from "lucide-react";
 import type { ReportSections } from "@/lib/report-engine";
 import type { ValidationIssue } from "@/lib/clinical-validator";
 import type { Patient } from "@/lib/sonoflow-types";
@@ -40,6 +40,7 @@ interface Props {
   studyStatus?: string | null;
   returningForCorrection?: boolean;
   onReturnForCorrection?: () => void;
+  onSelectKeyImage?: (image: KeyReportImage) => void;
 }
 
 export function ReportPreview({
@@ -70,6 +71,7 @@ export function ReportPreview({
   studyStatus,
   returningForCorrection,
   onReturnForCorrection,
+  onSelectKeyImage,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
@@ -274,13 +276,38 @@ export function ReportPreview({
         )}
             {keyImages.length > 0 && (
               <section className="break-inside-avoid-page">
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-primary">Key Images</h3>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Key Images ({keyImages.length})</h3>
+                  <span className="text-[10px] text-muted-foreground">Click image to inspect in DICOM viewer</span>
+                </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {keyImages.map((image) => (
-                    <figure key={image.id} className="overflow-hidden rounded-md border bg-black">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.dataUrl} alt={image.caption} className="aspect-[4/3] w-full object-contain" />
-                      <figcaption className="bg-white p-2 font-sans text-[11px] text-slate-700">{image.caption}</figcaption>
+                    <figure
+                      key={image.id}
+                      onClick={() => onSelectKeyImage?.(image)}
+                      className={cn(
+                        "group relative overflow-hidden rounded-md border bg-black transition-all",
+                        onSelectKeyImage && "cursor-pointer hover:border-primary hover:ring-2 hover:ring-primary/20 hover:shadow-md"
+                      )}
+                      title="Click to view in DICOM image viewer"
+                    >
+                      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={image.dataUrl}
+                          alt={image.caption}
+                          className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                          <span className="flex items-center gap-1.5 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-medium text-white shadow-lg border border-slate-700">
+                            <Maximize2 className="h-3.5 w-3.5 text-emerald-400" /> View in Viewer
+                          </span>
+                        </div>
+                      </div>
+                      <figcaption className="flex items-center justify-between bg-card p-2 font-sans text-[11px] text-foreground border-t">
+                        <span className="font-medium truncate">{image.caption}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">Frame {image.frameNumber}</span>
+                      </figcaption>
                     </figure>
                   ))}
                 </div>
