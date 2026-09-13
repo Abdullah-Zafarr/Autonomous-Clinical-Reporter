@@ -1413,18 +1413,27 @@ export default function SonolynxApp() {
         </ResizablePanelGroup>
       )}
 
-      {canSeeReportHistory && showHistory && (
-        <ReportHistory
-          patient={patient}
-          items={reportHistory}
-          loading={loadingHistory}
-          onOpen={(text, historyKeyImages) => {
-            setDialogExactText(true);
-            setDialogReportText(text);
-            setDialogKeyImages(historyKeyImages);
-            setStructuredReportOpen(true);
-          }}
-        />
+      {canSeeReportHistory && (
+        <Sheet open={showHistory} onOpenChange={setShowHistory}>
+          <SheetContent side="right" className="h-dvh w-[100vw] max-w-[400px] border-l border-border bg-card p-0 shadow-2xl flex flex-col">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Report History</SheetTitle>
+            </SheetHeader>
+            <ReportHistory
+              patient={patient}
+              items={reportHistory}
+              loading={loadingHistory}
+              onOpen={(text, historyKeyImages) => {
+                setShowHistory(false);
+                setDialogExactText(true);
+                setDialogReportText(text);
+                setDialogKeyImages(historyKeyImages);
+                setStructuredReportOpen(true);
+              }}
+              onClose={() => setShowHistory(false)}
+            />
+          </SheetContent>
+        </Sheet>
       )}
 
       <Sheet open={showWorklist} onOpenChange={setShowWorklist}>
