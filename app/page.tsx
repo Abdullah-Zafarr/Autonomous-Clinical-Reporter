@@ -12,6 +12,7 @@ import { HL7InspectorDialog } from "@/components/sonoflow/HL7InspectorDialog";
 import { StructuredReportDialog } from "@/components/sonoflow/StructuredReportDialog";
 import { DicomViewer } from "@/components/sonoflow/DicomViewer";
 import { AppNavbar } from "@/components/sonolynx/AppNavbar";
+import { Logo } from "@/components/sonolynx/Logo";
 import { DoctorSummary } from "@/components/sonolynx/DoctorSummary";
 import { ReportHistory } from "@/components/sonolynx/ReportHistory";
 import { SignReportDialog } from "@/components/sonolynx/SignReportDialog";
@@ -1154,10 +1155,13 @@ export default function SonolynxApp() {
     }
   };
 
-  if (loading && !user) {
+  if (loading && !role) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+        <div className="flex flex-col items-center space-y-4">
+          <Logo size="lg" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary/70" />
+        </div>
       </div>
     );
   }

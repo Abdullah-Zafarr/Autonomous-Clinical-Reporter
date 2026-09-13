@@ -48,8 +48,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from("user_roles").select("role").eq("user_id", uid),
       ]);
       if (request !== roleRequest.current) return;
+      const resolvedRole = resolveRole((prof as Profile | null)?.role, roles ?? []);
       setProfile(prof as Profile | null);
-      setRole(resolveRole((prof as Profile | null)?.role, roles ?? []));
+      setRole(resolvedRole);
+      if (typeof window !== "undefined") {
+        try {
+          if (resolvedRole) {
+            localStorage.setItem(`sonolynx_role_${uid}`, resolvedRole);
+          } else {
+            localStorage.removeItem(`sonolynx_role_${uid}`);
+          }
+          if (prof) {
+            localStorage.setItem(`sonolynx_profile_${uid}`, JSON.stringify(prof));
+          } else {
+            localStorage.removeItem(`sonolynx_profile_${uid}`);
+          }
+        } catch {}
+      }
     } catch {
       if (request !== roleRequest.current) return;
       setProfile(null);
@@ -86,6 +101,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const isSameUser = currentUserIdRef.current === newUser.id;
       currentUserIdRef.current = newUser.id;
+
+      // Restore cached role/profile immediately to avoid any flash of unassigned role
+      if (typeof window !== "undefined") {
+        try {
+          const cachedRole = localStorage.getItem(`sonolynx_role_${newUser.id}`) as AppRole | null;
+          const cachedProf = localStorage.getItem(`sonolynx_profile_${newUser.id}`);
+          if (cachedRole) {
+            setRole(cachedRole);
+          }
+          if (cachedProf) {
+            setProfile(JSON.parse(cachedProf));
+          }
+        } catch {}
+      }
 
       // 3. Same user is already authenticated & resolved
       // Tab switches and window focus events often emit SIGNED_IN or storage sync for the same user.
@@ -146,8 +175,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     roleRequest.current += 1;
+    const uid = currentUserIdRef.current;
     currentUserIdRef.current = null;
     setSignedOutExplicitly(true);
+    if (typeof window !== "undefined" && uid) {
+      try {
+        localStorage.removeItem(`sonolynx_role_${uid}`);
+        localStorage.removeItem(`sonolynx_profile_${uid}`);
+      } catch {}
+    }
     try {
       await supabase.auth.signOut();
     } catch (e) {
