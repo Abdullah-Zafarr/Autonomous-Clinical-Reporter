@@ -927,12 +927,13 @@ export function DicomViewer({
           {canSelectKeyImages && (
             <Button
               size="sm"
-              className="h-8 bg-red-600 text-white hover:bg-red-500 font-semibold shadow-xs shadow-red-500/25 border border-red-500/30"
+              variant="secondary"
+              className="h-8 bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700/80"
               onClick={() => beginDrawOnScan()}
               disabled={!hasImages && !activeKeyImage}
-              title="Draw red highlights directly on this scan frame and attach to report"
+              title="Draw highlights directly on this scan frame and attach to report"
             >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              <Pencil className="mr-1.5 h-3.5 w-3.5 text-rose-400" />
               Draw on Scan
             </Button>
           )}
@@ -1075,11 +1076,12 @@ export function DicomViewer({
                 {canSelectKeyImages && (
                   <Button
                     size="sm"
-                    className="h-7 px-2.5 text-xs bg-red-600 hover:bg-red-500 text-white border border-red-500/40 rounded shadow-xs font-medium"
+                    variant="secondary"
+                    className="h-7 px-2.5 text-xs bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded shadow-xs font-medium"
                     onClick={() => beginDrawOnScan()}
-                    title="Draw red highlights on this scan"
+                    title="Draw highlights on this scan"
                   >
-                    <Pencil className="h-3 w-3 mr-1" /> Draw Highlights
+                    <Pencil className="h-3 w-3 mr-1 text-rose-400" /> Draw Highlights
                   </Button>
                 )}
                 <Button
@@ -1477,7 +1479,7 @@ export function DicomViewer({
               <Button
                 type="button"
                 onClick={() => saveKeyImage(false)}
-                className="bg-red-600 text-white hover:bg-red-500 font-semibold shadow-xs shadow-red-500/20"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-xs"
               >
                 <Check className="mr-1.5 h-4 w-4" />
                 {snapshot?.existingImageId ? "Update Picture in Report" : "Attach Picture to Report"}
