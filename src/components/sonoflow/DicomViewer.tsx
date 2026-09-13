@@ -866,52 +866,63 @@ export function DicomViewer({
                 </span>
                 <span className="text-[10px] text-slate-500">Click thumbnail to view</span>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Selected key images">
+              <div className="flex gap-2.5 overflow-x-auto p-1.5 pb-2 -mx-1.5" aria-label="Selected key images">
               {keyImages.map((image) => {
                 const isActive = activeKeyImage?.id === image.id;
                 return (
                   <div
                     key={image.id}
-                    className={cn(
-                      "group relative w-20 shrink-0 cursor-pointer rounded transition-all",
-                      isActive
-                        ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950 scale-102"
-                        : "opacity-75 hover:opacity-100"
-                    )}
+                    className="group relative flex w-20 shrink-0 flex-col items-center cursor-pointer select-none"
                     onClick={() => handleSelectKeyImage(image)}
                     title={`Click to view "${image.caption}" in full size`}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={image.dataUrl}
-                      alt={image.caption}
+                    <div
                       className={cn(
-                        "h-12 w-20 rounded border object-contain bg-black transition-colors",
-                        isActive ? "border-blue-400 shadow-md shadow-blue-950/60" : "border-slate-800"
+                        "relative h-12 w-20 rounded-md overflow-hidden bg-black transition-all",
+                        isActive
+                          ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950 border border-blue-400 shadow-md shadow-blue-500/25"
+                          : "border border-slate-800 opacity-75 hover:opacity-100 hover:border-slate-700"
                       )}
-                    />
-                    {canSelectKeyImages && (
-                      <button
-                        type="button"
-                        className="absolute right-0.5 top-0.5 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
-                          if (activeKeyImage?.id === image.id) {
-                            const remaining = keyImages.filter((item) => item.id !== image.id);
-                            if (remaining.length > 0) {
-                              handleSelectKeyImage(remaining[0]);
-                            } else {
-                              handleDeselectKeyImage();
-                            }
-                          }
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.dataUrl}
+                        alt={image.caption}
+                        className="h-full w-full object-contain pointer-events-none"
+                        style={{
+                          WebkitMaskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
+                          maskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
                         }}
-                        aria-label={`Remove ${image.caption}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                    <p className={cn("mt-1 truncate text-center text-[10px]", isActive ? "font-medium text-white" : "text-slate-400")} title={image.caption}>
+                      />
+                      {canSelectKeyImages && (
+                        <button
+                          type="button"
+                          className="absolute right-0.5 top-0.5 z-10 rounded bg-black/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600 focus:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onKeyImagesChange?.(keyImages.filter((item) => item.id !== image.id));
+                            if (activeKeyImage?.id === image.id) {
+                              const remaining = keyImages.filter((item) => item.id !== image.id);
+                              if (remaining.length > 0) {
+                                handleSelectKeyImage(remaining[0]);
+                              } else {
+                                handleDeselectKeyImage();
+                              }
+                            }
+                          }}
+                          aria-label={`Remove ${image.caption}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <p
+                      className={cn(
+                        "mt-1.5 w-full truncate text-center text-[10px] transition-colors",
+                        isActive ? "font-semibold text-blue-400" : "text-slate-400 group-hover:text-slate-300"
+                      )}
+                      title={image.caption}
+                    >
                       {image.caption}
                     </p>
                   </div>
