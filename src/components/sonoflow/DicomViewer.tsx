@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 let csInitialized = false;
 
 const EYE_FADE_MASK =
-  "radial-gradient(circle closest-side at 50% 50%, #000 50%, rgba(0, 0, 0, 0.88) 64%, rgba(0, 0, 0, 0.45) 78%, rgba(0, 0, 0, 0.12) 88%, transparent 95%)";
+  "radial-gradient(ellipse 50% 50% at 50% 50%, #000 85%, rgba(0, 0, 0, 0.92) 91%, rgba(0, 0, 0, 0.45) 97%, transparent 100%)";
 
 function compressImageToJpeg(dataUrl: string, maxWidth = 1200, quality = 0.82): Promise<string> {
   if (!dataUrl || !dataUrl.startsWith("data:image/")) {
