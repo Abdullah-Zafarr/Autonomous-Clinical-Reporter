@@ -301,7 +301,7 @@ export function ReportPreview({
                         <img
                           src={image.dataUrl}
                           alt={image.caption}
-                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                          className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                           <span className="rounded bg-slate-900/90 px-1.5 py-0.5 text-[10px] font-medium text-white shadow border border-slate-700 flex items-center gap-1">

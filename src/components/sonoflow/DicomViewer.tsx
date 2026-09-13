@@ -784,6 +784,12 @@ export function DicomViewer({
                 transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
                 cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
+                WebkitMaskImage: imageZoom === 1 
+                  ? "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)" 
+                  : undefined,
+                maskImage: imageZoom === 1 
+                  ? "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)" 
+                  : undefined,
               }}
               onClick={() => {
                 if (imageZoom === 1) {
@@ -880,7 +886,7 @@ export function DicomViewer({
                       src={image.dataUrl}
                       alt={image.caption}
                       className={cn(
-                        "h-12 w-20 rounded border object-cover transition-colors",
+                        "h-12 w-20 rounded border object-contain bg-black transition-colors",
                         isActive ? "border-blue-400 shadow-md shadow-blue-950/60" : "border-slate-800"
                       )}
                     />
@@ -1035,6 +1041,10 @@ export function DicomViewer({
                 src={activeKeyImage.dataUrl}
                 alt={activeKeyImage.caption}
                 className="max-h-full max-w-full object-contain rounded select-none"
+                style={{
+                  WebkitMaskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
+                  maskImage: "radial-gradient(ellipse 95% 95% at 50% 50%, black 82%, transparent 100%)",
+                }}
               />
             )}
           </div>
