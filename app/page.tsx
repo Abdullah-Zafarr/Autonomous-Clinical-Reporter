@@ -128,7 +128,7 @@ const emptyPatient: Patient = {
 };
 
 export default function SonolynxApp() {
-  const { loading, user, role } = useAuth();
+  const { loading, user, role, profile } = useAuth();
 
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -235,6 +235,28 @@ export default function SonolynxApp() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [hasStoredBackup, setHasStoredBackup] = useState(false);
+
+  const staffName = useMemo(() => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    if (profile?.first_name) return profile.first_name;
+    if (profile?.email) return profile.email.split("@")[0];
+    if (user?.email) return user.email.split("@")[0];
+    return "Staff Clinician";
+  }, [profile, user]);
+
+  const staffEmail = useMemo(() => {
+    return profile?.email || user?.email || "staff@clinic.org";
+  }, [profile, user]);
+
+  const staffRole = useMemo(() => {
+    if (role === "doctor") return "Doctor / Radiologist";
+    if (role === "radiologist") return "Radiologist";
+    if (role === "sonographer") return "Sonographer";
+    if (role === "admin") return "Clinic Administrator";
+    return role || "Clinician";
+  }, [role]);
 
   useEffect(() => {
     setMounted(true);
@@ -416,6 +438,19 @@ export default function SonolynxApp() {
           toast.success("Crash-Proof Backup Saved", {
             description: `Session snapshot saved at ${formatBackupTimestamp(snapshot.savedAt).absolute}.`,
           });
+          writeAuditLog({
+            userId: user?.id,
+            patientId: patient.id,
+            studyId: patient.studyId,
+            worksheetId: currentWorksheet?.id,
+            action: "session_backup",
+            status: "protected",
+            staffName,
+            staffEmail,
+            staffRole,
+            description: `Manual crash-proof snapshot saved at ${formatBackupTimestamp(snapshot.savedAt).absolute}.`,
+            metadata: { exam, patientName: formatPatientName(patient, "Patient") },
+          });
         }
       }
     } catch (err) {
@@ -465,9 +500,42 @@ export default function SonolynxApp() {
     setHasStoredBackup(true);
     setIsDirty(true);
     const { absolute } = formatBackupTimestamp(backup.savedAt);
+    writeAuditLog({
+      userId: user?.id,
+      patientId: patient.id,
+      studyId: patient.studyId,
+      worksheetId: currentWorksheet?.id,
+      action: "session_restored",
+      status: "recovered",
+      staffName,
+      staffEmail,
+      staffRole,
+      description: `Restored uncommitted session findings snapshot saved at ${absolute}.`,
+      metadata: { exam, patientName: formatPatientName(patient, "Patient") },
+    });
     toast.success("Session Restored", {
       description: `Restored uncommitted session from ${absolute}.`,
     });
+  };
+
+  const handleKeyImagesChange = (images: KeyReportImage[]) => {
+    const prevCount = keyImages.length;
+    setKeyImages(images);
+    if (images.length > prevCount && patient.id) {
+      writeAuditLog({
+        userId: user?.id,
+        patientId: patient.id,
+        studyId: patient.studyId,
+        worksheetId: currentWorksheet?.id,
+        action: "image_annotated_attached",
+        status: "success",
+        staffName,
+        staffEmail,
+        staffRole,
+        description: `Attached ultrasound frame with clinical markup to patient report. Total pictures: ${images.length}.`,
+        metadata: { imagesCount: images.length, patientName: formatPatientName(patient, "Patient") },
+      });
+    }
   };
 
   useEffect(() => {
@@ -1057,7 +1125,11 @@ export default function SonolynxApp() {
         worksheetId: saved.id,
         action: "worksheet_save_draft",
         status: "success",
-        metadata: { worksheetType: exam },
+        staffName,
+        staffEmail,
+        staffRole,
+        description: `Saved draft worksheet with ${exam} findings and measurements for ${formatPatientName(patient, "Patient")}.`,
+        metadata: { worksheetType: exam, patientName: formatPatientName(patient, "Patient"), mrn: patient.mrn },
       });
       if (!silent) toast.success("Draft saved", { description: `Worksheet for ${formatPatientName(patient, "Patient")} persisted.` });
       return saved;
@@ -1183,7 +1255,11 @@ export default function SonolynxApp() {
             hl7MessageId: sendResult.messageId,
             action: "sign_send_hl7",
             status: "sent",
-            metadata: { worksheetType: exam, accession },
+            staffName,
+            staffEmail,
+            staffRole,
+            description: `Digitally signed & finalized ${exam} report. Accession: ${accession}. Delivered via ORU^R01.`,
+            metadata: { worksheetType: exam, accession, patientName: formatPatientName(patient, "Patient") },
           });
           toast.success(sendResult.demo ? "Report finalized · Demo delivery" : "Report Finalized & Transmitted", {
             description: sendResult.demo ? "Acknowledged by the local demo receiver; not sent to a clinical system." : `ORU^R01 sent for accession ${accession}.`,
@@ -1197,6 +1273,10 @@ export default function SonolynxApp() {
             hl7MessageId: sendResult.messageId,
             action: "sign_send_hl7",
             status: "failed",
+            staffName,
+            staffEmail,
+            staffRole,
+            description: `Report signed with delivery failure for accession ${accession}: ${sendResult.errorMessage || "Unknown gateway error"}.`,
             metadata: { worksheetType: exam, accession, error: sendResult.errorMessage },
           });
           toast.warning("Report signed · Delivery failed", {
@@ -1308,7 +1388,11 @@ export default function SonolynxApp() {
         worksheetId: saved.id,
         action: "send_to_doctor",
         status: "success",
-        metadata: { doctorId: doctorIdToSend, doctorEmail: doctor?.email ?? null },
+        staffName,
+        staffEmail,
+        staffRole,
+        description: doctor ? `Assigned study to ${doctor.email} for review.` : "Assigned study to physician for clinical review.",
+        metadata: { doctorId: doctorIdToSend, doctorEmail: doctor?.email ?? null, patientName: formatPatientName(patient, "Patient") },
       });
       toast.success("Sent to Doctor", {
         description: doctor ? `Case assigned to ${doctor.email}.` : "Case assigned to doctor for review.",
@@ -1367,7 +1451,11 @@ export default function SonolynxApp() {
         studyId: patient.studyId,
         worksheetId: currentWorksheet.id,
         action: "return_for_correction",
-        status: "success",
+        status: "correction_requested",
+        staffName,
+        staffEmail,
+        staffRole,
+        description: `Returned study to sonographer for revision (${corrections.filter((item) => item.status === "open").length} open field requests).`,
         metadata: {
           openCorrections: corrections.filter((item) => item.status === "open").length,
           fields: corrections.filter((item) => item.status === "open").map((item) => item.fieldPath),
@@ -1441,9 +1529,14 @@ export default function SonolynxApp() {
               isBackingUp={isBackingUp}
               isOnline={isOnline}
               patientName={formatPatientName(patient, "Patient")}
+              patientId={patient.id}
+              studyId={patient.studyId}
               mrn={patient.mrn}
               exam={exam}
               keyImagesCount={keyImages.length}
+              staffName={staffName}
+              staffEmail={staffEmail}
+              staffRole={staffRole}
               onManualBackup={() => performAutoBackup("manual")}
               onRestoreBackup={handleRestoreFromBackup}
               hasStoredBackup={hasStoredBackup}
@@ -1638,7 +1731,7 @@ export default function SonolynxApp() {
                   key={patient.studyId ?? patient.id}
                   accession={accession}
                   keyImages={keyImages}
-                  onKeyImagesChange={setKeyImages}
+                  onKeyImagesChange={handleKeyImagesChange}
                   currentUserId={user?.id}
                   canSelectKeyImages={true}
                   selectedKeyImageId={selectedKeyImageId}
