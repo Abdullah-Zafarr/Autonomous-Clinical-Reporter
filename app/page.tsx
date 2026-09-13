@@ -28,7 +28,7 @@ import {
 } from "@/lib/auto-recovery";
 import dynamic from "next/dynamic";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { formatPatientName } from "@/lib/utils";
+import { cn, formatPatientName } from "@/lib/utils";
 
 const ResizablePanelGroup = dynamic(
   () => import("@/components/ui/resizable").then((mod) => mod.ResizablePanelGroup),
@@ -86,7 +86,7 @@ import {
 } from "@/lib/clinical-workflow-types";
 import { transmitHl7 } from "@/lib/hl7-service";
 import { writeAuditLog } from "@/lib/audit-service";
-import { Monitor, Loader2, PanelLeft, Camera } from "lucide-react";
+import { Monitor, Loader2, PanelLeft, Camera, FileText, ClipboardList, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ReportTemplate, ReportTemplateExamType, ReportBrandingSettings } from "@/lib/report-template-types";
 import { getTemplatesByExamType } from "@/lib/report-template-service";
@@ -257,6 +257,17 @@ export default function SonolynxApp() {
     if (role === "admin") return "Clinic Administrator";
     return role || "Clinician";
   }, [role]);
+
+  const [mobileTab, setMobileTab] = useState<"report" | "scans" | "worksheet">("report");
+
+  useEffect(() => {
+    const isDoc = role === "doctor" || role === "radiologist" || role === "admin";
+    if (isDoc) {
+      setMobileTab("report");
+    } else {
+      setMobileTab("worksheet");
+    }
+  }, [patient.id, role]);
 
   useEffect(() => {
     setMounted(true);
@@ -1498,26 +1509,27 @@ export default function SonolynxApp() {
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-background">
       <AppNavbar onPatientRegistered={() => setWorklistRefresh((n) => n + 1)} />
-      <div className="flex min-h-10 shrink-0 items-center gap-3 border-b bg-card px-3 py-1 sm:px-4">
-        <Button variant="outline" size="sm" onClick={() => setShowWorklist(true)} className="h-7">
+      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b bg-card px-2.5 py-1 sm:px-4 sm:gap-3">
+        <Button variant="outline" size="sm" onClick={() => setShowWorklist(true)} className="h-7 text-xs">
           <PanelLeft className="mr-1.5 h-3.5 w-3.5" />
           Worklist
         </Button>
         <span className="hidden text-xs text-muted-foreground sm:inline">{isDoctorView ? "Clinical review" : "Clinical workspace"}</span>
-          <div className="ml-auto flex items-center gap-2">
-            {canInspectHl7 && <Button variant="ghost" size="sm" className="h-7" onClick={() => setHl7Open(true)}>HL7</Button>}
-            {canSeeReportHistory && <Button variant={showHistory ? "secondary" : "ghost"} size="sm" className="h-7" onClick={() => setShowHistory((value) => !value)}>History{reportHistory.length > 0 ? ` (${reportHistory.length})` : ""}</Button>}
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-0.5 max-w-full">
+            {canInspectHl7 && <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setHl7Open(true)}>HL7</Button>}
+            {canSeeReportHistory && <Button variant={showHistory ? "secondary" : "ghost"} size="sm" className="h-7 text-xs px-2" onClick={() => setShowHistory((value) => !value)}>History{reportHistory.length > 0 ? ` (${reportHistory.length})` : ""}</Button>}
             <Button
               variant={showDicom ? "default" : "outline"}
               size="sm"
               onClick={() => {
                 userToggledDicom.current = true;
                 setShowDicom((v) => !v);
+                setMobileTab((prev) => (prev === "scans" ? "report" : "scans"));
               }}
-              className="h-7"
+              className="h-7 text-xs px-2"
             >
               <Monitor className="mr-1.5 h-3.5 w-3.5" />
-              {showDicom ? "Hide images" : "Images"}
+              <span>{showDicom ? "Hide images" : "Images"}</span>
               {keyImages.length > 0 && (
                 <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                   {keyImages.length}
@@ -1617,131 +1629,321 @@ export default function SonolynxApp() {
           <Button onClick={() => window.location.reload()}>Reload workspace</Button>
         </div>
       ) : (
-        <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} className="flex-1 min-h-0">
-        {isSonographerView && (
-          <>
-            <ResizablePanel 
-              defaultSize={40} 
-              minSize={30}
-              onResize={(size: number) => setWorksheetPanelSize(size)}
-            >
-              <div className="h-full min-w-0 overflow-hidden">
-                <ClinicalWorksheet
-                  data={worksheet}
-                  onChange={setWorksheet}
-                  thyroid={thyroid}
-                  onThyroidChange={setThyroid}
-                  ob={ob}
-                  onObChange={setOb}
-                  vascular={vascular}
-                  onVascularChange={setVascular}
-                  exam={exam}
-                  onExamChange={setExam}
-                  abdomenOrder={abdomenOrder}
-                  onAbdomenOrderChange={setAbdomenOrder}
-                  onSaveDraft={handleSaveDraft}
-                  onSign={handleSign}
-                  onInspectHL7={() => {
-                    if (!canInspectHl7) {
-                      toast.info("HL7 inspect disabled", {
-                        description: "HL7 inspection is available for doctor and radiologist roles.",
-                      });
-                      return;
-                    }
-                    setHl7Open(true);
-                  }}
-                  onGenerateReport={() => {
-                    setDialogExactText(false);
-                    setDialogReportText(structuredReportText);
-                    setDialogKeyImages(keyImages);
-                    setStructuredReportOpen(true);
-                  }}
-                  lastSavedLabel={
-                    loadingWorksheet
-                      ? "Syncing case…"
-                      : `${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`
-                  }
-                  additionalNotes={additionalNotes}
-                  onAdditionalNotesChange={setAdditionalNotes}
-                  canSignAndSend={canSignAndSend}
-                  validationIssues={validationIssues}
-                  sendingReport={sendingReport}
-                  sendingToDoctor={sendingToDoctor}
-                  savingDraft={savingDraft}
-                  isDoctorMode={isDoctorView}
-                  isCompact={isCompact}
-                />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-          </>
-        )}
+        <>
+          {/* DESKTOP VIEW (Screens >= 1024px) - 100% UNCHANGED */}
+          <div className="hidden lg:flex flex-1 min-h-0 w-full">
+            <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+              {isSonographerView && (
+                <>
+                  <ResizablePanel 
+                    defaultSize={40} 
+                    minSize={30}
+                    onResize={(size: number) => setWorksheetPanelSize(size)}
+                  >
+                    <div className="h-full min-w-0 overflow-hidden">
+                      <ClinicalWorksheet
+                        data={worksheet}
+                        onChange={setWorksheet}
+                        thyroid={thyroid}
+                        onThyroidChange={setThyroid}
+                        ob={ob}
+                        onObChange={setOb}
+                        vascular={vascular}
+                        onVascularChange={setVascular}
+                        exam={exam}
+                        onExamChange={setExam}
+                        abdomenOrder={abdomenOrder}
+                        onAbdomenOrderChange={setAbdomenOrder}
+                        onSaveDraft={handleSaveDraft}
+                        onSign={handleSign}
+                        onInspectHL7={() => {
+                          if (!canInspectHl7) {
+                            toast.info("HL7 inspect disabled", {
+                              description: "HL7 inspection is available for doctor and radiologist roles.",
+                            });
+                            return;
+                          }
+                          setHl7Open(true);
+                        }}
+                        onGenerateReport={() => {
+                          setDialogExactText(false);
+                          setDialogReportText(structuredReportText);
+                          setDialogKeyImages(keyImages);
+                          setStructuredReportOpen(true);
+                        }}
+                        lastSavedLabel={
+                          loadingWorksheet
+                            ? "Syncing case…"
+                            : `${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`
+                        }
+                        additionalNotes={additionalNotes}
+                        onAdditionalNotesChange={setAdditionalNotes}
+                        canSignAndSend={canSignAndSend}
+                        validationIssues={validationIssues}
+                        sendingReport={sendingReport}
+                        sendingToDoctor={sendingToDoctor}
+                        savingDraft={savingDraft}
+                        isDoctorMode={isDoctorView}
+                        isCompact={isCompact}
+                      />
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                </>
+              )}
 
-        <ResizablePanel defaultSize={isDoctorView && showDicom ? 62 : (isDoctorView ? 62 : 50)} minSize={25}>
-          <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
-            <ReportPreview
-              key={`${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
-              patient={patient}
-              accession={accession}
-              report={report}
-              additionalNotes={additionalNotes}
-              validationIssues={validationIssues}
-              onPrint={() => {
-                setDialogExactText(editedReportText !== null);
-                setDialogKeyImages(keyImages);
-                setDialogReportText(editedReportText !== null ? `Patient: ${formatPatientName(patient, "Patient")}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
-                setStructuredReportOpen(true);
-              }}
-              isDoctorMode={isDoctorView}
-              editableText={finalReportText}
-              worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
-              isSigned={currentWorksheet?.study_id === patient.studyId && !!currentWorksheet?.signed_at && !!currentWorksheet?.signed_by && currentWorksheet.status !== "draft"}
-              canUseAiTools={role === "doctor" || role === "radiologist"}
-              hasBeenEdited={editedReportText !== null}
-              onEditableTextChange={setEditedReportText}
-              onSign={handleSign}
-              onSaveDraft={() => { void handleSaveDraft(); }}
-              onRetryDelivery={currentWorksheet?.signed_at && currentWorksheet.status !== "transmitted" ? handleRetryDelivery : undefined}
-              busy={savingDraft || sendingReport || returningForCorrection}
-              dirty={isDirty}
-              canSign={canSignAndSend && !!patient.studyId && !!finalReportText.trim() && (report.findings.length > 0 || !!editedReportText?.trim() || !!additionalNotes.trim()) && !corrections.some((item) => item.status === "open") && patient.studyStatus !== "correction_requested"}
-              keyImages={keyImages}
-              correctionFields={correctionFields}
-              corrections={corrections}
-              onCorrectionsChange={currentWorksheet?.signed_at ? undefined : setCorrections}
-              currentUserId={user?.id ?? ""}
-              studyStatus={patient.studyStatus}
-              returningForCorrection={returningForCorrection}
-              onReturnForCorrection={handleReturnForCorrection}
-              onSelectKeyImage={(image) => {
-                setSelectedKeyImageId(image.id);
-                userToggledDicom.current = true;
-                setShowDicom(true);
-              }}
-            />
+              <ResizablePanel defaultSize={isDoctorView && showDicom ? 62 : (isDoctorView ? 62 : 50)} minSize={25}>
+                <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
+                  <ReportPreview
+                    key={`${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
+                    patient={patient}
+                    accession={accession}
+                    report={report}
+                    additionalNotes={additionalNotes}
+                    validationIssues={validationIssues}
+                    onPrint={() => {
+                      setDialogExactText(editedReportText !== null);
+                      setDialogKeyImages(keyImages);
+                      setDialogReportText(editedReportText !== null ? `Patient: ${formatPatientName(patient, "Patient")}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
+                      setStructuredReportOpen(true);
+                    }}
+                    isDoctorMode={isDoctorView}
+                    editableText={finalReportText}
+                    worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
+                    isSigned={currentWorksheet?.study_id === patient.studyId && !!currentWorksheet?.signed_at && !!currentWorksheet?.signed_by && currentWorksheet.status !== "draft"}
+                    canUseAiTools={role === "doctor" || role === "radiologist"}
+                    hasBeenEdited={editedReportText !== null}
+                    onEditableTextChange={setEditedReportText}
+                    onSign={handleSign}
+                    onSaveDraft={() => { void handleSaveDraft(); }}
+                    onRetryDelivery={currentWorksheet?.signed_at && currentWorksheet.status !== "transmitted" ? handleRetryDelivery : undefined}
+                    busy={savingDraft || sendingReport || returningForCorrection}
+                    dirty={isDirty}
+                    canSign={canSignAndSend && !!patient.studyId && !!finalReportText.trim() && (report.findings.length > 0 || !!editedReportText?.trim() || !!additionalNotes.trim()) && !corrections.some((item) => item.status === "open") && patient.studyStatus !== "correction_requested"}
+                    keyImages={keyImages}
+                    correctionFields={correctionFields}
+                    corrections={corrections}
+                    onCorrectionsChange={currentWorksheet?.signed_at ? undefined : setCorrections}
+                    currentUserId={user?.id ?? ""}
+                    studyStatus={patient.studyStatus}
+                    returningForCorrection={returningForCorrection}
+                    onReturnForCorrection={handleReturnForCorrection}
+                    onSelectKeyImage={(image) => {
+                      setSelectedKeyImageId(image.id);
+                      userToggledDicom.current = true;
+                      setShowDicom(true);
+                    }}
+                  />
+                </div>
+              </ResizablePanel>
+
+              {showDicom && (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel defaultSize={isDoctorView ? 38 : 40} minSize={20}>
+                    <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
+                      <DicomViewer
+                        key={patient.studyId ?? patient.id}
+                        accession={accession}
+                        keyImages={keyImages}
+                        onKeyImagesChange={handleKeyImagesChange}
+                        currentUserId={user?.id}
+                        canSelectKeyImages={true}
+                        selectedKeyImageId={selectedKeyImageId}
+                        onSelectKeyImage={setSelectedKeyImageId}
+                      />
+                    </div>
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
           </div>
-        </ResizablePanel>
 
-        {showDicom && (
-          <>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={isDoctorView ? 38 : 40} minSize={20}>
-              <div className="h-full min-w-0 overflow-hidden border-t lg:border-t-0">
-                <DicomViewer
-                  key={patient.studyId ?? patient.id}
-                  accession={accession}
-                  keyImages={keyImages}
-                  onKeyImagesChange={handleKeyImagesChange}
-                  currentUserId={user?.id}
-                  canSelectKeyImages={true}
-                  selectedKeyImageId={selectedKeyImageId}
-                  onSelectKeyImage={setSelectedKeyImageId}
-                />
+          {/* TABLET & MOBILE VIEW (Screens < 1024px: iPads, tablets, and phones) */}
+          <div className="flex lg:hidden flex-1 min-h-0 flex-col w-full overflow-hidden bg-background">
+            {/* Tablet / Mobile Navigation Segment Switcher */}
+            <div className="flex shrink-0 items-center justify-between border-b bg-card px-2.5 py-1.5 shadow-2xs gap-2">
+              <div className="flex items-center gap-1 bg-muted/80 p-0.5 rounded-lg text-xs font-medium w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setMobileTab("report")}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md transition-all font-medium text-xs",
+                    mobileTab === "report"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <FileText className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Report & Sign</span>
+                  {currentWorksheet?.signed_at ? (
+                    <Check className="h-3 w-3 text-emerald-500" />
+                  ) : isDirty ? (
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileTab("scans");
+                    userToggledDicom.current = true;
+                    setShowDicom(true);
+                  }}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md transition-all font-medium text-xs",
+                    mobileTab === "scans"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Monitor className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Scans</span>
+                  {keyImages.length > 0 && (
+                    <span className="rounded-full bg-primary/20 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                      {keyImages.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileTab("worksheet")}
+                  className={cn(
+                    "flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md transition-all font-medium text-xs",
+                    mobileTab === "worksheet"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Findings</span>
+                  {validationIssues.length > 0 && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  )}
+                </button>
               </div>
-            </ResizablePanel>
-          </>
-        )}
-        </ResizablePanelGroup>
+
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                <span className="font-semibold text-foreground truncate max-w-[160px]">
+                  {formatPatientName(patient, "Patient")}
+                </span>
+              </div>
+            </div>
+
+            {/* Mobile / Tablet Full-Viewport Content Area */}
+            <div className="flex-1 min-h-0 overflow-hidden relative">
+              {mobileTab === "report" && (
+                <div className="h-full w-full overflow-hidden">
+                  <ReportPreview
+                    key={`mobile-${patient.id}-${patient.studyId}-${currentWorksheet?.signed_at ?? "draft"}`}
+                    patient={patient}
+                    accession={accession}
+                    report={report}
+                    additionalNotes={additionalNotes}
+                    validationIssues={validationIssues}
+                    onPrint={() => {
+                      setDialogExactText(editedReportText !== null);
+                      setDialogKeyImages(keyImages);
+                      setDialogReportText(editedReportText !== null ? `Patient: ${formatPatientName(patient, "Patient")}\nMRN: ${patient.mrn}\nAccession: ${accession}\nExam: ${exam}\n\n${finalReportText}` : structuredReportText);
+                      setStructuredReportOpen(true);
+                    }}
+                    isDoctorMode={isDoctorView}
+                    editableText={finalReportText}
+                    worksheetId={currentWorksheet?.study_id === patient.studyId ? currentWorksheet?.id : undefined}
+                    isSigned={currentWorksheet?.study_id === patient.studyId && !!currentWorksheet?.signed_at && !!currentWorksheet?.signed_by && currentWorksheet.status !== "draft"}
+                    canUseAiTools={role === "doctor" || role === "radiologist"}
+                    hasBeenEdited={editedReportText !== null}
+                    onEditableTextChange={setEditedReportText}
+                    onSign={handleSign}
+                    onSaveDraft={() => { void handleSaveDraft(); }}
+                    onRetryDelivery={currentWorksheet?.signed_at && currentWorksheet.status !== "transmitted" ? handleRetryDelivery : undefined}
+                    busy={savingDraft || sendingReport || returningForCorrection}
+                    dirty={isDirty}
+                    canSign={canSignAndSend && !!patient.studyId && !!finalReportText.trim() && (report.findings.length > 0 || !!editedReportText?.trim() || !!additionalNotes.trim()) && !corrections.some((item) => item.status === "open") && patient.studyStatus !== "correction_requested"}
+                    keyImages={keyImages}
+                    correctionFields={correctionFields}
+                    corrections={corrections}
+                    onCorrectionsChange={currentWorksheet?.signed_at ? undefined : setCorrections}
+                    currentUserId={user?.id ?? ""}
+                    studyStatus={patient.studyStatus}
+                    returningForCorrection={returningForCorrection}
+                    onReturnForCorrection={handleReturnForCorrection}
+                    onSelectKeyImage={(image) => {
+                      setSelectedKeyImageId(image.id);
+                      userToggledDicom.current = true;
+                      setShowDicom(true);
+                      setMobileTab("scans");
+                    }}
+                  />
+                </div>
+              )}
+
+              {mobileTab === "scans" && (
+                <div className="h-full w-full overflow-hidden">
+                  <DicomViewer
+                    key={`mobile-${patient.studyId ?? patient.id}`}
+                    accession={accession}
+                    keyImages={keyImages}
+                    onKeyImagesChange={handleKeyImagesChange}
+                    currentUserId={user?.id}
+                    canSelectKeyImages={true}
+                    selectedKeyImageId={selectedKeyImageId}
+                    onSelectKeyImage={setSelectedKeyImageId}
+                  />
+                </div>
+              )}
+
+              {mobileTab === "worksheet" && (
+                <div className="h-full w-full overflow-hidden">
+                  <ClinicalWorksheet
+                    data={worksheet}
+                    onChange={setWorksheet}
+                    thyroid={thyroid}
+                    onThyroidChange={setThyroid}
+                    ob={ob}
+                    onObChange={setOb}
+                    vascular={vascular}
+                    onVascularChange={setVascular}
+                    exam={exam}
+                    onExamChange={setExam}
+                    abdomenOrder={abdomenOrder}
+                    onAbdomenOrderChange={setAbdomenOrder}
+                    onSaveDraft={handleSaveDraft}
+                    onSign={handleSign}
+                    onInspectHL7={() => {
+                      if (!canInspectHl7) {
+                        toast.info("HL7 inspect disabled", {
+                          description: "HL7 inspection is available for doctor and radiologist roles.",
+                        });
+                        return;
+                      }
+                      setHl7Open(true);
+                    }}
+                    onGenerateReport={() => {
+                      setDialogExactText(false);
+                      setDialogReportText(structuredReportText);
+                      setDialogKeyImages(keyImages);
+                      setStructuredReportOpen(true);
+                    }}
+                    lastSavedLabel={
+                      loadingWorksheet
+                        ? "Syncing case…"
+                        : `${formatRelative(lastSaved)}${savingDraft ? " (saving...)" : isDirty ? " • Unsaved" : ""}`
+                    }
+                    additionalNotes={additionalNotes}
+                    onAdditionalNotesChange={setAdditionalNotes}
+                    canSignAndSend={canSignAndSend}
+                    validationIssues={validationIssues}
+                    sendingReport={sendingReport}
+                    sendingToDoctor={sendingToDoctor}
+                    savingDraft={savingDraft}
+                    isDoctorMode={isDoctorView}
+                    isCompact={false}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {canSeeReportHistory && (

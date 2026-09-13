@@ -144,7 +144,7 @@ export function WorkflowProgress({
         </div>
 
         <ol
-          className="flex flex-wrap items-center gap-2 py-0.5"
+          className="flex items-center gap-1.5 sm:gap-2 py-0.5 overflow-x-auto max-w-full scrollbar-none"
           aria-label="Report workflow stages"
         >
         {(

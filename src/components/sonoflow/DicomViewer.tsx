@@ -1403,7 +1403,7 @@ export function DicomViewer({
                 />
                 <canvas
                   ref={annotationCanvasRef}
-                  className="absolute inset-0 h-full w-full cursor-crosshair"
+                  className="absolute inset-0 h-full w-full cursor-crosshair touch-none"
                   onPointerDown={startDrawing}
                   onPointerMove={draw}
                   onPointerUp={stopDrawing}
