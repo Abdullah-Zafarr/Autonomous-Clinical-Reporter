@@ -37,6 +37,7 @@ import {
   exportAuditLogsToCsv,
   type AuditLogEntry,
 } from "@/lib/audit-service";
+import { getDoodleById, getDefaultDoodleForRole } from "@/lib/clinical-doodles";
 import { cn } from "@/lib/utils";
 
 interface AutoRecoveryStatusButtonProps {
@@ -433,7 +434,17 @@ export function AutoRecoveryStatusButton({
                         {/* Staff Attribution & Legal Stamp */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40 text-[11px] text-muted-foreground">
                           <div className="flex items-center gap-2">
-                            <UserCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                            {(() => {
+                              const staffDoodle = getDoodleById(getDefaultDoodleForRole(entry.staffRole));
+                              if (staffDoodle) {
+                                return (
+                                  <span className="h-4 w-4 shrink-0 rounded-full bg-muted/40 p-0.5 border border-border/60 flex items-center justify-center" title={`${staffDoodle.name} (${entry.staffRole})`}>
+                                    {staffDoodle.render({ className: "h-full w-full" })}
+                                  </span>
+                                );
+                              }
+                              return <UserCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+                            })()}
                             <span className="font-semibold text-foreground">{entry.staffName}</span>
                             <span className="text-muted-foreground">({entry.staffEmail})</span>
                             <Badge variant="outline" className="text-[10px] py-0 h-4 border-slate-300 dark:border-slate-700">

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase-client";
 import { resolveRole } from "@/lib/auth-role";
+import { ClinicalDoodleProvider } from "@/lib/clinical-doodles";
 
 const supabase = createClient();
 
@@ -227,7 +228,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn, 
       signOut 
     }}>
-      {children}
+      <ClinicalDoodleProvider userId={effectiveUser?.id} role={effectiveRole}>
+        {children}
+      </ClinicalDoodleProvider>
     </AuthContext.Provider>
   );
 }
