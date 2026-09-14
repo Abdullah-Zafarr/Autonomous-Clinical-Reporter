@@ -182,6 +182,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     setSignedOutExplicitly(false);
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.removeItem("radix_signed_out");
+        localStorage.removeItem("radix_signed_out");
+      } catch {}
+    }
     setLoading(true);
 
     const maxAttempts = 3;
@@ -233,10 +239,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = currentUserIdRef.current;
     currentUserIdRef.current = null;
     setSignedOutExplicitly(true);
-    if (typeof window !== "undefined" && uid) {
+    if (typeof window !== "undefined") {
       try {
-        localStorage.removeItem(`sonolynx_role_${uid}`);
-        localStorage.removeItem(`sonolynx_profile_${uid}`);
+        sessionStorage.setItem("radix_signed_out", "true");
+        localStorage.setItem("radix_signed_out", "true");
+        if (uid) {
+          localStorage.removeItem(`sonolynx_role_${uid}`);
+          localStorage.removeItem(`sonolynx_profile_${uid}`);
+          localStorage.removeItem(`radix_role_${uid}`);
+          localStorage.removeItem(`radix_profile_${uid}`);
+        }
       } catch {}
     }
     try {
@@ -252,9 +264,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Dev-only convenience: allow bypassing Supabase auth ONLY when explicitly enabled and not signed out.
-  // Default is off so local testing reflects real RLS behavior.
+  // Never active on the login page or after explicit sign out. Default is off.
+  const isLoginPage = typeof window !== "undefined" && window.location.pathname === "/login";
+  const isExplicitlySignedOut =
+    signedOutExplicitly ||
+    (typeof window !== "undefined" &&
+      (sessionStorage.getItem("radix_signed_out") === "true" ||
+        localStorage.getItem("radix_signed_out") === "true"));
+
   const devBypassEnabled =
-    !signedOutExplicitly &&
+    !isExplicitlySignedOut &&
+    !isLoginPage &&
     process.env.NODE_ENV === "development" &&
     process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
 

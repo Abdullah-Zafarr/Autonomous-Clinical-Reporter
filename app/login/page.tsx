@@ -22,7 +22,13 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (typeof window !== "undefined") {
+      const isSignedOut =
+        sessionStorage.getItem("radix_signed_out") === "true" ||
+        localStorage.getItem("radix_signed_out") === "true";
+      if (isSignedOut) return;
+    }
+    if (!loading && user && user.id !== "dev-user") {
       router.replace(loginDestination(role));
     }
   }, [user, role, loading, router]);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -146,6 +147,14 @@ function getCachedAdminMetrics(): CachedAdminMetrics | null {
 
 export default function AdminDashboard() {
   const { role, user, loading: authLoading, signOut } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login");
+    }
+  }, [authLoading, user, router]);
+
   const untypedSupabase = supabase as any;
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
