@@ -82,4 +82,4 @@ Synthetic worklist data is disabled by default. For a local presentation only, s
 - **Clinical Interoperability**: HL7 v2.x (`ORU^R01`) export and transmission engine
 - **Deployment**: [Vercel](https://vercel.com/) (Production Serverless & Edge Network)
 
-Made as a part of my internship at Bricklix
+
