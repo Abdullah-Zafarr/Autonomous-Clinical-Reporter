@@ -160,18 +160,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const isTransientNetworkError = (err: unknown): boolean => {
+    if (!err) return false;
+    const msg = (
+      err instanceof Error
+        ? err.message
+        : typeof err === "object" && err && "message" in err
+        ? String((err as { message?: unknown }).message)
+        : String(err)
+    ).toLowerCase();
+    return (
+      msg.includes("failed to fetch") ||
+      msg.includes("networkerror") ||
+      msg.includes("load failed") ||
+      msg.includes("network request failed") ||
+      msg.includes("timeout") ||
+      msg.includes("authretryablefetcherror") ||
+      msg.includes("econnrefused")
+    );
+  };
+
+  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     setSignedOutExplicitly(false);
     setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setLoading(false);
-      // Successful login stays loading until the auth listener resolves the role.
-      return { error: error?.message ?? null };
-    } catch (error) {
-      setLoading(false);
-      return { error: error instanceof Error ? error.message : "Unable to sign in. Please try again." };
+
+    const maxAttempts = 3;
+    let lastError: string | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error) {
+          // Success! Keep loading true until auth listener resolves role and routes to dashboard
+          return { error: null };
+        }
+
+        lastError = error.message;
+
+        // If credentials are wrong or user blocked, do NOT retry; return immediately
+        if (!isTransientNetworkError(error)) {
+          setLoading(false);
+          return { error: error.message };
+        }
+
+        console.warn(`[auth] Transient connection issue on attempt ${attempt}/${maxAttempts}: ${error.message}. Retrying silently...`);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Network error";
+        if (!isTransientNetworkError(err)) {
+          setLoading(false);
+          return { error: lastError };
+        }
+        console.warn(`[auth] Network exception on attempt ${attempt}/${maxAttempts}: ${lastError}. Retrying silently...`);
+      }
+
+      // Short delay before transparent retry (350ms, then 750ms)
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 350 : 750));
+      }
     }
+
+    setLoading(false);
+    if (lastError && isTransientNetworkError(lastError)) {
+      return {
+        error: "Unable to reach the clinical authentication server. Please check your network connection and try again.",
+      };
+    }
+    return { error: lastError || "Unable to sign in. Please try again." };
   };
 
   const signOut = async () => {

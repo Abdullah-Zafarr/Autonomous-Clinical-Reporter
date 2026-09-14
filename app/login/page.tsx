@@ -27,13 +27,28 @@ export default function LoginPage() {
     }
   }, [user, role, loading, router]);
 
+  useEffect(() => {
+    // Pre-warm the Supabase connection in the background so the TLS/TCP socket is ready when clicking Sign In
+    if (typeof window !== "undefined") {
+      try {
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (url) {
+          fetch(`${url}/auth/v1/health`, { method: "HEAD", mode: "no-cors" }).catch(() => {});
+        }
+      } catch {}
+    }
+  }, []);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     const { error } = await signIn(email, password);
     setBusy(false);
     if (error) {
-      toast.error("Sign-in failed", { description: error });
+      const description = error.toLowerCase().includes("failed to fetch")
+        ? "Unable to reach the clinical authentication server. Please check your network connection and try again."
+        : error;
+      toast.error("Sign-in failed", { description });
       return;
     }
     toast.success("Welcome back");
