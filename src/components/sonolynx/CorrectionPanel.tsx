@@ -193,11 +193,9 @@ export function CorrectionPanel({
     <div
       className={cn(
         "mx-4 mt-2.5 shrink-0 rounded-lg border transition-all duration-150 sm:mx-5 max-w-4xl",
-        hasReceived
-          ? "border-emerald-300 bg-emerald-50/50 shadow-2xs"
-          : hasOpen
-            ? "border-amber-300 bg-amber-50/40 shadow-2xs"
-            : "border-border/80 bg-muted/20",
+        hasOpen
+          ? "border-amber-300 bg-amber-50/40 shadow-2xs"
+          : "border-border/80 bg-card shadow-2xs",
       )}
     >
       {/* Clickable compact header summary */}
@@ -206,24 +204,21 @@ export function CorrectionPanel({
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
           "flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left outline-none transition-colors group rounded-lg",
-          hasReceived ? "hover:bg-emerald-100/40" : hasOpen ? "hover:bg-amber-100/40" : "hover:bg-muted/40",
+          hasOpen ? "hover:bg-amber-100/40" : "hover:bg-muted/40",
         )}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          {hasReceived ? (
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
-            </span>
-          ) : hasOpen ? (
+          {hasOpen ? (
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+          ) : hasReceived ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-600" />
           ) : (
             <History className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           )}
           <div className="flex flex-wrap items-baseline gap-1.5 min-w-0">
             <h3 className={cn(
               "text-xs font-semibold truncate",
-              hasReceived ? "text-emerald-950 font-bold" : hasOpen ? "text-amber-950" : "text-foreground"
+              hasOpen ? "text-amber-950 font-bold" : "text-foreground"
             )}>
               {hasReceived
                 ? `${resolvedReceivedCorrections.length} correction${
@@ -237,10 +232,7 @@ export function CorrectionPanel({
                     ? "Worksheet corrections (all archived)"
                     : "Worksheet corrections"}
             </h3>
-            <span className={cn(
-              "text-[11px] transition-colors",
-              hasReceived ? "text-emerald-700/80 group-hover:text-emerald-900" : "text-muted-foreground group-hover:text-foreground"
-            )}>
+            <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
               · {isExpanded ? "Click to collapse" : "Click to view correction"}
             </span>
           </div>
@@ -248,7 +240,7 @@ export function CorrectionPanel({
 
         <div className="flex items-center gap-2 shrink-0">
           {hasReceived && (
-            <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-0.5 shadow-2xs">
+            <Badge variant="secondary" className="text-[10px] font-semibold px-2 py-0.5 shadow-2xs">
               {resolvedReceivedCorrections.length} received
             </Badge>
           )}
@@ -288,7 +280,7 @@ export function CorrectionPanel({
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
                       {item.status === "resolved" ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
                       ) : (
                         <CornerDownLeft className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                       )}
@@ -297,8 +289,8 @@ export function CorrectionPanel({
                           <p className="text-xs font-bold text-slate-900">{item.fieldLabel}</p>
                           {item.status === "resolved" && (
                             <Badge
-                              variant="secondary"
-                              className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 font-medium"
+                              variant="outline"
+                              className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 font-medium"
                             >
                               Resolved by sonographer
                             </Badge>
@@ -306,8 +298,8 @@ export function CorrectionPanel({
                         </div>
                         <p className="mt-0.5 text-xs text-slate-700">{item.comment}</p>
                         {item.status === "resolved" && (
-                          <div className="mt-1.5 rounded-md bg-emerald-50/80 border border-emerald-200/80 px-2.5 py-1 text-[11px] font-medium text-emerald-800">
-                            Resolved: {item.resolutionNote || "Corrected in worksheet"}
+                          <div className="mt-1.5 rounded-md bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                            <span className="font-semibold text-slate-900">Resolved:</span> {item.resolutionNote || "Corrected in worksheet"}
                           </div>
                         )}
                       </div>
@@ -321,18 +313,18 @@ export function CorrectionPanel({
                           onClick={() => handleAccept(item.id)}
                           title="Accept correction & archive to history"
                           aria-label={`Accept correction for ${item.fieldLabel}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50 text-emerald-600 shadow-2xs transition-all hover:scale-110 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white active:scale-95 cursor-pointer"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-2xs transition-all hover:scale-110 hover:border-slate-800 hover:bg-slate-900 hover:text-white active:scale-95 cursor-pointer"
                         >
-                          <Check className="h-4 w-4 stroke-[3]" />
+                          <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDismiss(item.id)}
                           title="Dismiss correction & move to history"
                           aria-label={`Dismiss correction for ${item.fieldLabel}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-rose-300 bg-rose-50 text-rose-600 shadow-2xs transition-all hover:scale-110 hover:border-rose-600 hover:bg-rose-600 hover:text-white active:scale-95 cursor-pointer"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-2xs transition-all hover:scale-110 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-600 active:scale-95 cursor-pointer"
                         >
-                          <X className="h-4 w-4 stroke-[3]" />
+                          <X className="h-3.5 w-3.5 stroke-[2.5]" />
                         </button>
                       </div>
                     )}
@@ -366,7 +358,7 @@ export function CorrectionPanel({
                       <Button
                         type="button"
                         size="sm"
-                        className="self-end h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        className="self-end h-8 px-3 text-xs"
                         onClick={() => resolve(item.id)}
                       >
                         Resolve
@@ -413,7 +405,7 @@ export function CorrectionPanel({
                         <span className="font-semibold text-slate-800">{item.fieldLabel}</span>:{" "}
                         <span className="text-slate-600">{item.comment}</span>
                         {item.resolutionNote && (
-                          <span className="ml-1 text-emerald-700 font-medium">
+                          <span className="ml-1 text-slate-600 font-medium">
                             · Resolved: {item.resolutionNote}
                           </span>
                         )}
@@ -422,7 +414,7 @@ export function CorrectionPanel({
                         variant="outline"
                         className={cn(
                           "text-[10px] shrink-0 font-medium",
-                          item.status === "accepted" && "border-emerald-300 bg-emerald-50 text-emerald-700",
+                          item.status === "accepted" && "border-slate-200 bg-slate-100 text-slate-700",
                           item.status === "dismissed" && "border-rose-200 bg-rose-50 text-rose-700",
                         )}
                       >
@@ -514,7 +506,7 @@ export function CorrectionPanel({
           )}
 
           {!isDoctorMode && openCorrections.length === 0 && corrections.length > 0 && (
-            <p className="text-xs font-medium text-emerald-700">
+            <p className="text-xs font-medium text-muted-foreground">
               All requests are resolved. Save and resubmit the case for review.
             </p>
           )}

@@ -1257,7 +1257,7 @@ export function ClinicalWorksheet({
               disabled={!canSignAndSend || savingDraft || sendingReport || sendingToDoctor}
               className={cn(
                 "h-7 sm:h-8 px-3 gap-1.5 shrink-0 text-xs", 
-                isDoctorMode && "bg-emerald-600 hover:bg-emerald-700 text-white",
+                isDoctorMode && "bg-primary hover:bg-primary/90 text-primary-foreground",
                 !isDoctorMode && "bg-blue-600 hover:bg-blue-700 text-white",
                 isCompact && "px-1 min-w-0 flex-1 sm:flex-none"
               )}
