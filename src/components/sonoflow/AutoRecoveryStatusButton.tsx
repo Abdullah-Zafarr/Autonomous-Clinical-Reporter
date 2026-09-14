@@ -434,7 +434,7 @@ export function AutoRecoveryStatusButton({
                                   }}
                                   className="h-6 text-[11px] px-2 gap-1 text-foreground shrink-0"
                                 >
-                                  <RotateCcw className="h-3 w-3 text-amber-500" />
+                                  <RotateCcw className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                                   Restore
                                 </Button>
                               </div>
@@ -628,7 +628,7 @@ export function AutoRecoveryStatusButton({
                     className="gap-1.5 border-slate-700 text-xs"
                     title="View all saved backups and choose which one to restore"
                   >
-                    <RotateCcw className="h-3.5 w-3.5 text-amber-500" />
+                    <RotateCcw className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                     Restore Backup {backupsList.length > 0 ? `(${backupsList.length})` : ""}
                   </Button>
                 )}
@@ -682,7 +682,7 @@ export function AutoRecoveryStatusButton({
                   </Button>
                   <div>
                     <DialogTitle className="text-base font-bold flex items-center gap-2">
-                      <RotateCcw className="h-4 w-4 text-amber-500" />
+                      <RotateCcw className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       Choose Backup to Restore
                     </DialogTitle>
                     <DialogDescription className="text-xs text-muted-foreground">
@@ -697,7 +697,7 @@ export function AutoRecoveryStatusButton({
 
               <div className="rounded-lg border bg-muted/30 p-2.5 text-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-foreground">
-                  <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                  <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                   <span>
                     Select the snapshot you want to restore. The system will ask for your confirmation before restoring.
                   </span>
@@ -733,10 +733,10 @@ export function AutoRecoveryStatusButton({
                       return (
                         <div
                           key={backup.backupId}
-                          className="rounded-lg border-2 border-amber-500/60 bg-amber-500/10 p-3.5 space-y-3 shadow-xs"
+                          className="rounded-lg border-2 border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20 p-3.5 space-y-3 shadow-xs"
                         >
                           <div className="flex items-start gap-2.5">
-                            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                            <RotateCcw className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                             <div className="space-y-1 text-xs flex-1">
                               <p className="font-semibold text-foreground text-sm">
                                 Restore backup from {itemTime.absolute}?
@@ -747,13 +747,13 @@ export function AutoRecoveryStatusButton({
                               </p>
 
                               {/* Clinical Readings Being Restored */}
-                              <div className="rounded-md border border-amber-500/30 bg-background/90 p-2.5 space-y-2 mt-2">
-                                <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                              <div className="rounded-md border border-blue-200/80 dark:border-blue-900/60 bg-white/95 dark:bg-slate-900/90 p-2.5 space-y-2 mt-2 shadow-2xs">
+                                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center justify-between">
                                   <span className="flex items-center gap-1.5">
-                                    <Ruler className="h-3.5 w-3.5" />
+                                    <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                     Exact Readings in this Snapshot:
                                   </span>
-                                  <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400">
+                                  <Badge variant="outline" className="border-blue-200 dark:border-blue-800 text-[10px] text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-900/40">
                                     {targetReadings.totalMeasurementsCount} measurement{targetReadings.totalMeasurementsCount === 1 ? "" : "s"}
                                   </Badge>
                                 </div>
@@ -761,7 +761,7 @@ export function AutoRecoveryStatusButton({
                                 {targetReadings.measurements.length > 0 ? (
                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                                     {targetReadings.measurements.map((m, idx) => (
-                                      <div key={idx} className="rounded bg-muted/50 border border-border/50 px-2 py-1 text-[11px]">
+                                      <div key={idx} className="rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 px-2 py-1 text-[11px]">
                                         <span className="text-muted-foreground block text-[10px]">{m.organ}</span>
                                         <span className="font-mono font-semibold text-foreground">{m.label}: {m.value}</span>
                                       </div>
@@ -774,20 +774,15 @@ export function AutoRecoveryStatusButton({
                                 )}
 
                                 {targetReadings.findings.length > 0 && (
-                                  <div className="pt-1.5 border-t border-amber-500/20 space-y-1">
-                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                  <div className="pt-1.5 border-t border-blue-100 dark:border-blue-900/40 space-y-1">
+                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                       Organ Findings & Observations:
                                     </span>
                                     <div className="flex flex-wrap gap-1">
                                       {targetReadings.findings.map((f, idx) => (
                                         <span
                                           key={idx}
-                                          className={cn(
-                                            "text-[10px] px-1.5 py-0.5 rounded border font-medium",
-                                            f.isAbnormal
-                                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold"
-                                              : "bg-muted text-muted-foreground border-border/40"
-                                          )}
+                                          className="text-[10px] px-1.5 py-0.5 rounded border font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
                                         >
                                           {f.organ}: {f.finding}
                                         </span>
@@ -797,7 +792,7 @@ export function AutoRecoveryStatusButton({
                                 )}
 
                                 {targetReadings.notesSnippet && (
-                                  <div className="pt-1.5 border-t border-amber-500/20 text-[11px] text-muted-foreground">
+                                  <div className="pt-1.5 border-t border-blue-100 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300">
                                     <span className="font-semibold text-foreground">Notes: </span>
                                     <span className="italic">"{targetReadings.notesSnippet}"</span>
                                   </div>
@@ -813,7 +808,7 @@ export function AutoRecoveryStatusButton({
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-500/20">
+                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-blue-100 dark:border-blue-900/40">
                             <Button
                               type="button"
                               variant="outline"
@@ -827,7 +822,7 @@ export function AutoRecoveryStatusButton({
                               type="button"
                               size="sm"
                               onClick={() => handleExecuteRestore(backup)}
-                              className="h-7 text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold gap-1.5 shadow-xs"
+                              className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-1.5 shadow-sm"
                             >
                               <Check className="h-3.5 w-3.5" />
                               Confirm & Restore
@@ -969,19 +964,14 @@ export function AutoRecoveryStatusButton({
                               {readings.findings.length > 0 && (
                                 <div className="space-y-1 pt-1 border-t border-border/40">
                                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3 text-amber-500" />
+                                    <AlertCircle className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                                     Clinical Findings & Observations:
                                   </span>
                                   <div className="flex flex-wrap gap-1">
                                     {readings.findings.map((f, idx) => (
                                       <span
                                         key={idx}
-                                        className={cn(
-                                          "text-[10px] px-2 py-0.5 rounded border font-medium",
-                                          f.isAbnormal
-                                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold"
-                                            : "bg-muted text-muted-foreground border-border"
-                                        )}
+                                        className="text-[10px] px-2 py-0.5 rounded border font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
                                       >
                                         {f.organ}: {f.finding}
                                       </span>
