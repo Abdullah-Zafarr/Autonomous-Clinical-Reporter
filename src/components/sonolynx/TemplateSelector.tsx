@@ -12,6 +12,14 @@ export interface ReportTemplate {
   is_system: boolean;
 }
 
+const DEFAULT_PRESETS: ReportTemplate[] = [
+  { id: "std", name: "Standard Clinical", description: "Standard clinical report", content_structure: "", is_system: true },
+  { id: "fast", name: "Emergency/FAST Focus", description: "Focused assessment", content_structure: "", is_system: true },
+  { id: "exec", name: "Executive Summary", description: "Concise summary", content_structure: "", is_system: true },
+  { id: "point", name: "Point Form", description: "Bullet-point structure", content_structure: "", is_system: true },
+  { id: "detail", name: "Research/Detailed", description: "Detailed anatomical survey", content_structure: "", is_system: true },
+];
+
 interface TemplateSelectorProps {
   category: string;
   onSelect: (template: ReportTemplate) => void;
@@ -19,45 +27,54 @@ interface TemplateSelectorProps {
 }
 
 export function TemplateSelector({ category, onSelect, selectedId }: TemplateSelectorProps) {
-  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState<ReportTemplate[]>(DEFAULT_PRESETS);
+  const [loading, setLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
 
   const fetchTemplates = useCallback(async () => {
-      setLoading(true);
-      const { data }: { data: ReportTemplate[] } = await (supabase as any).from("report_templates")
+    try {
+      const { data }: { data: ReportTemplate[] } = await (supabase as any)
+        .from("report_templates")
         .select("*")
         .eq("category", category)
         .order("is_system", { ascending: false })
         .order("name", { ascending: true });
 
-      if (data) {
+      if (data && data.length > 0) {
         setTemplates(data);
-        // Default to Standard Clinical if nothing selected
-        if (!selectedId && data.length > 0) {
-          const standard = data.find(t => t.name === "Standard Clinical") || data[0];
+        if (!selectedId) {
+          const standard = data.find((t) => t.name === "Standard Clinical") || data[0];
           onSelect(standard);
         }
+      } else {
+        setTemplates(DEFAULT_PRESETS);
+        if (!selectedId) {
+          onSelect(DEFAULT_PRESETS[0]);
+        }
       }
-      setLoading(false);
-    }, [category, onSelect, selectedId]);
-  useEffect(() => {
-    fetchTemplates();
-  }, [fetchTemplates]);
+    } catch {
+      setTemplates(DEFAULT_PRESETS);
+      if (!selectedId) {
+        onSelect(DEFAULT_PRESETS[0]);
+      }
+    }
+  }, [category, onSelect, selectedId]);
 
-  if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+  useEffect(() => {
+    void fetchTemplates();
+  }, [fetchTemplates]);
 
   return (
     <div className="flex items-center gap-2">
-      <Layout className="h-4 w-4 text-muted-foreground" />
+      <Layout className="h-3.5 w-3.5 text-muted-foreground" />
       <Select 
-        value={selectedId} 
+        value={selectedId || DEFAULT_PRESETS[0].id} 
         onValueChange={(id) => {
           const t = templates.find(item => item.id === id);
           if (t) onSelect(t);
         }}
       >
-        <SelectTrigger className="h-8 w-[200px] text-xs">
+        <SelectTrigger className="h-7 w-[170px] text-xs" aria-label="Select report template">
           <SelectValue placeholder="Select template..." />
         </SelectTrigger>
         <SelectContent>

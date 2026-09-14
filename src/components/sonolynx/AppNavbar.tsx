@@ -89,7 +89,7 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
             className="group hidden items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 py-1 pl-2.5 pr-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-muted hover:text-foreground transition-all md:inline-flex"
             title="Click to open Settings and customize your clinical avatar & workspace"
           >
-            <span className="font-medium">{roleLabel}</span>
+            <span className="font-medium" suppressHydrationWarning>{roleLabel}</span>
             <Settings className="h-3 w-3 text-muted-foreground/70 group-hover:text-primary transition-colors" />
           </button>
 

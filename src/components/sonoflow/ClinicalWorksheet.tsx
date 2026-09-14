@@ -1223,13 +1223,13 @@ export function ClinicalWorksheet({
       <footer className="border-t bg-card px-3 py-1.5 sm:px-4 sm:py-2 shrink-0">
         <div className="flex items-center justify-between gap-2 overflow-hidden">
           <div className="flex items-center gap-1.5 shrink-0">
-            {isDoctorMode && <Button aria-label="Inspect HL7" variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-7 sm:h-8 gap-1.5 px-2.5 text-xs", isCompact && "w-7 p-0")}>
+            {onInspectHL7 && <Button aria-label="Inspect HL7" variant="outline" size="sm" onClick={onInspectHL7} className={cn("h-7 sm:h-8 gap-1.5 px-2.5 text-xs", isCompact && "w-7 p-0")}>
               <Code2 className="h-3.5 w-3.5" /> 
               {!isCompact && <span>Inspect HL7</span>}
             </Button>}
             <Button aria-label="Generate report" variant="outline" size="sm" onClick={onGenerateReport} className={cn("h-7 sm:h-8 gap-1.5 px-2.5 text-xs", isCompact && "w-7 p-0")}>
               <FileText className="h-3.5 w-3.5" /> 
-              {!isCompact && <span>Generate</span>}
+              {!isCompact && <span>Generate Report</span>}
             </Button>
           </div>
 

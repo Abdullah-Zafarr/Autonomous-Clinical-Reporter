@@ -17,6 +17,7 @@ import { DoctorSummary } from "@/components/sonolynx/DoctorSummary";
 import { ReportHistory } from "@/components/sonolynx/ReportHistory";
 import { SignReportDialog } from "@/components/sonolynx/SignReportDialog";
 import { WorkflowProgress } from "@/components/sonolynx/WorkflowProgress";
+import { TemplateSelector } from "@/components/sonolynx/TemplateSelector";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AutoRecoveryStatusButton } from "@/components/sonoflow/AutoRecoveryStatusButton";
 import {
@@ -140,18 +141,9 @@ export default function RadixApp() {
   }, [loading, user, router]);
 
   const initialMockCase = mockPatientCases[0];
-  const [patient, setPatient] = useState<Patient>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("radix_active_patient") || localStorage.getItem("sonolynx_active_patient");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed?.id) return parsed;
-        }
-      } catch {}
-    }
-    return initialMockCase?.patient ?? mockPatients[0] ?? emptyPatient;
-  });
+  const [patient, setPatient] = useState<Patient>(
+    initialMockCase?.patient ?? mockPatients[0] ?? emptyPatient
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined" && patient?.id) {
@@ -171,11 +163,18 @@ export default function RadixApp() {
   const [exam, setExam] = useState<ExamType>("Abdomen");
 
   useEffect(() => {
-    if (typeof window === "undefined" || !user?.id) return;
+    if (typeof window === "undefined") return;
     try {
-      const userCached = localStorage.getItem(`radix_active_patient_${user.id}`) || localStorage.getItem(`sonolynx_active_patient_${user.id}`);
-      if (userCached) {
-        const parsed = JSON.parse(userCached);
+      const userCached = user?.id
+        ? localStorage.getItem(`radix_active_patient_${user.id}`) ||
+          localStorage.getItem(`sonolynx_active_patient_${user.id}`)
+        : null;
+      const cached =
+        userCached ||
+        localStorage.getItem("radix_active_patient") ||
+        localStorage.getItem("sonolynx_active_patient");
+      if (cached) {
+        const parsed = JSON.parse(cached);
         if (parsed?.id) {
           setPatient(parsed);
           setExam(examFromLabel(parsed.exam));
@@ -1522,6 +1521,9 @@ export default function RadixApp() {
           Worklist
         </Button>
         <span className="hidden text-xs text-muted-foreground sm:inline">{isDoctorView ? "Clinical review" : "Clinical workspace"}</span>
+        <div className="hidden md:flex items-center ml-1">
+          <TemplateSelector category={exam.toLowerCase()} onSelect={(t) => setSelectedTemplateId(t.id)} selectedId={selectedTemplateId} />
+        </div>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-0.5 max-w-full">
             {canInspectHl7 && <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setHl7Open(true)}>HL7</Button>}
             {canSeeReportHistory && <Button variant={showHistory ? "secondary" : "ghost"} size="sm" className="h-7 text-xs px-2" onClick={() => setShowHistory((value) => !value)}>History{reportHistory.length > 0 ? ` (${reportHistory.length})` : ""}</Button>}

@@ -137,7 +137,7 @@ export function WorkflowProgress({
         <div className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
           <span className="font-semibold text-foreground whitespace-nowrap">Case Progress</span>
           {patientLabel && (
-            <span className="font-medium text-muted-foreground whitespace-nowrap">
+            <span className="font-medium text-muted-foreground whitespace-nowrap" suppressHydrationWarning>
               · {patientLabel}
             </span>
           )}
