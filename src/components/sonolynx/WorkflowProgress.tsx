@@ -129,12 +129,13 @@ export function WorkflowProgress({
     <section
       aria-label="Case progress"
       className={cn(
-        "shrink-0 border-b bg-card px-4 py-2 sm:py-2.5 w-full",
+        "shrink-0 border-b bg-card px-3 sm:px-4 py-1",
+        compact && "min-w-0 flex-1 border-t py-1 xl:border-t-0 xl:flex xl:items-center xl:gap-3",
         className
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 w-full min-h-8">
-        <div className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 w-full min-h-7">
+        <div className="flex items-center gap-1.5 shrink-0 text-xs">
           <span className="font-semibold text-foreground whitespace-nowrap">Case Progress</span>
           {patientLabel && (
             <span className="font-medium text-muted-foreground whitespace-nowrap" suppressHydrationWarning>
@@ -144,7 +145,7 @@ export function WorkflowProgress({
         </div>
 
         <ol
-          className="flex items-center gap-1.5 sm:gap-2 py-0.5 overflow-x-auto max-w-full scrollbar-none"
+          className="flex flex-wrap items-center gap-1.5 py-0.5"
           aria-label="Report workflow stages"
         >
         {(
@@ -164,7 +165,7 @@ export function WorkflowProgress({
               key={step.label}
               aria-current={current ? "step" : undefined}
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap",
+                "flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium border transition-colors whitespace-nowrap",
                 current
                   ? "border-primary/50 bg-primary/10 text-primary font-semibold shadow-xs"
                   : step.complete
@@ -175,7 +176,7 @@ export function WorkflowProgress({
             >
               <Icon
                 className={cn(
-                  "h-3.5 w-3.5 shrink-0",
+                  "h-3 w-3 shrink-0",
                   current || step.complete ? "text-primary" : "text-muted-foreground/60"
                 )}
               />
@@ -183,7 +184,7 @@ export function WorkflowProgress({
               <span className="sr-only">
                 {step.complete ? "Completed" : current ? "Current stage" : "Pending"}
               </span>
-              <span className="text-[11px] text-muted-foreground font-normal hidden sm:inline">
+              <span className="text-[10px] text-muted-foreground font-normal hidden sm:inline">
                 · {step.detail}
               </span>
             </li>
@@ -191,8 +192,8 @@ export function WorkflowProgress({
         })}
         </ol>
 
-        <div className="flex items-center gap-2 ml-auto shrink-0 text-xs">
-          <span role="status" className="whitespace-nowrap text-xs font-medium text-primary">
+        <div className="flex items-center gap-1.5 ml-auto shrink-0 text-xs">
+          <span role="status" className="whitespace-nowrap text-[11px] font-medium text-primary">
             {!studyId
               ? "Select a study"
               : error
@@ -204,12 +205,12 @@ export function WorkflowProgress({
           <Button
             size="icon"
             variant="ghost"
-            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+            className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
             aria-label="Refresh case progress"
             disabled={!studyId || loading || busy}
             onClick={() => setRefresh((value) => value + 1)}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
