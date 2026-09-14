@@ -23,6 +23,10 @@ import {
   Trash2,
   Check,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Ruler,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +51,7 @@ import {
   type AuditLogEntry,
 } from "@/lib/audit-service";
 import { getDoodleById, getDefaultDoodleForRole } from "@/lib/clinical-doodles";
+import { extractBackupReadings } from "@/lib/backup-readings-extractor";
 import { cn } from "@/lib/utils";
 
 interface AutoRecoveryStatusButtonProps {
@@ -96,6 +101,14 @@ export function AutoRecoveryStatusButton({
   const [activeTab, setActiveTab] = useState("recovery");
   const [searchFilter, setSearchFilter] = useState("");
   const [actionCategory, setActionCategory] = useState<string>("all");
+  const [expandedBackups, setExpandedBackups] = useState<Record<string, boolean>>({});
+
+  const toggleExpandBackup = (backupId: string) => {
+    setExpandedBackups((prev) => ({
+      ...prev,
+      [backupId]: !prev[backupId],
+    }));
+  };
 
   const refreshBackups = () => {
     if (!patientId) return;
@@ -384,19 +397,30 @@ export function AutoRecoveryStatusButton({
                         <div className="space-y-1.5">
                           {backupsList.slice(0, 2).map((item, idx) => {
                             const itemTime = formatBackupTimestamp(item.savedAt);
+                            const itemReadings = extractBackupReadings(item);
                             return (
                               <div
                                 key={item.backupId}
-                                className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-background/70 border border-border/40"
+                                className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-background/70 border border-border/40 gap-2"
                               >
-                                <div className="flex items-center gap-2 truncate">
+                                <div className="flex items-center gap-2 truncate min-w-0">
                                   <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                                  <span className="font-mono font-bold text-foreground">{itemTime.absolute}</span>
-                                  <span className="text-muted-foreground text-[11px]">({itemTime.relative})</span>
+                                  <span className="font-mono font-bold text-foreground shrink-0">{itemTime.absolute}</span>
+                                  <span className="text-muted-foreground text-[11px] shrink-0">({itemTime.relative})</span>
                                   {idx === 0 && (
-                                    <Badge variant="outline" className="text-[9px] py-0 h-4 border-primary/40 text-primary">
+                                    <Badge variant="outline" className="text-[9px] py-0 h-4 border-primary/40 text-primary shrink-0">
                                       Latest
                                     </Badge>
+                                  )}
+                                  {itemReadings.measurements.length > 0 ? (
+                                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono truncate max-w-[200px]">
+                                      <Ruler className="h-2.5 w-2.5 text-sky-500 shrink-0" />
+                                      {itemReadings.measurements.slice(0, 2).map((m) => `${m.label}: ${m.value}`).join(" · ")}
+                                    </span>
+                                  ) : (
+                                    <span className="hidden sm:inline text-[10px] text-muted-foreground/70 italic truncate">
+                                      Worksheet draft
+                                    </span>
                                   )}
                                 </div>
                                 <Button
@@ -408,7 +432,7 @@ export function AutoRecoveryStatusButton({
                                     setConfirmTarget(item);
                                     setView("restore_picker");
                                   }}
-                                  className="h-6 text-[11px] px-2 gap-1 text-foreground"
+                                  className="h-6 text-[11px] px-2 gap-1 text-foreground shrink-0"
                                 >
                                   <RotateCcw className="h-3 w-3 text-amber-500" />
                                   Restore
@@ -705,14 +729,15 @@ export function AutoRecoveryStatusButton({
                     const isConfirming = confirmTarget?.backupId === backup.backupId;
 
                     if (isConfirming) {
+                      const targetReadings = extractBackupReadings(backup);
                       return (
                         <div
                           key={backup.backupId}
-                          className="rounded-lg border-2 border-amber-500/60 bg-amber-500/10 p-3.5 space-y-3"
+                          className="rounded-lg border-2 border-amber-500/60 bg-amber-500/10 p-3.5 space-y-3 shadow-xs"
                         >
                           <div className="flex items-start gap-2.5">
                             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                            <div className="space-y-1 text-xs">
+                            <div className="space-y-1 text-xs flex-1">
                               <p className="font-semibold text-foreground text-sm">
                                 Restore backup from {itemTime.absolute}?
                               </p>
@@ -720,7 +745,66 @@ export function AutoRecoveryStatusButton({
                                 This will replace your current worksheet findings, doctor notes, and report draft with this snapshot from{" "}
                                 <span className="font-medium text-foreground">{itemTime.relative}</span> ({new Date(backup.savedAt).toLocaleDateString()}).
                               </p>
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground pt-1 border-t border-amber-500/20">
+
+                              {/* Clinical Readings Being Restored */}
+                              <div className="rounded-md border border-amber-500/30 bg-background/90 p-2.5 space-y-2 mt-2">
+                                <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                                  <span className="flex items-center gap-1.5">
+                                    <Ruler className="h-3.5 w-3.5" />
+                                    Exact Readings in this Snapshot:
+                                  </span>
+                                  <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-600 dark:text-amber-400">
+                                    {targetReadings.totalMeasurementsCount} measurement{targetReadings.totalMeasurementsCount === 1 ? "" : "s"}
+                                  </Badge>
+                                </div>
+
+                                {targetReadings.measurements.length > 0 ? (
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    {targetReadings.measurements.map((m, idx) => (
+                                      <div key={idx} className="rounded bg-muted/50 border border-border/50 px-2 py-1 text-[11px]">
+                                        <span className="text-muted-foreground block text-[10px]">{m.organ}</span>
+                                        <span className="font-mono font-semibold text-foreground">{m.label}: {m.value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-muted-foreground italic">
+                                    No numeric measurements recorded in this snapshot (initial baseline draft).
+                                  </p>
+                                )}
+
+                                {targetReadings.findings.length > 0 && (
+                                  <div className="pt-1.5 border-t border-amber-500/20 space-y-1">
+                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                      Organ Findings & Observations:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {targetReadings.findings.map((f, idx) => (
+                                        <span
+                                          key={idx}
+                                          className={cn(
+                                            "text-[10px] px-1.5 py-0.5 rounded border font-medium",
+                                            f.isAbnormal
+                                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold"
+                                              : "bg-muted text-muted-foreground border-border/40"
+                                          )}
+                                        >
+                                          {f.organ}: {f.finding}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {targetReadings.notesSnippet && (
+                                  <div className="pt-1.5 border-t border-amber-500/20 text-[11px] text-muted-foreground">
+                                    <span className="font-semibold text-foreground">Notes: </span>
+                                    <span className="italic">"{targetReadings.notesSnippet}"</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground pt-1">
                                 <span>Exam: <strong className="text-foreground">{backup.exam}</strong></span>
                                 <span>Attached scans: <strong className="text-foreground">{backup.keyImages?.length || 0}</strong></span>
                                 {backup.editedReportText && (
@@ -753,16 +837,20 @@ export function AutoRecoveryStatusButton({
                       );
                     }
 
+                    const readings = extractBackupReadings(backup);
+                    const isExpanded = Boolean(expandedBackups[backup.backupId]);
+
                     return (
                       <div
                         key={backup.backupId}
                         className={cn(
-                          "rounded-lg border bg-card p-3 transition-all text-xs hover:border-foreground/30 hover:bg-muted/20 space-y-2",
-                          index === 0 && "border-primary/40 bg-primary/5"
+                          "rounded-lg border bg-card p-3 transition-all text-xs hover:border-foreground/30 hover:bg-muted/10 space-y-2.5",
+                          index === 0 && "border-primary/40 bg-primary/[0.02]"
                         )}
                       >
+                        {/* Header */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span className="font-mono text-sm font-bold text-foreground">
                               {itemTime.absolute}
@@ -790,6 +878,7 @@ export function AutoRecoveryStatusButton({
                           </div>
                         </div>
 
+                        {/* Metadata row */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground border-t border-border/40 pt-2">
                           <div>
                             <span className="text-muted-foreground/70">Exam:</span>{" "}
@@ -807,7 +896,123 @@ export function AutoRecoveryStatusButton({
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
+                        {/* Measurements and Readings Section */}
+                        <div className="rounded-md bg-muted/40 border border-border/50 p-2 space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                              <Ruler className="h-3 w-3 text-sky-500" />
+                              Readings & Measurements:
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleExpandBackup(backup.backupId)}
+                              className="h-5 px-1.5 text-[10px] gap-1 text-sky-700 dark:text-sky-300 hover:text-foreground font-medium"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  Hide Details <ChevronUp className="h-3 w-3" />
+                                </>
+                              ) : (
+                                <>
+                                  Inspect All ({readings.totalMeasurementsCount + readings.findings.length}) <ChevronDown className="h-3 w-3" />
+                                </>
+                              )}
+                            </Button>
+                          </div>
+
+                          {readings.measurements.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              {readings.measurements.slice(0, 4).map((m, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded bg-background border border-border/60 text-foreground font-mono text-[11px] shadow-2xs"
+                                >
+                                  <span className="text-muted-foreground mr-1 text-[10px] font-sans">{m.organ}:</span>
+                                  <strong className="font-semibold">{m.label.replace("Caliber", "").replace("Length", "").replace("Span", "").trim()} {m.value}</strong>
+                                </span>
+                              ))}
+                              {readings.measurements.length > 4 && !isExpanded && (
+                                <span className="text-[10px] text-muted-foreground font-medium px-1">
+                                  +{readings.measurements.length - 4} more readings
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground/80 italic">
+                              {readings.hasAnyData
+                                ? "Findings recorded without numeric dimensions"
+                                : "Blank worksheet baseline draft"}
+                            </p>
+                          )}
+
+                          {/* Expanded Clinical Readings Drawer */}
+                          {isExpanded && (
+                            <div className="pt-2 border-t border-border/50 space-y-2 mt-1">
+                              {readings.measurements.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    All Recorded Measurements:
+                                  </span>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    {readings.measurements.map((m, idx) => (
+                                      <div key={idx} className="rounded bg-background border border-border/60 p-1.5 text-[11px]">
+                                        <div className="text-[10px] text-muted-foreground">{m.organ}</div>
+                                        <div className="font-mono font-bold text-foreground">{m.label}: {m.value}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {readings.findings.length > 0 && (
+                                <div className="space-y-1 pt-1 border-t border-border/40">
+                                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3 text-amber-500" />
+                                    Clinical Findings & Observations:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {readings.findings.map((f, idx) => (
+                                      <span
+                                        key={idx}
+                                        className={cn(
+                                          "text-[10px] px-2 py-0.5 rounded border font-medium",
+                                          f.isAbnormal
+                                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 font-semibold"
+                                            : "bg-muted text-muted-foreground border-border"
+                                        )}
+                                      >
+                                        {f.organ}: {f.finding}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {readings.notesSnippet && (
+                                <div className="rounded bg-background/80 border border-border/50 p-2 text-[11px] text-muted-foreground space-y-0.5">
+                                  <span className="font-semibold text-foreground block text-[10px] uppercase tracking-wider">
+                                    Clinician Notes:
+                                  </span>
+                                  <p className="italic font-sans text-foreground/90">"{readings.notesSnippet}"</p>
+                                </div>
+                              )}
+
+                              {readings.reportSnippet && (
+                                <div className="rounded bg-background/80 border border-border/50 p-2 text-[11px] text-muted-foreground space-y-0.5">
+                                  <span className="font-semibold text-foreground block text-[10px] uppercase tracking-wider">
+                                    Draft Report Excerpt:
+                                  </span>
+                                  <p className="italic font-sans text-foreground/90 font-mono text-[10.5px]">"{readings.reportSnippet}"</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="flex items-center justify-between pt-1 border-t border-border/40">
                           <span className="text-[10px] text-muted-foreground font-mono">
                             ID: {backup.backupId.slice(0, 8)}
                           </span>
