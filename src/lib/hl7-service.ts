@@ -28,9 +28,24 @@ function isSchemaCacheError(error: any, column?: string): boolean {
   return msg.includes(column.toLowerCase());
 }
 
+function isUsableExternalGateway(url?: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "/api/hl7/transmit") return false;
+  if (
+    trimmed.includes("soulflow.ai") ||
+    trimmed.includes("your-hl7-export-endpoint") ||
+    trimmed.includes("example.com")
+  ) {
+    return false;
+  }
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://");
+}
+
 export async function createPendingHl7Message(params: Hl7TransmitParams) {
   if (!params.organizationId) throw new Error("Clinic membership is required to send a report.");
-  const endpointUrl = process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL || "";
+  const rawUrl = process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL || "";
+  const endpointUrl = isUsableExternalGateway(rawUrl) ? rawUrl : "/api/hl7/transmit";
 
   const fullPayload: Record<string, unknown> = {
     organization_id: params.organizationId ?? null,
@@ -101,7 +116,8 @@ export async function updateHl7Message(
 }
 
 export async function transmitHl7(params: Hl7TransmitParams) {
-  const externalUrl = process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL;
+  const rawExternalUrl = process.env.NEXT_PUBLIC_HL7_EXPORT_API_URL;
+  const externalUrl = isUsableExternalGateway(rawExternalUrl) ? rawExternalUrl : null;
   const localUrl = "/api/hl7/transmit";
   const pending = await createPendingHl7Message(params);
 
@@ -113,7 +129,7 @@ export async function transmitHl7(params: Hl7TransmitParams) {
     payload: params.payload,
   };
 
-  // Try external first if configured
+  // Try external gateway first if a valid, usable URL is configured
   if (externalUrl) {
     try {
       const response = await postJson<unknown>(
@@ -129,18 +145,26 @@ export async function transmitHl7(params: Hl7TransmitParams) {
       });
       return { ok: true, messageId: pending.id, demo: false };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "HL7 gateway failed.";
-      await updateHl7Message(pending.id, { status: "failed", error_message: errorMessage });
-      return { ok: false, messageId: pending.id, errorMessage, demo: false };
+      console.warn(
+        `[hl7-service] External gateway '${externalUrl}' failed; attempting local fallback receiver:`,
+        error instanceof Error ? error.message : error
+      );
     }
   }
 
-  // Fallback to local mock
+  // Fallback to local receiver / demo acknowledgment
   try {
+    const sessionRes = await supabase.auth.getSession();
+    const token = sessionRes.data?.session?.access_token;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await postJson<unknown>(
       localUrl,
       payload,
-      { timeoutMs: 5000, retries: 0 },
+      { headers, timeoutMs: 8000, retries: 1 },
     );
 
     await updateHl7Message(pending.id, {

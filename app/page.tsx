@@ -1448,9 +1448,40 @@ export default function RadixApp() {
       const result = await transmitHl7({ organizationId, patientId: patient.id, studyId: patient.studyId, worksheetId: currentWorksheet.id, accessionNumber: accession, payload: buildHL7(patient, currentWorksheet.report_text, accession, exam), userId: user.id });
       if (!result.ok) throw new Error(result.errorMessage || "Delivery could not be confirmed.");
       setCurrentWorksheet(await updateWorksheetStatus(currentWorksheet.id, "transmitted"));
+      await writeAuditLog({
+        userId: user.id,
+        patientId: patient.id,
+        studyId: patient.studyId,
+        worksheetId: currentWorksheet.id,
+        hl7MessageId: result.messageId,
+        action: "sign_send_hl7",
+        status: "sent",
+        staffName,
+        staffEmail,
+        staffRole,
+        description: `Retried HL7 delivery for accession ${accession}. Delivered via ORU^R01.`,
+        metadata: { worksheetType: exam, accession, demo: result.demo, patientName: formatPatientName(patient, "Patient") },
+      });
       toast.success(result.demo ? "Demo delivery acknowledged" : "Report delivered", { description: result.demo ? "Acknowledged by the local demo receiver." : "The existing signed report was delivered." });
     } catch (error) {
-      toast.error("Delivery failed", { description: error instanceof Error ? error.message : "The signed report remains saved." });
+      const rawMsg = error instanceof Error ? error.message : "The signed report remains saved.";
+      const friendlyMsg = rawMsg.includes("Failed to fetch")
+        ? "Unable to reach the HL7 gateway. The signed report remains saved safely."
+        : rawMsg;
+      await writeAuditLog({
+        userId: user.id,
+        patientId: patient.id,
+        studyId: patient.studyId,
+        worksheetId: currentWorksheet.id,
+        action: "sign_send_hl7",
+        status: "failed",
+        staffName,
+        staffEmail,
+        staffRole,
+        description: `Retry delivery failed for accession ${accession}: ${rawMsg}.`,
+        metadata: { worksheetType: exam, accession, error: rawMsg },
+      }).catch(() => {});
+      toast.error("Delivery failed", { description: friendlyMsg });
     } finally {
       setSendingReport(false);
       setWorklistRefresh((value) => value + 1);

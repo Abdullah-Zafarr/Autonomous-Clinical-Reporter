@@ -1,25 +1,86 @@
-# Radix - Ultrasound Worksheet Workflow
+# Radix - Ultrasound Clinical Reporting & Workflow Platform
 
-## Screenshots
+Radix is an enterprise clinical reporting and ultrasound worksheet workflow platform engineered for modern radiology clinics, sonographers, and reading physicians. It combines real-time smart dictation, organ-specific dynamic worksheets, ACR-guardrailed AI reporting, integrated PACS/DICOM viewing, and HL7 v2 transmission into a unified, high-performance clinical workspace.
 
-### Main Interface
-![Sonographer Mode](screenshots/sonographer%20mode.PNG)
+---
 
-### Clinical Review
-![Doctor View](screenshots/doctor%20view.PNG)
+## Visual Tour & Workspace Screenshots
 
-### Worksheet Variety
-![Worksheets](screenshots/different%20types%20of%20of%20worksheets.png)
+### 1. Sonographer Clinical Workspace
+![Sonographer Clinical Workspace](assets/sonographer-panel.png)
+*Real-time smart clinical dictation with speech recognition, dynamic organ-specific worksheet controls (Liver, Gallbladder, Biliary, Kidneys, Spleen, Pancreas), and synchronized live report preview.*
 
-### Administrative Dashboard
-![Admin Dashboard](screenshots/admin%20dashboard%201.PNG)
+---
 
-### Report Generation
-![Generate Report](screenshots/generate%20report.PNG)
+### 2. Doctor Clinical Review & Sign-Off
+![Doctor Clinical Review](assets/doctor-panel.png)
+*Reading physician review interface featuring longitudinal Case Progress tracking, field-level correction request notifications, AI report enhancement tools, digital sign-off controls, and attached DICOM imaging.*
+
+---
+
+### 3. AI Clinical Report Drafter
+![AI Clinical Report Drafter](assets/ai-report-drafter.png)
+*Physician scribe assistant with instant clinical presets (+ Normal Abdomen, + Cholelithiasis, + Normal Thyroid, + Renal / Kidneys), hands-free voice dictation, and strict ACR radiology guardrails.*
+
+---
+
+### 4. Conversational AI Report Editing
+![Conversational Report Editing with AI](assets/edit-report-with-ai.png)
+*Interactive report refinement allowing physicians to request wording changes, condense impressions, re-order anatomical sections, and preview diffs before applying them to drafts.*
+
+---
+
+### 5. Multilingual Patient-Friendly Explanations
+![Patient-Friendly Explanation](assets/patient-friendly-explanation.png)
+*Clinician-reviewed translations and simplified explanations of signed reports in English, Urdu, Arabic, and Spanish, featuring right-to-left typography and mandatory clinician approval before sharing.*
+
+---
+
+### 6. High-Resolution DICOM & PACS Viewer
+![Integrated DICOM Viewer](assets/dicom-viewer.png)
+*High-resolution medical imaging viewer with window/level presets, pan, zoom, freehand drawing highlights, and key frame attachment directly into final reports.*
+
+---
+
+### 7. Standardized Report Formats & PDF Export
+![Report Formats and PDF Export](assets/premade-report-formats.png)
+*A4 clinical report preview supporting customizable design presets (The Modernist, The Formalist, The Academic, The Minimalist, The Executive, The Standard, The Paediatric) with instant print and vector PDF download.*
+
+---
+
+### 8. Patient Intake & Study Ordering
+![Register New Patient and Order Study](assets/register-patient.png)
+*Standardized patient registration modal capturing demographics, Medicare / MRN identifiers, study modalities, referring physician information, and clinical indications.*
+
+---
+
+### 9. Daily Summary & Clinical Worklist
+![Daily Summary and Patient Worklist](assets/patient-list.png)
+*Clinic worklist drawer displaying scheduled, in-progress, and completed studies alongside fast search by patient name, MRN, or accession number.*
+
+---
+
+### 10. Workstation Settings & Clinical Preferences
+![Clinical Settings and Preferences](assets/preferences-and-settings.png)
+*Comprehensive workstation customization including measurement unit toggles (Metric vs Imperial), default report styling, scan markup highlighter colors, and auto-scrolling findings.*
+
+---
+
+### 11. Administrative Dashboard & Operational Governance
+![Admin Dashboard](assets/admin-panel.png)
+*Operational governance console tracking clinic-wide metrics (Total Patients, Studies, Signed Reports, HL7 Messages), staff directory role controls, subscription tiers, and system health.*
+
+---
+
+### 12. Secure Clinician Authentication Gateway
+![Clinician Login Gateway](assets/login.png)
+*HIPAA-compliant, role-gated authentication gateway protecting clinic data and private health records.*
+
+---
 
 ## About Radix
 
-Radix is a professional clinical reporting and ultrasound worksheet workflow platform designed for radiology clinics and sonographers.
+Radix is a professional clinical reporting and ultrasound worksheet workflow platform designed for radiology clinics, sonographers, and reading physicians.
 
 ## Key Features
 
@@ -81,5 +142,3 @@ Synthetic worklist data is disabled by default. For a local presentation only, s
 - **Medical Imaging (PACS)**: Cornerstone.js & DICOMweb viewer (Window/Level, Zoom, Pan, Cine playback)
 - **Clinical Interoperability**: HL7 v2.x (`ORU^R01`) export and transmission engine
 - **Deployment**: [Vercel](https://vercel.com/) (Production Serverless & Edge Network)
-
-
