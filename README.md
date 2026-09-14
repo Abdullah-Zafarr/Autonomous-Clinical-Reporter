@@ -1,4 +1,4 @@
-# Sonolynx - Ultrasound Worksheet Workflow
+# Radix - Ultrasound Worksheet Workflow
 
 ## Screenshots
 
@@ -17,9 +17,9 @@
 ### Report Generation
 ![Generate Report](screenshots/generate%20report.PNG)
 
-## About Sonolynx
+## About Radix
 
-Sonolynx is a professional clinical reporting and ultrasound worksheet workflow platform designed for radiology clinics and sonographers.
+Radix is a professional clinical reporting and ultrasound worksheet workflow platform designed for radiology clinics and sonographers.
 
 ## Key Features
 
@@ -40,7 +40,7 @@ Sonolynx is a professional clinical reporting and ultrasound worksheet workflow 
 
 ## Doctor AI Report Assistant
 
-Sonolynx features an intelligent, guardrailed AI Clinical Drafter built directly into the doctor's review and sign-off workflow:
+Radix features an intelligent, guardrailed AI Clinical Drafter built directly into the doctor's review and sign-off workflow:
 
 - **Intelligent Report Generation**: Instantly transform raw findings, measurements, and clinical observations into comprehensive, structured radiology reports (Technique, Findings by organ/system, and Impression).
 - **Hands-Free Voice Dictation**: Live microphone dictation powered by speech recognition enables doctors to verbally capture observations hands-free.

@@ -86,7 +86,7 @@ export function buildTemplateContext(
     "{{signedBy}}":           safe(context.signedBy,         "-"),
     "{{signedAt}}":           safe(context.signedAt,         "-"),
     "{{worksheetSummary}}":   safe(context.worksheetSummary, "-"),
-    "{{sonuLabsBranding}}":   "Generated with Sonolynx",
+    "{{sonuLabsBranding}}":   "Generated with Radix",
   };
 }
 

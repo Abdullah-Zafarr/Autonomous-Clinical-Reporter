@@ -395,7 +395,7 @@ export function ReportTemplateManager() {
                     </label>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={includesBranding} disabled={!isEditable} onChange={e => setIncludesBranding(e.target.checked)} />
-                      Sonolynx Branding
+                      Radix Branding
                     </label>
                   </div>
                 </div>

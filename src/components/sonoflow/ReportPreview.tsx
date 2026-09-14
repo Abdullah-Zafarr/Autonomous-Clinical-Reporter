@@ -363,7 +363,7 @@ export function ReportPreview({
         </footer>
       ) : (
         <footer className="border-t px-4 py-3 text-[11px] text-muted-foreground sm:px-5">
-          Electronically generated · Sonolynx Radiology · Pending sonographer signature
+          Electronically generated · Radix Radiology · Pending sonographer signature
         </footer>
       )}
 

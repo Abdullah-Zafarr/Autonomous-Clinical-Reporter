@@ -43,7 +43,7 @@ import {
   Crown,
   Shield
 } from "lucide-react";
-import { Logo as SonolynxLogo } from "@/components/sonolynx/Logo";
+import { Logo as RadixLogo } from "@/components/sonolynx/Logo";
 import { toast } from "sonner";
 import { 
   getCurrentUserOrganizationTier, 
@@ -652,7 +652,7 @@ export default function AdminDashboard() {
       <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-4">
-            <SonolynxLogo size="md" className="hidden sm:flex" />
+            <RadixLogo size="md" className="hidden sm:flex" />
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
               <p className="text-sm text-muted-foreground">Operational controls, system health, and workflow monitoring.</p>
@@ -825,7 +825,7 @@ export default function AdminDashboard() {
                             <TableCell className="font-medium">{displayName}</TableCell>
                             <TableCell className="text-muted-foreground">{person.email || "Not available"}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {organizations.find(o => o.id === person.organization_id)?.name ?? "—"}
+                              {organizations.find(o => o.id === person.organization_id)?.name?.replace(/Sonolynx/gi, "Radix") ?? "—"}
                             </TableCell>
                             <TableCell>
                               <RoleBadge role={person.role} />
@@ -1031,7 +1031,7 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="newEmail">Email</Label>
-              <Input id="newEmail" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="user@sonolynx.local" />
+              <Input id="newEmail" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="user@radix.local" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="newPassword">Temporary Password</Label>

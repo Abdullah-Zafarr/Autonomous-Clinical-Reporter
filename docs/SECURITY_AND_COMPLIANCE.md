@@ -1,7 +1,7 @@
-# Sonolynx: Security & Compliance Whitepaper
+# Radix: Security & Compliance Whitepaper
 
 ## 1. Introduction
-In the clinical environment, data security and patient privacy are paramount. Sonolynx is architected from the ground up to exceed industry standards for health data protection, ensuring compliance with HIPAA, GDPR, and other regional medical data regulations.
+In the clinical environment, data security and patient privacy are paramount. Radix is architected from the ground up to exceed industry standards for health data protection, ensuring compliance with HIPAA, GDPR, and other regional medical data regulations.
 
 ---
 
@@ -12,7 +12,7 @@ In the clinical environment, data security and patient privacy are paramount. So
 - **At Rest:** Database storage (PostgreSQL) and any associated object storage are encrypted using AES-256.
 
 ### Row Level Security (RLS)
-Unlike traditional applications that rely on application-level filtering, Sonolynx leverages **PostgreSQL Row Level Security**. This means the database itself enforces that a user can only access records they are explicitly authorized to see, providing a robust defense-in-depth against unauthorized data access.
+Unlike traditional applications that rely on application-level filtering, Radix leverages **PostgreSQL Row Level Security**. This means the database itself enforces that a user can only access records they are explicitly authorized to see, providing a robust defense-in-depth against unauthorized data access.
 
 ---
 
@@ -34,7 +34,7 @@ Integration with Supabase Auth provides support for:
 ## 4. Clinical Auditability
 
 ### Immutable Audit Logs
-Every action within Sonolynx is recorded in a dedicated, immutable audit log table. This includes:
+Every action within Radix is recorded in a dedicated, immutable audit log table. This includes:
 - Patient record creation/modification
 - Worksheet entry and value changes
 - Report signing events
@@ -49,7 +49,7 @@ Clinical worksheets support versioning, allowing clinicians to track changes acr
 ## 5. Compliance Frameworks
 
 ### HIPAA Readiness
-Sonolynx implements all necessary technical safeguards required by the Health Insurance Portability and Accountability Act (HIPAA):
+Radix implements all necessary technical safeguards required by the Health Insurance Portability and Accountability Act (HIPAA):
 - **Access Control:** Unique user IDs and automatic logoffs.
 - **Audit Controls:** Mechanisms to record and examine activity in information systems.
 - **Integrity:** Protections against improper alteration or destruction of PHI.
@@ -68,4 +68,4 @@ Our **Findings Engine** utilizes deterministic clinical rules anchored in peer-r
 ---
 
 ## 7. Conclusion
-Sonolynx provides the perfect balance of modern clinical efficiency and enterprise-grade security. By choosing Sonolynx, institutions are investing in a platform that prioritizes patient data safety as much as diagnostic speed.
+Radix provides the perfect balance of modern clinical efficiency and enterprise-grade security. By choosing Radix, institutions are investing in a platform that prioritizes patient data safety as much as diagnostic speed.

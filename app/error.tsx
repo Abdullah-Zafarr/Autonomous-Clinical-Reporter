@@ -13,7 +13,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[Sonolynx Runtime Error]:", error);
+    console.error("[Radix Runtime Error]:", error);
   }, [error]);
 
   return (

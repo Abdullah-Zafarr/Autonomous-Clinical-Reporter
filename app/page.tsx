@@ -129,7 +129,7 @@ const emptyPatient: Patient = {
   exam: "Ultrasound",
 };
 
-export default function SonolynxApp() {
+export default function RadixApp() {
   const { loading, user, role, profile } = useAuth();
 
   const router = useRouter();
@@ -143,7 +143,7 @@ export default function SonolynxApp() {
   const [patient, setPatient] = useState<Patient>(() => {
     if (typeof window !== "undefined") {
       try {
-        const cached = localStorage.getItem("sonolynx_active_patient");
+        const cached = localStorage.getItem("radix_active_patient") || localStorage.getItem("sonolynx_active_patient");
         if (cached) {
           const parsed = JSON.parse(cached);
           if (parsed?.id) return parsed;
@@ -156,18 +156,24 @@ export default function SonolynxApp() {
   useEffect(() => {
     if (typeof window !== "undefined" && patient?.id) {
       try {
-        localStorage.setItem("sonolynx_active_patient", JSON.stringify(patient));
+        localStorage.setItem("radix_active_patient", JSON.stringify(patient));
         if (user?.id) {
-          localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(patient));
+          localStorage.setItem(`radix_active_patient_${user.id}`, JSON.stringify(patient));
         }
       } catch {}
     }
   }, [patient, user?.id]);
 
+  const [worksheet, setWorksheet] = useState<WorksheetData>(defaultWorksheet);
+  const [thyroid, setThyroid] = useState<ThyroidData>(defaultThyroid);
+  const [ob, setOb] = useState<ObData>(defaultOb);
+  const [vascular, setVascular] = useState<VascularData>(defaultVascular);
+  const [exam, setExam] = useState<ExamType>("Abdomen");
+
   useEffect(() => {
     if (typeof window === "undefined" || !user?.id) return;
     try {
-      const userCached = localStorage.getItem(`sonolynx_active_patient_${user.id}`);
+      const userCached = localStorage.getItem(`radix_active_patient_${user.id}`) || localStorage.getItem(`sonolynx_active_patient_${user.id}`);
       if (userCached) {
         const parsed = JSON.parse(userCached);
         if (parsed?.id) {
@@ -177,11 +183,6 @@ export default function SonolynxApp() {
       }
     } catch {}
   }, [user?.id]);
-  const [worksheet, setWorksheet] = useState<WorksheetData>(defaultWorksheet);
-  const [thyroid, setThyroid] = useState<ThyroidData>(defaultThyroid);
-  const [ob, setOb] = useState<ObData>(defaultOb);
-  const [vascular, setVascular] = useState<VascularData>(defaultVascular);
-  const [exam, setExam] = useState<ExamType>("Abdomen");
   const userToggledDicom = useRef(false);
   const [showDicom, setShowDicom] = useState(false);
 
@@ -339,8 +340,8 @@ export default function SonolynxApp() {
             setExam(examFromLabel(loadedPatient.exam));
             if (typeof window !== "undefined") {
               try {
-                localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(loadedPatient));
-                localStorage.setItem("sonolynx_active_patient", JSON.stringify(loadedPatient));
+                localStorage.setItem(`radix_active_patient_${user.id}`, JSON.stringify(loadedPatient));
+                localStorage.setItem("radix_active_patient", JSON.stringify(loadedPatient));
               } catch {}
             }
             return;
@@ -376,8 +377,8 @@ export default function SonolynxApp() {
           setExam(examFromLabel(loadedPatient.exam));
           if (typeof window !== "undefined") {
             try {
-              localStorage.setItem(`sonolynx_active_patient_${user.id}`, JSON.stringify(loadedPatient));
-              localStorage.setItem("sonolynx_active_patient", JSON.stringify(loadedPatient));
+              localStorage.setItem(`radix_active_patient_${user.id}`, JSON.stringify(loadedPatient));
+              localStorage.setItem("radix_active_patient", JSON.stringify(loadedPatient));
             } catch {}
           }
         }
@@ -417,6 +418,11 @@ export default function SonolynxApp() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  const accession = useMemo(
+    () => patient.accessionNumber || `ACC-${patient.mrn.replace(/\D/g, "").slice(-6)}-${new Date().getFullYear()}`,
+    [patient],
+  );
 
   const performAutoBackup = (source: "auto" | "heartbeat" | "manual" | "beforeunload" = "auto") => {
     if (!patient?.id) return;
@@ -609,11 +615,6 @@ export default function SonolynxApp() {
     corrections,
     isDirty,
   ]);
-
-  const accession = useMemo(
-    () => patient.accessionNumber || `ACC-${patient.mrn.replace(/\D/g, "").slice(-6)}-${new Date().getFullYear()}`,
-    [patient],
-  );
 
   const report = useMemo(() => {
     if (exam === "Thyroid") return generateThyroidReport(thyroid);
@@ -1078,8 +1079,12 @@ export default function SonolynxApp() {
     if (patient.id === deletedId) {
       if (typeof window !== "undefined") {
         try {
+          localStorage.removeItem("radix_active_patient");
           localStorage.removeItem("sonolynx_active_patient");
-          if (user?.id) localStorage.removeItem(`sonolynx_active_patient_${user.id}`);
+          if (user?.id) {
+            localStorage.removeItem(`radix_active_patient_${user.id}`);
+            localStorage.removeItem(`sonolynx_active_patient_${user.id}`);
+          }
         } catch {}
       }
       isInitialMount.current = true;

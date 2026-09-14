@@ -102,7 +102,7 @@ export function BrandingSettingsManager() {
           checked={form.showSonolynxBranding}
           onChange={(event) => setForm((prev) => ({ ...prev, showSonolynxBranding: event.target.checked }))}
         />
-        <Label htmlFor="showSonolynxBranding">Show Sonolynx branding footer when tier rules allow</Label>
+        <Label htmlFor="showSonolynxBranding">Show Radix branding footer when tier rules allow</Label>
       </div>
 
       <div className="mt-4 flex items-center gap-3">

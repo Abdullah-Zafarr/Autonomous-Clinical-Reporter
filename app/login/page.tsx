@@ -132,7 +132,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="mt-8 text-center text-[11px] font-medium text-slate-400">
-          © {new Date().getFullYear()} Sonolynx Radiology · Protected health information
+          © {new Date().getFullYear()} Radix Radiology · Protected health information
         </p>
       </motion.div>
       

@@ -258,13 +258,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     process.env.NODE_ENV === "development" &&
     process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
 
-  const effectiveUser = devBypassEnabled ? (user || ({ id: "dev-user", email: "dev@sonolynx.com" } as User)) : user;
+  const effectiveUser = devBypassEnabled ? (user || ({ id: "dev-user", email: "dev@radix.local" } as User)) : user;
   const effectiveRole = devBypassEnabled ? ((role || "admin") as AppRole) : role;
   const effectiveProfile = devBypassEnabled
     ? (profile ||
         ({
           id: "dev-user",
-          email: "dev@sonolynx.com",
+          email: "dev@radix.local",
           first_name: "Dev",
           last_name: "User",
           role: "admin",

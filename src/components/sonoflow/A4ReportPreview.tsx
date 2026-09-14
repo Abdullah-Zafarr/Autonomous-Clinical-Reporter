@@ -29,8 +29,8 @@ export function buildA4ReportHtml(
     .join("");
 
   const footerText = branding.footerText || "";
-  const sonolynx = showSonolynxBranding ? "Generated with Sonolynx" : "";
-  const footer = [footerText, sonolynx].filter(Boolean).join(" · ");
+  const radix = showSonolynxBranding ? "Generated with Radix" : "";
+  const footer = [footerText, radix].filter(Boolean).join(" · ");
 
   return `<div class="a4">
     <header class="section" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
@@ -94,7 +94,7 @@ export function A4ReportPreview({ document, branding, showSonolynxBranding, keyI
 
       {(branding.footerText || showSonolynxBranding) && (
         <footer className="mt-4 border-t pt-2 text-center text-[10px] text-muted-foreground">
-          {[branding.footerText, showSonolynxBranding ? "Generated with Sonolynx" : ""].filter(Boolean).join(" · ")}
+          {[branding.footerText, showSonolynxBranding ? "Generated with Radix" : ""].filter(Boolean).join(" · ")}
         </footer>
       )}
     </div>

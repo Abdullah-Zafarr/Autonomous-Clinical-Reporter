@@ -14,15 +14,16 @@ export function Logo({ className, size = "md" }: { className?: string; size?: "s
         )}
       >
         <Image
-          src="/sonolynx-logo.png"
-          alt="Sonolynx"
+          src="/radix-logo.png"
+          alt="Radix"
           fill
           sizes={size === "lg" ? "40px" : size === "sm" ? "24px" : "32px"}
-          className="object-contain"
+          className="object-contain mix-blend-multiply"
+          priority
         />
       </div>
       <div className="flex flex-col leading-none text-left">
-        <span className={cn("font-bold tracking-tight text-slate-900", text)}>Sonolynx</span>
+        <span className={cn("font-bold tracking-tight text-slate-900", text)}>Radix</span>
         {size !== "sm" && (
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
             Radiology

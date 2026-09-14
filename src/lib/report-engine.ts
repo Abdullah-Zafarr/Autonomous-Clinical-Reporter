@@ -484,7 +484,7 @@ export function buildStructuredClinicalReport(params: {
           : "COMPLETE ABDOMINAL ULTRASOUND";
 
   const lines: string[] = [];
-  lines.push("SONOLYNX RADIOLOGY");
+  lines.push("RADIX RADIOLOGY");
   lines.push("ULTRASOUND REPORT");
   lines.push("");
   lines.push("PATIENT DETAILS");

@@ -3,7 +3,7 @@ import type { ReportBrandingSettings } from "@/lib/report-template-types";
 import { getCurrentUserOrganizationId } from "@/lib/org-scope";
 
 export const DEFAULT_BRANDING_SETTINGS: ReportBrandingSettings = {
-  hospitalName: "Sonolynx Partner Facility",
+  hospitalName: "Radix Partner Facility",
   hospitalAddress: "",
   hospitalPhone: "",
   hospitalEmail: "",

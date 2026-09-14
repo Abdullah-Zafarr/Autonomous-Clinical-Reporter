@@ -148,10 +148,10 @@ export async function writeAuditLog(params: WriteAuditLogParams): Promise<AuditL
     });
 
     if (error) {
-      console.warn("[Sonolynx] Remote audit log write notice:", error);
+      console.warn("[Radix] Remote audit log write notice:", error);
     }
   } catch (err) {
-    console.warn("[Sonolynx] Remote audit log write failed (retained in local audit trail):", err);
+    console.warn("[Radix] Remote audit log write failed (retained in local audit trail):", err);
   }
 
   return entry;

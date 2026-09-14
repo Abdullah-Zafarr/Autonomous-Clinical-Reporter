@@ -1,7 +1,7 @@
-# Sonolynx: The Next-Gen Clinical Workflow Ecosystem
+# Radix: The Next-Gen Clinical Workflow Ecosystem
 
 ## 1. Executive Summary
-Sonolynx is a state-of-the-art Clinical Workflow Management system designed specifically for modern Radiology and Sonography departments. Built on the cutting edge of web technology (Next.js 16 & React 19), it bridges the gap between raw diagnostic data and final clinical reports. By automating structured data entry, providing AI-enhanced findings interpretation, and ensuring seamless DICOM/HL7 integration, Sonolynx significantly reduces physician burnout and improves diagnostic accuracy.
+Radix is a state-of-the-art Clinical Workflow Management system designed specifically for modern Radiology and Sonography departments. Built on the cutting edge of web technology (Next.js 16 & React 19), it bridges the gap between raw diagnostic data and final clinical reports. By automating structured data entry, providing AI-enhanced findings interpretation, and ensuring seamless DICOM/HL7 integration, Radix significantly reduces physician burnout and improves diagnostic accuracy.
 
 ---
 
@@ -14,7 +14,7 @@ Automated worksheet-to-report generation cuts down reporting time by up to 60%, 
 Deterministic rule engines and validation layers (ACR TI-RADS, AIUM guidelines) ensure that critical measurements are never missed and findings are consistent with established medical standards.
 
 ### 🔌 Seamless Interoperability
-Out-of-the-box support for HL7 export and DICOMweb integration allows Sonolynx to slot into existing hospital infrastructures (PACS/RIS) with minimal friction.
+Out-of-the-box support for HL7 export and DICOMweb integration allows Radix to slot into existing hospital infrastructures (PACS/RIS) with minimal friction.
 
 ### 📈 Future-Proof Intelligence
 A modular architecture designed for the AI era, featuring extensible hooks for LLM-based report enhancement and automated finding extraction.
@@ -63,7 +63,7 @@ Specialized, structured data entry modules for:
 ---
 
 ## 5. Medical Safety & Accuracy Readiness
-Sonolynx is built with a "Safety-First" philosophy. Our documentation includes a comprehensive **FDA Accuracy Readiness Roadmap**, covering:
+Radix is built with a "Safety-First" philosophy. Our documentation includes a comprehensive **FDA Accuracy Readiness Roadmap**, covering:
 - **Deterministic Validation:** Numeric thresholding for critical findings.
 - **Transparency:** Explicit visibility of guidelines (e.g., TI-RADS) within the UI.
 - **Sign-Off Guardrails:** Blocking transmission of incomplete or contradictory reports.
@@ -86,6 +86,6 @@ Sonolynx is built with a "Safety-First" philosophy. Our documentation includes a
 
 ### Contact Information
 For acquisition inquiries, technical deep-dives, or live demonstrations, please contact:
-**[Sonolynx Sales/Development Team]**
-*Email: info@sonolynx.io*
-*Website: https://sonolynx.io*
+**[Radix Sales/Development Team]**
+*Email: info@radix.io*
+*Website: https://radix.io*
