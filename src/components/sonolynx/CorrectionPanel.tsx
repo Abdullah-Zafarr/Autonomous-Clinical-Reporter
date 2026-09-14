@@ -213,14 +213,14 @@ export function CorrectionPanel({
           {hasOpen ? (
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
           ) : hasReceived ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-700" />
           ) : (
-            <History className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+            <History className="h-3.5 w-3.5 shrink-0 text-slate-500" />
           )}
           <div className="flex flex-wrap items-baseline gap-1.5 min-w-0">
             <h3 className={cn(
               "text-xs font-semibold truncate",
-              hasOpen ? "text-amber-950 font-bold" : hasReceived ? "text-blue-950 font-bold" : "text-slate-800"
+              hasOpen ? "text-amber-950 font-bold" : hasReceived ? "text-slate-900 font-bold" : "text-slate-800"
             )}>
               {hasReceived
                 ? `${resolvedReceivedCorrections.length} correction${
@@ -236,7 +236,7 @@ export function CorrectionPanel({
             </h3>
             <span className={cn(
               "text-[11px] transition-colors",
-              hasReceived ? "text-blue-700/80 group-hover:text-blue-900" : "text-slate-500 group-hover:text-blue-700"
+              hasReceived ? "text-slate-600 group-hover:text-slate-900" : "text-slate-500 group-hover:text-slate-800"
             )}>
               · {isExpanded ? "Click to collapse" : "Click to view correction"}
             </span>
@@ -264,8 +264,8 @@ export function CorrectionPanel({
           )}
           <ChevronDown
             className={cn(
-              "h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-transform duration-200",
-              isExpanded && "rotate-180 text-blue-600",
+              "h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-200",
+              isExpanded && "rotate-180 text-slate-600",
             )}
           />
         </div>
@@ -273,7 +273,7 @@ export function CorrectionPanel({
 
       {/* Expanded view */}
       {isExpanded && (
-        <div className="px-3 pb-3 pt-2 space-y-3 border-t border-blue-100/80">
+        <div className="px-3 pb-3 pt-2 space-y-3 border-t border-slate-200/80">
           {/* Active corrections */}
           {activeCorrections.length > 0 ? (
             <div className="space-y-2">
@@ -285,7 +285,7 @@ export function CorrectionPanel({
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
                       {item.status === "resolved" ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-700" />
                       ) : (
                         <CornerDownLeft className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                       )}
@@ -318,7 +318,7 @@ export function CorrectionPanel({
                           onClick={() => handleAccept(item.id)}
                           title="Accept correction & archive to history"
                           aria-label={`Accept correction for ${item.fieldLabel}`}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-blue-200 bg-blue-50/80 text-blue-700 shadow-2xs transition-all hover:scale-110 hover:border-blue-600 hover:bg-blue-600 hover:text-white active:scale-95 cursor-pointer"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-2xs transition-all hover:scale-110 hover:border-slate-800 hover:bg-slate-900 hover:text-white active:scale-95 cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                         </button>
