@@ -166,9 +166,9 @@ export function WorkflowProgress({
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium border transition-colors whitespace-nowrap",
                 current
-                  ? "border-primary/50 bg-primary/10 text-primary font-semibold shadow-xs"
+                  ? "border-black bg-slate-100 text-slate-900 font-semibold shadow-xs"
                   : step.complete
-                    ? "border-primary/20 bg-primary/5 text-foreground"
+                    ? "border-slate-300 bg-slate-50 text-slate-800 font-medium"
                     : "border-border/60 bg-muted/20 text-muted-foreground"
               )}
               title={`${step.label}: ${step.detail}${validTime ? ` (${new Date(validTime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })})` : ""}`}
@@ -176,7 +176,11 @@ export function WorkflowProgress({
               <Icon
                 className={cn(
                   "h-3 w-3 shrink-0",
-                  current || step.complete ? "text-primary" : "text-muted-foreground/60"
+                  current
+                    ? "text-black"
+                    : step.complete
+                      ? "text-slate-700"
+                      : "text-muted-foreground/60"
                 )}
               />
               <span>{step.label}</span>
@@ -192,7 +196,7 @@ export function WorkflowProgress({
         </ol>
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0 text-xs">
-          <span role="status" className="whitespace-nowrap text-[11px] font-medium text-primary">
+          <span role="status" className="whitespace-nowrap text-[11px] font-medium text-slate-700">
             {!studyId
               ? "Select a study"
               : error
