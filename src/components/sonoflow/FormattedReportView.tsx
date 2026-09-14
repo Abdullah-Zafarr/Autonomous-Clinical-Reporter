@@ -181,17 +181,17 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
         const isFindings = titleUpper.includes("FINDING");
         const isRecommendations = titleUpper.includes("RECOMMEND");
 
-        // IMPRESSION: Core clinical conclusion. Medical blue accent with left bar.
+        // IMPRESSION: Core clinical conclusion. Clean neutral card, black heading, blue numbered pills.
         if (isImpression) {
           return (
             <section
               key={sIdx}
-              className="rounded-lg border border-primary/20 bg-primary/[0.03] dark:bg-primary/[0.06] p-4 space-y-3 border-l-4 border-l-primary shadow-2xs"
+              className="rounded-lg border border-border/80 bg-card p-4 space-y-3 shadow-2xs"
             >
               {section.title && (
-                <div className="flex items-center gap-2 border-b border-primary/15 pb-2">
-                  <ClipboardCheck className="h-4 w-4 text-primary shrink-0" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+                  <ClipboardCheck className="h-4 w-4 text-foreground shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
                     {section.title}
                   </h3>
                 </div>
@@ -203,7 +203,7 @@ export function FormattedReportView({ text, className, onClick, title }: Formatt
                   if (item.type === "numbered") {
                     return (
                       <div key={iIdx} className="flex items-start gap-2.5 py-1 text-sm leading-relaxed">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary font-bold text-xs mt-0.5 select-none">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 font-bold text-xs mt-0.5 select-none">
                           {cleanNumber}
                         </span>
                         <span className="flex-1 font-medium text-foreground">
