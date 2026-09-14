@@ -13,11 +13,11 @@ export interface ReportTemplate {
 }
 
 const DEFAULT_PRESETS: ReportTemplate[] = [
-  { id: "std", name: "Standard Clinical", description: "Standard clinical report", content_structure: "", is_system: true },
-  { id: "fast", name: "Emergency/FAST Focus", description: "Focused assessment", content_structure: "", is_system: true },
-  { id: "exec", name: "Executive Summary", description: "Concise summary", content_structure: "", is_system: true },
-  { id: "point", name: "Point Form", description: "Bullet-point structure", content_structure: "", is_system: true },
-  { id: "detail", name: "Research/Detailed", description: "Detailed anatomical survey", content_structure: "", is_system: true },
+  { id: "std", name: "Standard Clinical", description: "Standard comprehensive report format", content_structure: "", is_system: true },
+  { id: "fast", name: "Emergency/FAST Focus", description: "Focused trauma/emergency assessment", content_structure: "", is_system: true },
+  { id: "exec", name: "Executive Summary", description: "High-level summary for rounds & referrers", content_structure: "", is_system: true },
+  { id: "point", name: "Point Form", description: "Bulleted outline for rapid review", content_structure: "", is_system: true },
+  { id: "detail", name: "Research/Detailed", description: "Full anatomical survey with all parameters", content_structure: "", is_system: true },
 ];
 
 interface TemplateSelectorProps {
@@ -65,8 +65,8 @@ export function TemplateSelector({ category, onSelect, selectedId }: TemplateSel
   }, [fetchTemplates]);
 
   return (
-    <div className="flex items-center gap-2">
-      <Layout className="h-3.5 w-3.5 text-muted-foreground" />
+    <div className="flex items-center gap-1.5">
+      <Layout className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       <Select 
         value={selectedId || DEFAULT_PRESETS[0].id} 
         onValueChange={(id) => {
@@ -74,27 +74,41 @@ export function TemplateSelector({ category, onSelect, selectedId }: TemplateSel
           if (t) onSelect(t);
         }}
       >
-        <SelectTrigger className="h-7 w-[170px] text-xs" aria-label="Select report template">
+        <SelectTrigger 
+          className="h-7 w-auto min-w-[170px] max-w-[210px] text-xs font-medium text-foreground bg-background px-2.5 shadow-2xs gap-1.5" 
+          aria-label="Select report template preset"
+        >
           <SelectValue placeholder="Select template..." />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="min-w-[240px]">
           {templates.map((t) => (
-            <SelectItem key={t.id} value={t.id} className="text-xs">
-              <div className="flex flex-col">
-                <span className="font-medium">{t.name}</span>
-                {t.is_system && <span className="text-[10px] text-muted-foreground opacity-70">System Preset</span>}
+            <SelectItem key={t.id} value={t.id} textValue={t.name} className="text-xs cursor-pointer py-1.5">
+              <div className="flex items-center justify-between w-full gap-2 min-w-0">
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className="font-semibold text-foreground truncate">{t.name}</span>
+                  {t.description && (
+                    <span className="text-[10px] text-muted-foreground truncate leading-tight">
+                      {t.description}
+                    </span>
+                  )}
+                </div>
+                {t.is_system && (
+                  <span className="shrink-0 text-[9px] font-medium text-muted-foreground bg-muted border border-border/60 px-1.5 py-0.5 rounded">
+                    Preset
+                  </span>
+                )}
               </div>
             </SelectItem>
           ))}
           <SelectSeparator />
           <div 
-            className="flex cursor-pointer items-center gap-2 p-2 text-[10px] font-medium text-primary hover:bg-muted"
+            className="flex cursor-pointer items-center gap-2 p-2 text-[11px] font-medium text-primary hover:bg-muted rounded-sm transition-colors"
             onClick={(e) => {
               e.preventDefault();
               setEditorOpen(true);
             }}
           >
-            <Plus className="h-3 w-3" />
+            <Plus className="h-3.5 w-3.5" />
             Create New Template
           </div>
         </SelectContent>
