@@ -65,7 +65,7 @@ const normalizeCorrections = (value: unknown): WorksheetCorrection[] => {
     typeof item.fieldPath === "string" &&
     typeof item.fieldLabel === "string" &&
     typeof item.comment === "string" &&
-    (item.status === "open" || item.status === "resolved"),
+    (item.status === "open" || item.status === "resolved" || item.status === "accepted" || item.status === "dismissed" || item.status === "archived"),
   );
 };
 

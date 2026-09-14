@@ -7,7 +7,7 @@ export interface KeyReportImage {
   createdBy: string;
 }
 
-export type CorrectionStatus = "open" | "resolved";
+export type CorrectionStatus = "open" | "resolved" | "accepted" | "dismissed" | "archived";
 
 export interface WorksheetCorrection {
   id: string;
@@ -20,6 +20,7 @@ export interface WorksheetCorrection {
   resolvedBy?: string;
   resolvedAt?: string;
   resolutionNote?: string;
+  archived?: boolean;
 }
 
 export interface CorrectionFieldOption {
