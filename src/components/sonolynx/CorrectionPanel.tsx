@@ -280,7 +280,7 @@ export function CorrectionPanel({
               {activeCorrections.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-lg border border-blue-100/90 bg-white p-2.5 shadow-2xs transition-all hover:border-blue-200"
+                  className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs transition-all hover:border-slate-300"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -295,7 +295,7 @@ export function CorrectionPanel({
                           {item.status === "resolved" && (
                             <Badge
                               variant="outline"
-                              className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 font-medium"
+                              className="text-[10px] bg-slate-100 text-slate-700 border-slate-200 font-medium"
                             >
                               Resolved by sonographer
                             </Badge>
@@ -303,8 +303,8 @@ export function CorrectionPanel({
                         </div>
                         <p className="mt-0.5 text-xs text-slate-700">{item.comment}</p>
                         {item.status === "resolved" && (
-                          <div className="mt-1.5 rounded-md bg-blue-50/60 border border-blue-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
-                            <span className="font-semibold text-blue-900">Resolved:</span> {item.resolutionNote || "Corrected in worksheet"}
+                          <div className="mt-1.5 rounded-md bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                            <span className="font-semibold text-slate-900">Resolved:</span> {item.resolutionNote || "Corrected in worksheet"}
                           </div>
                         )}
                       </div>
