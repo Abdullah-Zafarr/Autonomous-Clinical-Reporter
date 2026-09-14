@@ -586,6 +586,15 @@ export default function RadixApp() {
     }, 12000);
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // If user is intentionally logging out or explicitly signed out, never block navigation
+      if (
+        (typeof window !== "undefined" && (window as any).__radix_is_logging_out) ||
+        sessionStorage.getItem("radix_signed_out") === "true" ||
+        localStorage.getItem("radix_signed_out") === "true"
+      ) {
+        return;
+      }
+
       if (patient?.id) {
         performAutoBackup("beforeunload");
       }
@@ -595,10 +604,17 @@ export default function RadixApp() {
       }
     };
 
+    const handleLogoutEvent = () => {
+      setIsDirty(false);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("radix:logout", handleLogoutEvent);
     return () => {
       clearInterval(heartbeat);
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("radix:logout", handleLogoutEvent);
     };
   }, [
     patient?.id,

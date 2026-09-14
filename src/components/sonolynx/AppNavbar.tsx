@@ -47,6 +47,12 @@ export function AppNavbar({ onPatientRegistered }: AppNavbarProps = {}) {
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== "undefined") {
+        (window as any).__radix_is_logging_out = true;
+        sessionStorage.setItem("radix_signed_out", "true");
+        localStorage.setItem("radix_signed_out", "true");
+        window.dispatchEvent(new CustomEvent("radix:logout"));
+      }
       await signOut();
       toast.success("Signed out");
     } finally {

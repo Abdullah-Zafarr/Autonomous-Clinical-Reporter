@@ -184,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSignedOutExplicitly(false);
     if (typeof window !== "undefined") {
       try {
+        (window as any).__radix_is_logging_out = false;
         sessionStorage.removeItem("radix_signed_out");
         localStorage.removeItem("radix_signed_out");
       } catch {}
@@ -241,8 +242,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSignedOutExplicitly(true);
     if (typeof window !== "undefined") {
       try {
+        (window as any).__radix_is_logging_out = true;
         sessionStorage.setItem("radix_signed_out", "true");
         localStorage.setItem("radix_signed_out", "true");
+        window.dispatchEvent(new CustomEvent("radix:logout"));
         if (uid) {
           localStorage.removeItem(`sonolynx_role_${uid}`);
           localStorage.removeItem(`sonolynx_profile_${uid}`);
