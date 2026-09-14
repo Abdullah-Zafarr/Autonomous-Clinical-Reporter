@@ -117,10 +117,25 @@ export function saveSessionBackup(backup: Omit<SessionBackup, "backupId" | "save
       const existing = getAllSessionBackups(backup.patientId);
       // Avoid rapid-fire duplicates saved within 3 seconds with identical content
       const filtered = existing.filter((b) => Math.abs(b.savedAt - now) > 3000);
-      const updatedList = [snapshotToStore, ...filtered].slice(0, 15);
+      const updatedList = [snapshotToStore, ...filtered].slice(0, 10);
       localStorage.setItem(getBackupListStorageKey(backup.patientId), JSON.stringify(updatedList));
     } catch (listErr) {
-      console.warn("Could not write to backup history list:", listErr);
+      // If quota exceeded, strip large base64 dataUrl from history snapshots and keep fewer items
+      try {
+        const existing = getAllSessionBackups(backup.patientId);
+        const filtered = existing.filter((b) => Math.abs(b.savedAt - now) > 3000);
+        const lightweightList = [snapshotToStore, ...filtered].slice(0, 6).map((item, idx) => ({
+          ...item,
+          keyImages: item.keyImages.map((img) => ({
+            ...img,
+            // Keep dataUrl for the newest, strip for older to avoid quota exhaustion
+            dataUrl: idx === 0 ? (img.dataUrl.length > 50000 ? "" : img.dataUrl) : "",
+          })),
+        }));
+        localStorage.setItem(getBackupListStorageKey(backup.patientId), JSON.stringify(lightweightList));
+      } catch (compactErr) {
+        console.warn("Could not write to backup history list even after compaction:", compactErr);
+      }
     }
   };
 
