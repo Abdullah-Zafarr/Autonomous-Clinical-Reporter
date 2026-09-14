@@ -164,17 +164,30 @@ export default function AdminDashboard() {
   const [hl7Rows, setHl7Rows] = useState<HL7Row[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth>(defaultSystemHealth);
 
-  const [cachedMetrics] = useState<CachedAdminMetrics | null>(() => getCachedAdminMetrics());
+  const [totalPatients, setTotalPatients] = useState<number>(0);
+  const [totalStudies, setTotalStudies] = useState<number>(0);
+  const [draftWorksheets, setDraftWorksheets] = useState<number>(0);
+  const [signedReports, setSignedReports] = useState<number>(0);
+  const [transmittedReports, setTransmittedReports] = useState<number>(0);
+  const [failedHl7, setFailedHl7] = useState<number>(0);
+  const [hl7SuccessRate, setHl7SuccessRate] = useState<number>(100);
+  const [cachedStaffCount, setCachedStaffCount] = useState<number>(0);
+  const [cachedAdminCount, setCachedAdminCount] = useState<number>(0);
 
-  const [totalPatients, setTotalPatients] = useState<number>(() => cachedMetrics?.totalPatients ?? 0);
-  const [totalStudies, setTotalStudies] = useState<number>(() => cachedMetrics?.totalStudies ?? 0);
-  const [draftWorksheets, setDraftWorksheets] = useState<number>(() => cachedMetrics?.draftWorksheets ?? 0);
-  const [signedReports, setSignedReports] = useState<number>(() => cachedMetrics?.signedReports ?? 0);
-  const [transmittedReports, setTransmittedReports] = useState<number>(() => cachedMetrics?.transmittedReports ?? 0);
-  const [failedHl7, setFailedHl7] = useState<number>(() => cachedMetrics?.failedHl7 ?? 0);
-  const [hl7SuccessRate, setHl7SuccessRate] = useState<number>(() => cachedMetrics?.hl7SuccessRate ?? 100);
-  const [cachedStaffCount, setCachedStaffCount] = useState<number>(() => cachedMetrics?.staffCount ?? 0);
-  const [cachedAdminCount, setCachedAdminCount] = useState<number>(() => cachedMetrics?.adminCount ?? 0);
+  useEffect(() => {
+    const cached = getCachedAdminMetrics();
+    if (cached) {
+      setTotalPatients(cached.totalPatients);
+      setTotalStudies(cached.totalStudies);
+      setDraftWorksheets(cached.draftWorksheets);
+      setSignedReports(cached.signedReports);
+      setTransmittedReports(cached.transmittedReports);
+      setFailedHl7(cached.failedHl7);
+      setHl7SuccessRate(cached.hl7SuccessRate);
+      setCachedStaffCount(cached.staffCount);
+      setCachedAdminCount(cached.adminCount);
+    }
+  }, []);
 
   const [lastActivityByUser, setLastActivityByUser] = useState<Record<string, string>>({});
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -719,8 +732,8 @@ export default function AdminDashboard() {
             
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Staff Usage ({staff.length > 0 ? staff.length : cachedStaffCount} / {tierLimits.maxStaff === Infinity ? "∞" : tierLimits.maxStaff})</span>
-                <span className="font-medium">{Math.round(((staff.length > 0 ? staff.length : cachedStaffCount) / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100)}%</span>
+                <span className="text-muted-foreground" suppressHydrationWarning>Staff Usage ({staff.length > 0 ? staff.length : cachedStaffCount} / {tierLimits.maxStaff === Infinity ? "∞" : tierLimits.maxStaff})</span>
+                <span className="font-medium" suppressHydrationWarning>{Math.round(((staff.length > 0 ? staff.length : cachedStaffCount) / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100)}%</span>
               </div>
               <Progress value={((staff.length > 0 ? staff.length : cachedStaffCount) / (tierLimits.maxStaff === Infinity ? 100 : tierLimits.maxStaff)) * 100} className="h-1.5" />
               <p className="text-[11px] text-muted-foreground italic">
@@ -1210,7 +1223,7 @@ function MetricCard({
         <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
         <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${colorMap[accent]}`}>{icon}</div>
       </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight">{value}</div>
+      <div className="mt-3 text-3xl font-bold tracking-tight" suppressHydrationWarning>{value}</div>
     </Card>
   );
 }
