@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { workflowProgress, type WorkflowSnapshot } from "@/lib/workflow-progress";
 import { getCurrentUserOrganizationId } from "@/lib/org-scope";
 
+// Clinical case progress timeline stages
 const icons = [ClipboardList, Eye, PenLine, Send];
 export function WorkflowProgress({
   studyId,
