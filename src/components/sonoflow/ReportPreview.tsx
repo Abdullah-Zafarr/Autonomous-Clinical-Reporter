@@ -112,12 +112,12 @@ export function ReportPreview({
                 {showAiTools && <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 px-2.5 text-xs font-semibold text-blue-600 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 gap-1.5 transition-all shadow-xs"
+                  className="h-7 px-2.5 text-xs font-medium tracking-wide gap-1.5"
                   onClick={() => setAiAssistantOpen(true)}
                   disabled={busy}
                   title="Draft or enhance report with AI Clinical Assistant"
                 >
-                  <AiDrafterIcon className="h-3.5 w-3.5 text-blue-600" />
+                  <AiDrafterIcon className="h-3.5 w-3.5" />
                   AI Drafter
                 </Button>}
                 <Button
