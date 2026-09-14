@@ -129,8 +129,7 @@ export function WorkflowProgress({
     <section
       aria-label="Case progress"
       className={cn(
-        "shrink-0 border-b bg-card px-3 sm:px-4 py-1",
-        compact && "min-w-0 flex-1 border-t py-1 xl:border-t-0 xl:flex xl:items-center xl:gap-3",
+        "shrink-0 border-b bg-card px-3 sm:px-4 py-1 w-full",
         className
       )}
     >
