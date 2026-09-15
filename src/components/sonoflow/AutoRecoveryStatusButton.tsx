@@ -733,7 +733,7 @@ export function AutoRecoveryStatusButton({
                       return (
                         <div
                           key={backup.backupId}
-                          className="rounded-lg border-2 border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20 p-3.5 space-y-3 shadow-xs"
+                          className="rounded-lg border-2 border-black dark:border-white bg-slate-50/50 dark:bg-slate-900/30 p-3.5 space-y-3 shadow-xs"
                         >
                           <div className="flex items-start gap-2.5">
                             <RotateCcw className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
@@ -747,7 +747,7 @@ export function AutoRecoveryStatusButton({
                               </p>
 
                               {/* Clinical Readings Being Restored */}
-                              <div className="rounded-md border border-blue-200/80 dark:border-blue-900/60 bg-white/95 dark:bg-slate-900/90 p-2.5 space-y-2 mt-2 shadow-2xs">
+                              <div className="rounded-md border border-border/80 dark:border-border bg-white dark:bg-slate-900/90 p-2.5 space-y-2 mt-2 shadow-2xs">
                                 <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center justify-between">
                                   <span className="flex items-center gap-1.5">
                                     <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
