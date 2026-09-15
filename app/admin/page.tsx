@@ -668,6 +668,50 @@ export default function AdminDashboard() {
     }
   };
 
+  const [clearingHl7, setClearingHl7] = useState(false);
+
+  const handleClearFailedHl7 = async () => {
+    setClearingHl7(true);
+    try {
+      const typedSupabase = supabase;
+      const {
+        data: { session },
+      } = await typedSupabase.auth.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch("/api/admin/clear-failed-hl7", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ organizationId }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || "Failed to clear failed HL7 records");
+      }
+
+      toast.success("Failed HL7 messages cleared", {
+        description: `Removed ${result.deletedCount || 0} failed message record(s).`,
+      });
+
+      setFailedHl7(0);
+      setHl7Rows((prev) => prev.filter((r) => r.status !== "failed"));
+      loadAll();
+    } catch (error) {
+      toast.error("Failed to clear messages", {
+        description: error instanceof Error ? error.message : "Unexpected error",
+      });
+    } finally {
+      setClearingHl7(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppNavbar />
@@ -770,7 +814,12 @@ export default function AdminDashboard() {
           <MetricCard label="Draft Worksheets" value={String(draftWorksheets)} icon={<Activity className="h-5 w-5" />} accent="amber" />
           <MetricCard label="Signed Reports" value={String(signedReports)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
           <MetricCard label="Transmitted Reports" value={String(transmittedReports)} icon={<CheckCircle2 className="h-5 w-5" />} accent="emerald" />
-          <MetricCard label="Failed HL7 Messages" value={String(failedHl7)} icon={<AlertTriangle className="h-5 w-5" />} accent="rose" />
+          <MetricCard
+            label="Failed HL7 Messages"
+            value={String(failedHl7)}
+            icon={failedHl7 > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+            accent={failedHl7 > 0 ? "rose" : "emerald"}
+          />
         </div>
 
         <Tabs defaultValue="staff" className="space-y-4">
@@ -961,9 +1010,23 @@ export default function AdminDashboard() {
 
           <TabsContent value="hl7" className="space-y-4">
             <Card className="overflow-hidden">
-              <div className="border-b p-4">
-                <h2 className="text-sm font-semibold">HL7 Operations Monitor</h2>
-                <p className="text-xs text-muted-foreground">Recent messages with delivery status and error visibility.</p>
+              <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold">HL7 Operations Monitor</h2>
+                  <p className="text-xs text-muted-foreground">Recent messages with delivery status and error visibility.</p>
+                </div>
+                {failedHl7 > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={clearingHl7}
+                    className="text-rose-600 hover:text-rose-700 border-rose-200 gap-1.5 self-start md:self-auto"
+                    onClick={handleClearFailedHl7}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {clearingHl7 ? "Clearing..." : `Clear Failed Messages (${failedHl7})`}
+                  </Button>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <Table>
