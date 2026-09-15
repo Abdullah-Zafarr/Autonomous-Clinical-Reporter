@@ -202,7 +202,7 @@ export function DicomViewer({
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, startPanX: 0, startPanY: 0 });
   const [fullscreenModalOpen, setFullscreenModalOpen] = useState(false);
-  const [eyeFadeEnabled, setEyeFadeEnabled] = useState(true);
+  const [eyeFadeEnabled, setEyeFadeEnabled] = useState(false);
 
   const currentSelectedId = selectedKeyImageId !== undefined ? selectedKeyImageId : internalSelectedKeyImageId;
 
@@ -845,19 +845,30 @@ export function DicomViewer({
       const trimmedCaption = caption.trim();
       if (stampNoteOnImage && trimmedCaption) {
         context.save();
-        const fontSize = Math.max(14, Math.round(canvas.width / 45));
+        const maxBadgeW = canvas.width - 32;
+        let fontSize = Math.max(13, Math.round(canvas.width / 45));
         context.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-        const metrics = context.measureText(trimmedCaption);
+        let metrics = context.measureText(trimmedCaption);
+
+        // Auto-scale font down if caption is long so it never cuts off or overflows the canvas
+        while (metrics.width + Math.round(fontSize * 1.6) + Math.max(3, Math.round(fontSize * 0.22)) * 2 + 12 > maxBadgeW && fontSize > 10) {
+          fontSize -= 1;
+          context.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+          metrics = context.measureText(trimmedCaption);
+        }
+
         const padX = Math.round(fontSize * 0.8);
         const padY = Math.round(fontSize * 0.45);
         const dotRadius = Math.max(3, Math.round(fontSize * 0.22));
         const badgeH = fontSize + padY * 2;
-        const badgeW = metrics.width + padX * 2 + dotRadius * 2 + 8;
-        const posX = 16;
-        const posY = canvas.height - badgeH - 16;
+        const badgeW = Math.min(maxBadgeW, metrics.width + padX * 2 + dotRadius * 2 + 8);
+        
+        // Center the badge horizontally so it is always prominently visible and never stuck in cut-off corners
+        const posX = Math.max(16, Math.round((canvas.width - badgeW) / 2));
+        const posY = Math.max(16, canvas.height - badgeH - Math.max(20, Math.round(canvas.height * 0.04)));
 
-        context.fillStyle = "rgba(2, 6, 23, 0.88)";
-        context.strokeStyle = "rgba(239, 68, 68, 0.75)";
+        context.fillStyle = "rgba(2, 6, 23, 0.90)";
+        context.strokeStyle = "rgba(239, 68, 68, 0.85)";
         context.lineWidth = 1.5;
         context.beginPath();
         context.roundRect(posX, posY, badgeW, badgeH, Math.round(badgeH / 2));
@@ -1079,8 +1090,6 @@ export function DicomViewer({
                 transform: `scale(${imageZoom}) translate(${panPosition.x / imageZoom}px, ${panPosition.y / imageZoom}px)`,
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
                 cursor: imageZoom > 1 ? (isPanning ? "grabbing" : "grab") : "zoom-in",
-                WebkitMaskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
-                maskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
               }}
               onClick={() => {
                 if (imageZoom === 1) {
@@ -1094,9 +1103,9 @@ export function DicomViewer({
 
             {/* Floating top bar with caption and controls */}
             <div className="pointer-events-none absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 rounded-md bg-black/85 px-2.5 py-1 text-xs text-white backdrop-blur-md border border-slate-700 shadow-md">
-                <span className="h-2 w-2 rounded-full bg-blue-400" />
-                <span className="font-medium text-slate-100 truncate max-w-[200px]">{activeKeyImage.caption}</span>
+              <div className="flex items-center gap-2 rounded-md bg-black/85 px-2.5 py-1 text-xs text-white backdrop-blur-md border border-slate-700 shadow-md max-w-[calc(100%-180px)]">
+                <span className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+                <span className="font-medium text-slate-100 truncate" title={activeKeyImage.caption}>{activeKeyImage.caption}</span>
                 <span className="text-slate-400 text-[11px] shrink-0">
                   · Image {activeKeyImageIndex + 1} of {keyImages.length}
                 </span>
@@ -1446,6 +1455,12 @@ export function DicomViewer({
                   onPointerUp={stopDrawing}
                   onPointerCancel={stopDrawing}
                 />
+                {stampNoteOnImage && caption.trim() && (
+                  <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 z-10 max-w-[90%] flex items-center gap-1.5 rounded-full border border-red-500/80 bg-slate-950/90 px-3 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur-xs truncate">
+                    <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+                    <span className="truncate">{caption.trim()}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1583,10 +1598,6 @@ export function DicomViewer({
                 src={activeKeyImage.dataUrl}
                 alt={activeKeyImage.caption}
                 className="max-h-full max-w-full object-contain rounded select-none"
-                style={{
-                  WebkitMaskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
-                  maskImage: eyeFadeEnabled ? EYE_FADE_MASK : undefined,
-                }}
               />
             )}
           </div>
