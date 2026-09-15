@@ -753,7 +753,7 @@ export function AutoRecoveryStatusButton({
                                     <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                     Exact Readings in this Snapshot:
                                   </span>
-                                  <Badge variant="outline" className="border-blue-200 dark:border-blue-800 text-[10px] text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-900/40">
+                                  <Badge variant="outline" className="border-border/80 text-[10px] text-muted-foreground bg-muted/30 font-mono">
                                     {targetReadings.totalMeasurementsCount} measurement{targetReadings.totalMeasurementsCount === 1 ? "" : "s"}
                                   </Badge>
                                 </div>
@@ -774,7 +774,7 @@ export function AutoRecoveryStatusButton({
                                 )}
 
                                 {targetReadings.findings.length > 0 && (
-                                  <div className="pt-1.5 border-t border-blue-100 dark:border-blue-900/40 space-y-1">
+                                  <div className="pt-1.5 border-t border-border/60 space-y-1">
                                     <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                       Organ Findings & Observations:
                                     </span>
@@ -782,9 +782,10 @@ export function AutoRecoveryStatusButton({
                                       {targetReadings.findings.map((f, idx) => (
                                         <span
                                           key={idx}
-                                          className="text-[10px] px-1.5 py-0.5 rounded border font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                                          className="text-[10px] px-2 py-0.5 rounded border font-medium bg-slate-50 dark:bg-slate-800/80 text-foreground border-slate-200/80 dark:border-slate-700/80"
                                         >
-                                          {f.organ}: {f.finding}
+                                          <span className="text-muted-foreground font-normal">{f.organ}: </span>
+                                          <span>{f.finding}</span>
                                         </span>
                                       ))}
                                     </div>
@@ -792,7 +793,7 @@ export function AutoRecoveryStatusButton({
                                 )}
 
                                 {targetReadings.notesSnippet && (
-                                  <div className="pt-1.5 border-t border-blue-100 dark:border-blue-900/40 text-[11px] text-slate-600 dark:text-slate-300">
+                                  <div className="pt-1.5 border-t border-border/60 text-[11px] text-slate-600 dark:text-slate-300">
                                     <span className="font-semibold text-foreground">Notes: </span>
                                     <span className="italic">"{targetReadings.notesSnippet}"</span>
                                   </div>
@@ -808,7 +809,7 @@ export function AutoRecoveryStatusButton({
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-blue-100 dark:border-blue-900/40">
+                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
                             <Button
                               type="button"
                               variant="outline"
@@ -971,9 +972,10 @@ export function AutoRecoveryStatusButton({
                                     {readings.findings.map((f, idx) => (
                                       <span
                                         key={idx}
-                                        className="text-[10px] px-2 py-0.5 rounded border font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                                        className="text-[10px] px-2 py-0.5 rounded border font-medium bg-slate-50 dark:bg-slate-800/80 text-foreground border-slate-200/80 dark:border-slate-700/80"
                                       >
-                                        {f.organ}: {f.finding}
+                                        <span className="text-muted-foreground font-normal">{f.organ}: </span>
+                                        <span>{f.finding}</span>
                                       </span>
                                     ))}
                                   </div>
