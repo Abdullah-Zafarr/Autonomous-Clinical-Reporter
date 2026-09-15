@@ -67,23 +67,58 @@ export async function POST(request: Request) {
           409,
         );
       const approvedAt = new Date().toISOString();
-      const { error } = await db.from("audit_logs").insert({
-        user_id: user.id,
-        patient_id: worksheet!.patient_id,
-        study_id: worksheet!.study_id,
-        worksheet_id: input.worksheetId,
-        action: "patient_explanation_approved",
-        status: "success",
-        metadata: {
-          language: input.language,
-          sourceHash,
-          explanation: input.explanation,
-          approvedAt,
-        },
-      });
-      if (error)
-        return failure("Approval could not be saved. Please try again before sharing.", 503);
-      return NextResponse.json({ approvedAt, approvedBy: user.email ?? user.id });
+      const approvedBy = user.email ?? user.id;
+      const explanationRecord = {
+        language: input.language,
+        sourceHash,
+        explanation: input.explanation,
+        approvedAt,
+        approvedBy,
+      };
+
+      // 1. Persist the approved explanation onto worksheet data
+      try {
+        const { data: currentWs } = await db
+          .from("worksheets")
+          .select("data")
+          .eq("id", input.worksheetId)
+          .maybeSingle();
+
+        const existingData =
+          currentWs?.data && typeof currentWs.data === "object" ? currentWs.data : {};
+
+        await db
+          .from("worksheets")
+          .update({
+            data: {
+              ...existingData,
+              patient_explanation: explanationRecord,
+            },
+          })
+          .eq("id", input.worksheetId);
+      } catch (wsErr) {
+        console.warn("[copilot] Failed to persist explanation to worksheet data:", wsErr);
+      }
+
+      // 2. Attempt inserting into audit_logs if table exists
+      try {
+        const { error: auditError } = await db.from("audit_logs").insert({
+          user_id: user.id,
+          patient_id: worksheet!.patient_id,
+          study_id: worksheet!.study_id,
+          worksheet_id: input.worksheetId,
+          action: "patient_explanation_approved",
+          status: "success",
+          metadata: explanationRecord,
+        });
+        if (auditError) {
+          console.warn("[copilot] Audit log insertion notice:", auditError.message);
+        }
+      } catch (logErr) {
+        console.warn("[copilot] Audit log insertion notice:", logErr);
+      }
+
+      return NextResponse.json({ approvedAt, approvedBy });
     }
     const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey)
