@@ -2,79 +2,118 @@
 
 Radix is an enterprise clinical reporting and ultrasound worksheet workflow platform engineered for modern radiology clinics, sonographers, and reading physicians. It combines real-time smart dictation, organ-specific dynamic worksheets, ACR-guardrailed AI reporting, integrated PACS/DICOM viewing, and HL7 v2 transmission into a unified, high-performance clinical workspace.
 
+> 📺 **Video Showcase**: Watch the complete feature-by-feature demonstration series in our [YouTube Feature Walkthrough Playlist](https://www.youtube.com/watch?v=WoYt3NSF73Q&list=PLGJAsw1wY5LY).
+
+---
+
+## 🎥 Video Feature Showcase
+
+A comprehensive video playlist demonstrating each and every feature of Radix in action is available on YouTube:
+
+▶️ **[Watch the Full Radix Feature Showcase Playlist](https://www.youtube.com/watch?v=WoYt3NSF73Q&list=PLGJAsw1wY5LY)**
+
 ---
 
 ## Visual Tour & Workspace Screenshots
 
-### 1. Sonographer Clinical Workspace
-![Sonographer Clinical Workspace](assets/sonographer-panel.png)
-*Real-time smart clinical dictation with speech recognition, dynamic organ-specific worksheet controls (Liver, Gallbladder, Biliary, Kidneys, Spleen, Pancreas), and synchronized live report preview.*
-
----
-
-### 2. Doctor Clinical Review & Sign-Off
-![Doctor Clinical Review](assets/doctor-panel.png)
-*Reading physician review interface featuring longitudinal Case Progress tracking, field-level correction request notifications, AI report enhancement tools, digital sign-off controls, and attached DICOM imaging.*
-
----
-
-### 3. AI Clinical Report Drafter
-![AI Clinical Report Drafter](assets/ai-report-drafter.png)
-*Physician scribe assistant with instant clinical presets (+ Normal Abdomen, + Cholelithiasis, + Normal Thyroid, + Renal / Kidneys), hands-free voice dictation, and strict ACR radiology guardrails.*
-
----
-
-### 4. Conversational AI Report Editing
-![Conversational Report Editing with AI](assets/edit-report-with-ai.png)
-*Interactive report refinement allowing physicians to request wording changes, condense impressions, re-order anatomical sections, and preview diffs before applying them to drafts.*
-
----
-
-### 5. Multilingual Patient-Friendly Explanations
-![Patient-Friendly Explanation](assets/patient-friendly-explanation.png)
-*Clinician-reviewed translations and simplified explanations of signed reports in English, Urdu, Arabic, and Spanish, featuring right-to-left typography and mandatory clinician approval before sharing.*
-
----
-
-### 6. High-Resolution DICOM & PACS Viewer
-![Integrated DICOM Viewer](assets/dicom-viewer.png)
-*High-resolution medical imaging viewer with window/level presets, pan, zoom, freehand drawing highlights, and key frame attachment directly into final reports.*
-
----
-
-### 7. Standardized Report Formats & PDF Export
-![Report Formats and PDF Export](assets/premade-report-formats.png)
-*A4 clinical report preview supporting customizable design presets (The Modernist, The Formalist, The Academic, The Minimalist, The Executive, The Standard, The Paediatric) with instant print and vector PDF download.*
-
----
-
-### 8. Patient Intake & Study Ordering
-![Register New Patient and Order Study](assets/register-patient.png)
-*Standardized patient registration modal capturing demographics, Medicare / MRN identifiers, study modalities, referring physician information, and clinical indications.*
-
----
-
-### 9. Daily Summary & Clinical Worklist
-![Daily Summary and Patient Worklist](assets/patient-list.png)
-*Clinic worklist drawer displaying scheduled, in-progress, and completed studies alongside fast search by patient name, MRN, or accession number.*
-
----
-
-### 10. Workstation Settings & Clinical Preferences
-![Clinical Settings and Preferences](assets/preferences-and-settings.png)
-*Comprehensive workstation customization including measurement unit toggles (Metric vs Imperial), default report styling, scan markup highlighter colors, and auto-scrolling findings.*
-
----
-
-### 11. Administrative Dashboard & Operational Governance
-![Admin Dashboard](assets/admin-panel.png)
-*Operational governance console tracking clinic-wide metrics (Total Patients, Studies, Signed Reports, HL7 Messages), staff directory role controls, subscription tiers, and system health.*
-
----
-
-### 12. Secure Clinician Authentication Gateway
-![Clinician Login Gateway](assets/login.png)
-*HIPAA-compliant, role-gated authentication gateway protecting clinic data and private health records.*
+<table width="100%">
+  <tr>
+    <th width="50%">1. Sonographer Clinical Workspace</th>
+    <th width="50%">2. Doctor Clinical Review & Sign-Off</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/sonographer-panel.png"><img src="assets/sonographer-panel.png" alt="Sonographer Clinical Workspace" width="100%" /></a>
+      <br />
+      <em>Real-time smart clinical dictation with speech recognition, dynamic organ-specific worksheet controls (Liver, Gallbladder, Biliary, Kidneys, Spleen, Pancreas), and synchronized live report preview.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/doctor-panel.png"><img src="assets/doctor-panel.png" alt="Doctor Clinical Review" width="100%" /></a>
+      <br />
+      <em>Reading physician review interface featuring longitudinal Case Progress tracking, field-level correction request notifications, AI report enhancement tools, digital sign-off controls, and attached DICOM imaging.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">3. AI Clinical Report Drafter</th>
+    <th width="50%">4. Conversational AI Report Editing</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/ai-report-drafter.png"><img src="assets/ai-report-drafter.png" alt="AI Clinical Report Drafter" width="100%" /></a>
+      <br />
+      <em>Physician scribe assistant with instant clinical presets (+ Normal Abdomen, + Cholelithiasis, + Normal Thyroid, + Renal / Kidneys), hands-free voice dictation, and strict ACR radiology guardrails.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/edit-report-with-ai.png"><img src="assets/edit-report-with-ai.png" alt="Conversational Report Editing with AI" width="100%" /></a>
+      <br />
+      <em>Interactive report refinement allowing physicians to request wording changes, condense impressions, re-order anatomical sections, and preview diffs before applying them to drafts.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">5. Multilingual Patient-Friendly Explanations</th>
+    <th width="50%">6. High-Resolution DICOM & PACS Viewer</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/patient-friendly-explanation.png"><img src="assets/patient-friendly-explanation.png" alt="Patient-Friendly Explanation" width="100%" /></a>
+      <br />
+      <em>Clinician-reviewed translations and simplified explanations of signed reports in English, Urdu, Arabic, and Spanish, featuring right-to-left typography and mandatory clinician approval before sharing.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/dicom-viewer.png"><img src="assets/dicom-viewer.png" alt="Integrated DICOM Viewer" width="100%" /></a>
+      <br />
+      <em>High-resolution medical imaging viewer with window/level presets, pan, zoom, freehand drawing highlights, and key frame attachment directly into final reports.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">7. Standardized Report Formats & PDF Export</th>
+    <th width="50%">8. Patient Intake & Study Ordering</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/premade-report-formats.png"><img src="assets/premade-report-formats.png" alt="Report Formats and PDF Export" width="100%" /></a>
+      <br />
+      <em>A4 clinical report preview supporting customizable design presets (The Modernist, The Formalist, The Academic, The Minimalist, The Executive, The Standard, The Paediatric) with instant print and vector PDF download.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/register-patient.png"><img src="assets/register-patient.png" alt="Register New Patient and Order Study" width="100%" /></a>
+      <br />
+      <em>Standardized patient registration modal capturing demographics, Medicare / MRN identifiers, study modalities, referring physician information, and clinical indications.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">9. Daily Summary & Clinical Worklist</th>
+    <th width="50%">10. Workstation Settings & Clinical Preferences</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/patient-list.png"><img src="assets/patient-list.png" alt="Daily Summary and Patient Worklist" width="100%" /></a>
+      <br />
+      <em>Clinic worklist drawer displaying scheduled, in-progress, and completed studies alongside fast search by patient name, MRN, or accession number.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/preferences-and-settings.png"><img src="assets/preferences-and-settings.png" alt="Clinical Settings and Preferences" width="100%" /></a>
+      <br />
+      <em>Comprehensive workstation customization including measurement unit toggles (Metric vs Imperial), default report styling, scan markup highlighter colors, and auto-scrolling findings.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">11. Administrative Dashboard & Operational Governance</th>
+    <th width="50%">12. Secure Clinician Authentication Gateway</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/admin-panel.png"><img src="assets/admin-panel.png" alt="Admin Dashboard" width="100%" /></a>
+      <br />
+      <em>Operational governance console tracking clinic-wide metrics (Total Patients, Studies, Signed Reports, HL7 Messages), staff directory role controls, subscription tiers, and system health.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/login.png"><img src="assets/login.png" alt="Clinician Login Gateway" width="100%" /></a>
+      <br />
+      <em>HIPAA-compliant, role-gated authentication gateway protecting clinic data and private health records.</em>
+    </td>
+  </tr>
+</table>
 
 ---
 
