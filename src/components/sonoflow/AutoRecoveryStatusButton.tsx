@@ -204,42 +204,42 @@ export function AutoRecoveryStatusButton({
   const renderActionBadge = (action: string) => {
     if (action.includes("sign")) {
       return (
-        <Badge className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1 text-[11px] font-semibold">
-          <BadgeCheck className="h-3 w-3" /> Doctor Signature
+        <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+          <BadgeCheck className="h-3 w-3 text-muted-foreground" /> Doctor Signature
         </Badge>
       );
     }
     if (action.includes("draft") || action.includes("worksheet")) {
       return (
-        <Badge variant="outline" className="border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 gap-1 text-[11px] font-semibold">
-          <FileText className="h-3 w-3 text-blue-500" /> Draft Saved
+        <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+          <FileText className="h-3 w-3 text-muted-foreground" /> Draft Saved
         </Badge>
       );
     }
     if (action.includes("send_to_doctor")) {
       return (
-        <Badge variant="outline" className="border-indigo-500/40 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 gap-1 text-[11px] font-semibold">
-          <Send className="h-3 w-3 text-indigo-500" /> Sent to Doctor
+        <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+          <Send className="h-3 w-3 text-muted-foreground" /> Sent to Doctor
         </Badge>
       );
     }
     if (action.includes("correction")) {
       return (
-        <Badge variant="outline" className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 gap-1 text-[11px] font-semibold">
-          <AlertCircle className="h-3 w-3 text-amber-500" /> Correction Requested
+        <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+          <AlertCircle className="h-3 w-3 text-muted-foreground" /> Correction Requested
         </Badge>
       );
     }
     if (action.includes("image")) {
       return (
-        <Badge variant="outline" className="border-purple-500/40 bg-purple-50/50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 gap-1 text-[11px] font-semibold">
-          <PenTool className="h-3 w-3 text-purple-500" /> Scan Picture Annotated
+        <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+          <PenTool className="h-3 w-3 text-muted-foreground" /> Scan Picture Annotated
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="text-[11px] font-semibold gap-1">
-        <HardDrive className="h-3 w-3 text-slate-500" /> Auto-Recovery Snapshot
+      <Badge variant="outline" className="text-[11px] font-medium gap-1 shrink-0">
+        <HardDrive className="h-3 w-3 text-muted-foreground" /> Auto-Recovery Snapshot
       </Badge>
     );
   };
@@ -475,7 +475,7 @@ export function AutoRecoveryStatusButton({
                         size="sm"
                         onClick={() => exportAuditLogsToCsv(filteredLogs, patientName)}
                         disabled={!filteredLogs.length}
-                        className="h-7 text-xs gap-1 border-blue-500/40 text-blue-700 dark:text-blue-300"
+                        className="h-7 text-xs gap-1"
                         title="Export permanent audit trail to CSV for clinic compliance"
                       >
                         <Download className="h-3 w-3" />
@@ -595,7 +595,7 @@ export function AutoRecoveryStatusButton({
                                       </span>
                                     );
                                   }
-                                  return <UserCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+                                  return <UserCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
                                 })()}
                                 <span className="font-semibold text-foreground">{entry.staffName}</span>
                                 <span className="text-muted-foreground">({entry.staffEmail})</span>
