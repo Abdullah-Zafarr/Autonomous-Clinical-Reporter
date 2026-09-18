@@ -10,7 +10,17 @@ Radix is an enterprise clinical reporting and ultrasound worksheet workflow plat
 
 A comprehensive video playlist demonstrating each and every feature of Radix in action is available on YouTube:
 
-▶️ **[Watch the Full Radix Feature Showcase Playlist](https://www.youtube.com/watch?v=WoYt3NSF73Q&list=PLGJAsw1wY5LY)**
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=WoYt3NSF73Q&list=PLGJAsw1wY5LY">
+    <img src="assets/radix-platform-walkthrough.png" alt="Radix Clinical Complete Platform Walkthrough" width="85%" />
+  </a>
+  <br />
+  <p>
+    <a href="https://www.youtube.com/watch?v=WoYt3NSF73Q&list=PLGJAsw1wY5LY">
+      ▶️ <em>Click here to see the full workflow in playlist</em>
+    </a>
+  </p>
+</div>
 
 ---
 
@@ -18,8 +28,40 @@ A comprehensive video playlist demonstrating each and every feature of Radix in 
 
 <table width="100%">
   <tr>
-    <th width="50%">1. Sonographer Clinical Workspace</th>
-    <th width="50%">2. Doctor Clinical Review & Sign-Off</th>
+    <th width="50%">1. Secure Clinician Authentication Gateway</th>
+    <th width="50%">2. Patient Intake & Study Ordering</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/login.png"><img src="assets/login.png" alt="Clinician Login Gateway" width="100%" /></a>
+      <br />
+      <em>HIPAA-compliant, role-gated authentication gateway protecting clinic data and private health records.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/register-patient.png"><img src="assets/register-patient.png" alt="Register New Patient and Order Study" width="100%" /></a>
+      <br />
+      <em>Standardized patient registration modal capturing demographics, Medicare / MRN identifiers, study modalities, referring physician information, and clinical indications.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">3. Daily Summary & Clinical Worklist</th>
+    <th width="50%">4. High-Resolution DICOM & PACS Viewer</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <a href="assets/patient-list.png"><img src="assets/patient-list.png" alt="Daily Summary and Patient Worklist" width="100%" /></a>
+      <br />
+      <em>Clinic worklist drawer displaying scheduled, in-progress, and completed studies alongside fast search by patient name, MRN, or accession number.</em>
+    </td>
+    <td valign="top">
+      <a href="assets/dicom-viewer.png"><img src="assets/dicom-viewer.png" alt="Integrated DICOM Viewer" width="100%" /></a>
+      <br />
+      <em>High-resolution medical imaging viewer with window/level presets, pan, zoom, freehand drawing highlights, and key frame attachment directly into final reports.</em>
+    </td>
+  </tr>
+  <tr>
+    <th width="50%">5. Sonographer Clinical Workspace</th>
+    <th width="50%">6. Doctor Clinical Review & Sign-Off</th>
   </tr>
   <tr>
     <td valign="top">
@@ -34,8 +76,8 @@ A comprehensive video playlist demonstrating each and every feature of Radix in 
     </td>
   </tr>
   <tr>
-    <th width="50%">3. AI Clinical Report Drafter</th>
-    <th width="50%">4. Conversational AI Report Editing</th>
+    <th width="50%">7. AI Clinical Report Drafter</th>
+    <th width="50%">8. Conversational AI Report Editing</th>
   </tr>
   <tr>
     <td valign="top">
@@ -50,24 +92,8 @@ A comprehensive video playlist demonstrating each and every feature of Radix in 
     </td>
   </tr>
   <tr>
-    <th width="50%">5. Multilingual Patient-Friendly Explanations</th>
-    <th width="50%">6. High-Resolution DICOM & PACS Viewer</th>
-  </tr>
-  <tr>
-    <td valign="top">
-      <a href="assets/patient-friendly-explanation.png"><img src="assets/patient-friendly-explanation.png" alt="Patient-Friendly Explanation" width="100%" /></a>
-      <br />
-      <em>Clinician-reviewed translations and simplified explanations of signed reports in English, Urdu, Arabic, and Spanish, featuring right-to-left typography and mandatory clinician approval before sharing.</em>
-    </td>
-    <td valign="top">
-      <a href="assets/dicom-viewer.png"><img src="assets/dicom-viewer.png" alt="Integrated DICOM Viewer" width="100%" /></a>
-      <br />
-      <em>High-resolution medical imaging viewer with window/level presets, pan, zoom, freehand drawing highlights, and key frame attachment directly into final reports.</em>
-    </td>
-  </tr>
-  <tr>
-    <th width="50%">7. Standardized Report Formats & PDF Export</th>
-    <th width="50%">8. Patient Intake & Study Ordering</th>
+    <th width="50%">9. Standardized Report Formats & PDF Export</th>
+    <th width="50%">10. Multilingual Patient-Friendly Explanations</th>
   </tr>
   <tr>
     <td valign="top">
@@ -76,41 +102,25 @@ A comprehensive video playlist demonstrating each and every feature of Radix in 
       <em>A4 clinical report preview supporting customizable design presets (The Modernist, The Formalist, The Academic, The Minimalist, The Executive, The Standard, The Paediatric) with instant print and vector PDF download.</em>
     </td>
     <td valign="top">
-      <a href="assets/register-patient.png"><img src="assets/register-patient.png" alt="Register New Patient and Order Study" width="100%" /></a>
+      <a href="assets/patient-friendly-explanation.png"><img src="assets/patient-friendly-explanation.png" alt="Patient-Friendly Explanation" width="100%" /></a>
       <br />
-      <em>Standardized patient registration modal capturing demographics, Medicare / MRN identifiers, study modalities, referring physician information, and clinical indications.</em>
+      <em>Clinician-reviewed translations and simplified explanations of signed reports in English, Urdu, Arabic, and Spanish, featuring right-to-left typography and mandatory clinician approval before sharing.</em>
     </td>
   </tr>
   <tr>
-    <th width="50%">9. Daily Summary & Clinical Worklist</th>
-    <th width="50%">10. Workstation Settings & Clinical Preferences</th>
+    <th width="50%">11. Workstation Settings & Clinical Preferences</th>
+    <th width="50%">12. Administrative Dashboard & Operational Governance</th>
   </tr>
   <tr>
-    <td valign="top">
-      <a href="assets/patient-list.png"><img src="assets/patient-list.png" alt="Daily Summary and Patient Worklist" width="100%" /></a>
-      <br />
-      <em>Clinic worklist drawer displaying scheduled, in-progress, and completed studies alongside fast search by patient name, MRN, or accession number.</em>
-    </td>
     <td valign="top">
       <a href="assets/preferences-and-settings.png"><img src="assets/preferences-and-settings.png" alt="Clinical Settings and Preferences" width="100%" /></a>
       <br />
       <em>Comprehensive workstation customization including measurement unit toggles (Metric vs Imperial), default report styling, scan markup highlighter colors, and auto-scrolling findings.</em>
     </td>
-  </tr>
-  <tr>
-    <th width="50%">11. Administrative Dashboard & Operational Governance</th>
-    <th width="50%">12. Secure Clinician Authentication Gateway</th>
-  </tr>
-  <tr>
     <td valign="top">
       <a href="assets/admin-panel.png"><img src="assets/admin-panel.png" alt="Admin Dashboard" width="100%" /></a>
       <br />
       <em>Operational governance console tracking clinic-wide metrics (Total Patients, Studies, Signed Reports, HL7 Messages), staff directory role controls, subscription tiers, and system health.</em>
-    </td>
-    <td valign="top">
-      <a href="assets/login.png"><img src="assets/login.png" alt="Clinician Login Gateway" width="100%" /></a>
-      <br />
-      <em>HIPAA-compliant, role-gated authentication gateway protecting clinic data and private health records.</em>
     </td>
   </tr>
 </table>
